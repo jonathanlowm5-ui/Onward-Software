@@ -21,6 +21,12 @@ onward-integration/backend/uploads/*
 *.sqlite
 *.db
 
+# ---- Firebase ----
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+*-debug.log
+
 # ---- Logs ----
 *.log
 npm-debug.log*

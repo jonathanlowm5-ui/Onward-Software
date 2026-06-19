@@ -9,12 +9,14 @@
  *   STORE=json      (default) -> data/db.json file        (zero setup)
  *   STORE=sqlite              -> data/onward.db (SQLite)  (npm i better-sqlite3)
  *   STORE=postgres            -> DATABASE_URL (Postgres)  (npm i pg)
+ *   STORE=firestore           -> Cloud Firestore         (Firebase / Cloud Functions)
  */
 const which = (process.env.STORE || 'json').toLowerCase();
 
 let backend;
 if (which === 'sqlite') backend = require('./store.sqlite');
 else if (which === 'postgres' || which === 'pg') backend = require('./store.postgres');
+else if (which === 'firestore' || which === 'firebase') backend = require('./store.firestore');
 else backend = require('./store.json');
 
 if (process.env.STORE) console.log(`[store] using "${which}" backend`);

@@ -14,7 +14,9 @@ const crypto = require('crypto');
 const { requireAuth } = require('../auth');
 
 const router = express.Router();
-const UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
+// Matches server.js. On Cloud Functions this is a writable tmp path (uploads are
+// ephemeral there — swap for Firebase Storage / S3 for durable image hosting).
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(__dirname, '..', 'uploads');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),

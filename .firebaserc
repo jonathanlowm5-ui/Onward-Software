@@ -1,0 +1,13 @@
+{
+  "projects": {
+    "default": "onwards-61e6c"
+  },
+  "targets": {
+    "onwards-61e6c": {
+      "hosting": {
+        "frontend": ["onwards-61e6c"],
+        "admin": ["onwards-61e6c-admin"]
+      }
+    }
+  }
+}

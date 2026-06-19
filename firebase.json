@@ -1,0 +1,43 @@
+{
+  "functions": [
+    {
+      "source": "onward-integration/backend",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "data",
+        "uploads",
+        "*.log",
+        ".env",
+        ".env.*"
+      ]
+    }
+  ],
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "hosting": [
+    {
+      "target": "frontend",
+      "public": "onward-react/dist",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [
+        { "source": "/api/**", "function": { "functionId": "api", "region": "us-central1" } },
+        { "source": "/uploads/**", "function": { "functionId": "api", "region": "us-central1" } },
+        { "source": "**", "destination": "/index.html" }
+      ]
+    },
+    {
+      "target": "admin",
+      "public": "onward-admin/dist",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [
+        { "source": "/api/**", "function": { "functionId": "api", "region": "us-central1" } },
+        { "source": "/uploads/**", "function": { "functionId": "api", "region": "us-central1" } },
+        { "source": "**", "destination": "/index.html" }
+      ]
+    }
+  ]
+}
