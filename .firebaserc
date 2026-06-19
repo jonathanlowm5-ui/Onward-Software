@@ -1,12 +1,12 @@
 {
   "projects": {
-    "default": "onwards-61e6c"
+    "default": "onward-1590a"
   },
   "targets": {
-    "onwards-61e6c": {
+    "onward-1590a": {
       "hosting": {
-        "frontend": ["onwards-61e6c"],
-        "admin": ["onwards-61e6c-admin"]
+        "frontend": ["onward-1590a"],
+        "admin": ["onward-1590a-admin"]
       }
     }
   }

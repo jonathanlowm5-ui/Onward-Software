@@ -1,11 +1,11 @@
 # Deploying Onward to Firebase
 
-This deploys the **whole stack** to the Firebase project `onwards-61e6c`:
+This deploys the **whole stack** to the Firebase project `onward-1590a`:
 
 | Piece | Firebase service | URL |
 |---|---|---|
-| Customer frontend (`onward-react`) | Hosting (default site) | `https://onwards-61e6c.web.app` |
-| Admin panel (`onward-admin`) | Hosting (second site) | `https://onwards-61e6c-admin.web.app` |
+| Customer frontend (`onward-react`) | Hosting (default site) | `https://onward-1590a.web.app` |
+| Admin panel (`onward-admin`) | Hosting (second site) | `https://onward-1590a-admin.web.app` |
 | Backend API (`onward-integration/backend`) | Cloud Functions (2nd gen) | reached at `/api/**` on both sites via Hosting rewrites |
 | Database | Cloud Firestore | (server-side only) |
 

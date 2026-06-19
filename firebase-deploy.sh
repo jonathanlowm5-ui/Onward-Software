@@ -12,8 +12,8 @@
 #
 set -euo pipefail
 
-PROJECT="${FIREBASE_PROJECT:-onwards-61e6c}"
-ADMIN_SITE="${FIREBASE_ADMIN_SITE:-onwards-61e6c-admin}"
+PROJECT="${FIREBASE_PROJECT:-onward-1590a}"
+ADMIN_SITE="${FIREBASE_ADMIN_SITE:-onward-1590a-admin}"
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 
