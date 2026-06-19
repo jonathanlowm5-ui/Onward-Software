@@ -76,6 +76,8 @@ export function AuthProvider({ children }) {
     () => ({
       profile,
       isLoggedIn: !!profile,
+      // First-time players must bind a bank account before they can withdraw.
+      needsBankBinding: !!profile && profile.bankBound === false,
       loading,
       error,
       setError,

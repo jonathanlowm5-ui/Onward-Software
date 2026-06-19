@@ -3,39 +3,51 @@
  *
  * Public:   POST /api/player/register   POST /api/player/login
  *           POST /api/player/forgot-password   GET /api/player/lookup?username=
- * Player:   GET/PUT /api/player/me   GET /api/player/wallet
+ * Player:   GET/PUT /api/player/me   POST /api/player/me/change-password
+ *           POST /api/player/me/2fa
+ *           POST /api/player/me/verify/email/(request|confirm)
+ *           POST /api/player/me/verify/mobile/(request|confirm)
+ *           GET /api/player/wallet
  *           POST /api/player/deposit   POST /api/player/withdraw
  *           GET /api/player/transactions   GET /api/player/game-history
+ *           GET /api/player/login-history
  *           GET/POST /api/player/bank-accounts   POST /api/player/kyc
  *
- * Shares the same `players`, `transactions`, `kyc`, `bank_accounts` collections
- * the admin reads/writes, so everything stays in sync.
+ * Shares the same `players`, `transactions`, `kyc`, `bank_accounts`,
+ * `login_history` collections the admin reads/writes, so everything stays in
+ * sync. Player profile rules (read-only Player ID / name / username / currency)
+ * are enforced here on the server.
  */
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const store = require('../store');
 const { signPlayer, requirePlayer } = require('../auth');
+const {
+  CURRENCIES, normalizeCurrency, nextPlayerSequence, makePlayerCode, ensurePlayerCode,
+  publicView, registeredFullName, holderMatchesPlayer, clientIp, deviceFrom, recordLogin, gen6,
+} = require('../playerUtils');
 
 const router = express.Router();
 const PLAYERS = 'players';
 const emailOk = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
-// Never leak the password hash; expose a stable shape the frontend expects.
-function publicView(p) {
-  if (!p) return null;
-  const { passwordHash, ...rest } = p;
-  return {
-    ...rest,
-    fullName: p.fullName || `${p.firstName || ''} ${p.lastName || ''}`.trim() || p.username,
-    balance: Number(p.balance || 0),
-    bonus: Number(p.bonus || 0),
-    kyc_status: p.kyc_status || 'unverified',
-    vipLevel: p.vipLevel || 0,
-  };
-}
-
 function currentPlayer(req) {
   return store.get(PLAYERS, req.auth.sub);
+}
+
+// Does the player have an active bound bank account? (Gates withdrawals.)
+function bankBound(playerId) {
+  return store
+    .list('bank_accounts')
+    .some((a) => String(a.playerId) === String(playerId) && (a.status || 'active') === 'active');
+}
+
+// Public view + the runtime `bankBound` flag the frontend uses to decide whether
+// to force the "Bind Bank Account" step on first login.
+function view(p) {
+  const v = publicView(p);
+  if (v) v.bankBound = bankBound(p.id);
+  return v;
 }
 
 // ---------- public: register ----------
@@ -44,9 +56,18 @@ router.post('/register', (req, res) => {
   const username = String(b.username || '').trim();
   const email = String(b.email || '').trim().toLowerCase();
   const password = String(b.password || '');
+  const firstName = String(b.first_name || b.firstName || '').trim();
+  const lastName = String(b.last_name || b.lastName || '').trim();
+  const mobile = String(b.mobile || b.phone || '').trim();
+  const currency = normalizeCurrency(b.currency);
+
   if (!username) return res.status(400).json({ error: 'Username is required' });
+  if (!firstName) return res.status(400).json({ error: 'First name is required' });
+  if (!lastName) return res.status(400).json({ error: 'Last name is required' });
   if (!emailOk(email)) return res.status(400).json({ error: 'A valid email is required' });
+  if (!mobile) return res.status(400).json({ error: 'Mobile number is required' });
   if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  if (!CURRENCIES.includes(currency)) return res.status(400).json({ error: 'Please choose a valid currency' });
 
   const players = store.list(PLAYERS);
   if (players.some((p) => (p.username || '').toLowerCase() === username.toLowerCase()))
@@ -54,15 +75,21 @@ router.post('/register', (req, res) => {
   if (players.some((p) => (p.email || '').toLowerCase() === email))
     return res.status(409).json({ error: 'That email is already registered' });
 
+  // Permanent Player ID: ONW + 7-digit sequence + currency.
+  const seq = nextPlayerSequence(store);
+  const playerCode = makePlayerCode(seq, currency);
+
   const player = store.insert(PLAYERS, {
+    seq,
+    playerCode,
     username,
     email,
-    firstName: String(b.first_name || b.firstName || '').trim(),
-    lastName: String(b.last_name || b.lastName || '').trim(),
-    fullName: String(b.full_name || b.fullName || '').trim(),
-    phone: String(b.phone || '').trim(),
+    firstName,
+    lastName,
+    fullName: `${firstName} ${lastName}`.trim(),
+    phone: mobile,
+    currency,
     country: b.country || '',
-    dob: b.dob || '',
     referralCode: String(b.referral_code || b.referralCode || '').trim(),
     passwordHash: bcrypt.hashSync(password, 10),
     role: 'player',
@@ -70,28 +97,39 @@ router.post('/register', (req, res) => {
     balance: 0,
     bonus: 0,
     kyc_status: 'unverified',
+    emailVerified: false,
+    mobileVerified: false,
+    twoFactorEnabled: false,
     vipLevel: 0,
+    registrationIp: clientIp(req),
+    registrationDevice: deviceFrom(req.headers['user-agent']),
+    registrationUserAgent: String(req.headers['user-agent'] || ''),
   });
-  res.status(201).json({ token: signPlayer(player), player: publicView(player) });
+  recordLogin(store, player, req, 'register');
+  res.status(201).json({ token: signPlayer(player), player: view(player) });
 });
 
 // ---------- public: login (username or email) ----------
 router.post('/login', (req, res) => {
   const id = String(req.body?.username || req.body?.email || '').trim().toLowerCase();
   const password = String(req.body?.password || '');
-  const player = store.list(PLAYERS).find(
+  let player = store.list(PLAYERS).find(
     (p) => (p.username || '').toLowerCase() === id || (p.email || '').toLowerCase() === id
   );
   if (!player || !player.passwordHash || !bcrypt.compareSync(password, player.passwordHash))
     return res.status(401).json({ error: 'Invalid username or password' });
   if (player.status === 'blocked') return res.status(403).json({ error: 'Account is blocked' });
-  res.json({ token: signPlayer(player), player: publicView(player) });
+  if (player.status === 'suspended') return res.status(403).json({ error: 'Account is suspended — contact support' });
+
+  player = ensurePlayerCode(store, player) || player; // backfill legacy/demo players
+  player = store.update(PLAYERS, player.id, { lastLoginAt: new Date().toISOString() }) || player;
+  recordLogin(store, player, req, 'login');
+  res.json({ token: signPlayer(player), player: view(player) });
 });
 
 // ---------- public: forgot password (issues a reset acknowledgement) ----------
 router.post('/forgot-password', (req, res) => {
   const email = String(req.body?.email || '').trim().toLowerCase();
-  // Always 200 so we never reveal which emails exist.
   if (emailOk(email)) {
     const p = store.list(PLAYERS).find((x) => (x.email || '').toLowerCase() === email);
     if (p) store.update(PLAYERS, p.id, { resetRequestedAt: new Date().toISOString() });
@@ -109,25 +147,100 @@ router.get('/lookup', (req, res) => {
 
 // ---------- player: profile ----------
 router.get('/me', requirePlayer, (req, res) => {
-  const p = currentPlayer(req);
+  let p = currentPlayer(req);
   if (!p) return res.status(404).json({ error: 'Player not found' });
-  res.json(publicView(p));
+  p = ensurePlayerCode(store, p) || p;
+  res.json(view(p));
 });
 
+// Players may ONLY change email, mobile and avatar. Player ID, username, first
+// name, last name, registration date and currency are system-fixed (admin only).
 router.put('/me', requirePlayer, (req, res) => {
   const p = currentPlayer(req);
   if (!p) return res.status(404).json({ error: 'Player not found' });
-  const allowed = ['firstName', 'lastName', 'fullName', 'phone', 'country', 'dob', 'avatar'];
+  const b = req.body || {};
   const patch = {};
-  allowed.forEach((k) => { if (req.body[k] !== undefined) patch[k] = req.body[k]; });
-  res.json(publicView(store.update(PLAYERS, p.id, patch)));
+
+  if (b.email !== undefined) {
+    const email = String(b.email).trim().toLowerCase();
+    if (!emailOk(email)) return res.status(400).json({ error: 'A valid email is required' });
+    const taken = store.list(PLAYERS).some(
+      (x) => x.id !== p.id && (x.email || '').toLowerCase() === email
+    );
+    if (taken) return res.status(409).json({ error: 'That email is already in use' });
+    if (email !== (p.email || '').toLowerCase()) {
+      patch.email = email;
+      patch.emailVerified = false; // re-verify after a change
+    }
+  }
+  const mobile = b.mobile !== undefined ? b.mobile : b.phone;
+  if (mobile !== undefined) {
+    patch.phone = String(mobile).trim();
+    if (patch.phone !== (p.phone || '')) patch.mobileVerified = false;
+  }
+  if (b.avatar !== undefined) patch.avatar = b.avatar;
+
+  res.json(view(store.update(PLAYERS, p.id, patch)));
 });
+
+// ---------- player: change password ----------
+router.post('/me/change-password', requirePlayer, (req, res) => {
+  const p = currentPlayer(req);
+  if (!p) return res.status(404).json({ error: 'Player not found' });
+  const current = String(req.body?.currentPassword || '');
+  const next = String(req.body?.newPassword || '');
+  if (!p.passwordHash || !bcrypt.compareSync(current, p.passwordHash))
+    return res.status(400).json({ error: 'Current password is incorrect' });
+  if (next.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters' });
+  store.update(PLAYERS, p.id, { passwordHash: bcrypt.hashSync(next, 10) });
+  recordLogin(store, p, req, 'password-change');
+  res.json({ ok: true });
+});
+
+// ---------- player: two-factor toggle (mock — stores the preference) ----------
+router.post('/me/2fa', requirePlayer, (req, res) => {
+  const p = currentPlayer(req);
+  if (!p) return res.status(404).json({ error: 'Player not found' });
+  const enabled = !!req.body?.enabled;
+  res.json(view(store.update(PLAYERS, p.id, { twoFactorEnabled: enabled })));
+});
+
+// ---------- player: email / mobile verification (mock code sender) ----------
+function requestCode(field) {
+  return (req, res) => {
+    const p = currentPlayer(req);
+    if (!p) return res.status(404).json({ error: 'Player not found' });
+    const code = gen6();
+    const expires = Date.now() + 10 * 60 * 1000;
+    store.update(PLAYERS, p.id, { [`${field}Otp`]: code, [`${field}OtpExpires`]: expires });
+    // MOCK: a real build emails / SMSes the code. We return it as devCode so the
+    // flow is testable end-to-end now; remove devCode when a provider is wired.
+    res.json({ ok: true, message: `Verification code sent to your ${field}.`, devCode: code });
+  };
+}
+function confirmCode(field) {
+  return (req, res) => {
+    const p = currentPlayer(req);
+    if (!p) return res.status(404).json({ error: 'Player not found' });
+    const code = String(req.body?.code || '').trim();
+    if (!p[`${field}Otp`] || Date.now() > Number(p[`${field}OtpExpires`] || 0))
+      return res.status(400).json({ error: 'Code expired — request a new one' });
+    if (code !== String(p[`${field}Otp`]))
+      return res.status(400).json({ error: 'Invalid verification code' });
+    const flag = field === 'email' ? 'emailVerified' : 'mobileVerified';
+    res.json(view(store.update(PLAYERS, p.id, { [flag]: true, [`${field}Otp`]: null, [`${field}OtpExpires`]: null })));
+  };
+}
+router.post('/me/verify/email/request', requirePlayer, requestCode('email'));
+router.post('/me/verify/email/confirm', requirePlayer, confirmCode('email'));
+router.post('/me/verify/mobile/request', requirePlayer, requestCode('mobile'));
+router.post('/me/verify/mobile/confirm', requirePlayer, confirmCode('mobile'));
 
 // ---------- player: wallet ----------
 router.get('/wallet', requirePlayer, (req, res) => {
   const p = currentPlayer(req);
   if (!p) return res.status(404).json({ error: 'Player not found' });
-  res.json({ balance: Number(p.balance || 0), bonus: Number(p.bonus || 0) });
+  res.json({ balance: Number(p.balance || 0), bonus: Number(p.bonus || 0), currency: normalizeCurrency(p.currency) });
 });
 
 // ---------- player: deposit / withdraw (create pending transactions) ----------
@@ -137,6 +250,7 @@ router.post('/deposit', requirePlayer, (req, res) => {
   if (!(amount >= 100)) return res.status(400).json({ error: 'Minimum deposit is 100' });
   const tx = store.insert('transactions', {
     playerId: p.id, username: p.username, type: 'deposit', amount,
+    currency: normalizeCurrency(p.currency),
     method: req.body?.method || 'GCash', status: 'pending', note: '',
   });
   res.status(201).json(tx);
@@ -145,10 +259,14 @@ router.post('/deposit', requirePlayer, (req, res) => {
 router.post('/withdraw', requirePlayer, (req, res) => {
   const p = currentPlayer(req);
   const amount = Number(req.body?.amount || 0);
+  // A bound bank account is mandatory before any withdrawal.
+  if (!bankBound(p.id))
+    return res.status(403).json({ error: 'Please bind a bank account before withdrawing', code: 'BANK_REQUIRED' });
   if (!(amount >= 500)) return res.status(400).json({ error: 'Minimum withdrawal is 500' });
   if (amount > Number(p.balance || 0)) return res.status(400).json({ error: 'Amount exceeds balance' });
   const tx = store.insert('transactions', {
     playerId: p.id, username: p.username, type: 'withdrawal', amount,
+    currency: normalizeCurrency(p.currency),
     method: req.body?.method || 'Bank', accountId: req.body?.accountId || null, status: 'pending', note: '',
   });
   res.status(201).json(tx);
@@ -169,16 +287,52 @@ router.get('/game-history', requirePlayer, (req, res) => {
   res.json(rows);
 });
 
-// ---------- player: bank accounts ----------
+// ---------- player: own login history ----------
+router.get('/login-history', requirePlayer, (req, res) => {
+  const rows = store.list('login_history')
+    .filter((g) => String(g.playerId) === String(req.auth.sub))
+    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+    .slice(0, 50);
+  res.json(rows);
+});
+
+// ---------- player: bank accounts (one active account, name must match) ----------
 router.get('/bank-accounts', requirePlayer, (req, res) => {
-  res.json(store.list('bank_accounts').filter((a) => String(a.playerId) === String(req.auth.sub)));
+  res.json(
+    store.list('bank_accounts').filter((a) => String(a.playerId) === String(req.auth.sub))
+  );
 });
 
 router.post('/bank-accounts', requirePlayer, (req, res) => {
+  const p = currentPlayer(req);
+  if (!p) return res.status(404).json({ error: 'Player not found' });
   const b = req.body || {};
+  const bankName = String(b.bankName || b.bank || b.type || '').trim();
+  const holder = String(b.holder || b.accountHolder || '').trim();
+  const accountNumber = String(b.accountNumber || b.number || b.account || '').trim();
+
+  if (!bankName) return res.status(400).json({ error: 'Bank name is required' });
+  if (!holder) return res.status(400).json({ error: 'Account holder name is required' });
+  if (!accountNumber) return res.status(400).json({ error: 'Bank account number is required' });
+  // Account holder must match the player's registered name.
+  if (!holderMatchesPlayer(p, holder))
+    return res.status(400).json({ error: `Account holder must match your registered name (${registeredFullName(p)})` });
+  // Only one active bank account is allowed by default.
+  const already = store
+    .list('bank_accounts')
+    .some((a) => String(a.playerId) === String(p.id) && (a.status || 'active') === 'active');
+  if (already)
+    return res.status(409).json({ error: 'You already have an active bank account. Contact support to change it.' });
+
   const acc = store.insert('bank_accounts', {
-    playerId: req.auth.sub, type: b.type || '', bank: b.type || b.bank || '',
-    holder: b.holder || '', number: b.number || b.account || '',
+    playerId: p.id,
+    username: p.username,
+    bankName,
+    bank: bankName, // backward-compat with older readers
+    holder,
+    accountNumber,
+    number: accountNumber, // backward-compat
+    status: 'active',
   });
   res.status(201).json(acc);
 });

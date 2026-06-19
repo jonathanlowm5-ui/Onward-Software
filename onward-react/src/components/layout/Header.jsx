@@ -20,6 +20,13 @@ export default function Header() {
   const go = useSectionNav();
   const location = useLocation();
 
+  // Logout: clear the session token (done in AuthContext) then return to the
+  // public landing/lobby so member pages aren't reachable via the Back button.
+  const handleLogout = async () => {
+    await logout();
+    go('lobby');
+  };
+
   const activeId =
     NAV.find((n) => sectionMatch(n.id, location.pathname))?.id || 'lobby';
 
@@ -64,7 +71,7 @@ export default function Header() {
             ) : (
               <>
                 <button className="btn btn-primary" onClick={() => openModal('deposit')} data-i18n="ui_deposit_btn">＋ Deposit</button>
-                <button className="btn btn-outline" onClick={logout} data-i18n="ui_logout">Logout</button>
+                <button className="btn btn-outline" onClick={handleLogout} data-i18n="ui_logout">Logout</button>
               </>
             )}
           </div>
@@ -85,7 +92,7 @@ export default function Header() {
           <div className="wallet-actions">
             <button className="btn btn-primary btn-sm" onClick={() => openModal('deposit')} data-i18n="ui_deposit_btn">＋ Deposit</button>
             <button className="btn btn-outline btn-sm" onClick={() => openModal('withdraw')} data-i18n="ui_withdraw">Withdraw</button>
-            <button className="btn btn-outline btn-sm" onClick={logout} data-i18n="ui_logout">Logout</button>
+            <button className="btn btn-outline btn-sm" onClick={handleLogout} data-i18n="ui_logout">Logout</button>
           </div>
         </div>
       </div>

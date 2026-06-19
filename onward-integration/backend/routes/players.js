@@ -15,15 +15,10 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const store = require('../store');
 const { requireAuth } = require('../auth');
+const { publicView, holderMatchesPlayer, registeredFullName } = require('../playerUtils');
 
 const router = express.Router();
 const COLLECTION = 'players';
-
-// Never expose the password hash.
-function publicView(p) {
-  const { passwordHash, ...rest } = p;
-  return rest;
-}
 
 const emailOk = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
@@ -102,6 +97,96 @@ function move(req, res, sign) {
 }
 router.post('/:id/wallet/credit', requireAuth, (req, res) => move(req, res, 1));
 router.post('/:id/wallet/debit', requireAuth, (req, res) => move(req, res, -1));
+
+// ---- ADMIN: full player detail (incl. bank + recent login history) ----
+router.get('/:id', requireAuth, (req, res) => {
+  const p = store.get(COLLECTION, req.params.id);
+  if (!p) return res.status(404).json({ error: 'Player not found' });
+  const banks = store.list('bank_accounts').filter((a) => String(a.playerId) === String(p.id));
+  const logins = store.list('login_history')
+    .filter((g) => String(g.playerId) === String(p.id))
+    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+    .slice(0, 50);
+  res.json({ ...publicView(p), bankAccounts: banks, loginHistory: logins });
+});
+
+// ---- ADMIN: reset a player's password ----
+router.post('/:id/reset-password', requireAuth, (req, res) => {
+  const p = store.get(COLLECTION, req.params.id);
+  if (!p) return res.status(404).json({ error: 'Player not found' });
+  const newPassword = String(req.body?.newPassword || '');
+  if (newPassword.length < 6)
+    return res.status(400).json({ error: 'New password must be at least 6 characters' });
+  store.update(COLLECTION, p.id, { passwordHash: bcrypt.hashSync(newPassword, 10) });
+  res.json({ ok: true });
+});
+
+// ---- ADMIN: view a player's login history ----
+router.get('/:id/login-history', requireAuth, (req, res) => {
+  const rows = store.list('login_history')
+    .filter((g) => String(g.playerId) === String(req.params.id))
+    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  res.json(rows);
+});
+
+// ---- ADMIN: view / edit a player's bank information ----
+router.get('/:id/bank', requireAuth, (req, res) => {
+  res.json(store.list('bank_accounts').filter((a) => String(a.playerId) === String(req.params.id)));
+});
+
+router.put('/:id/bank', requireAuth, (req, res) => {
+  const p = store.get(COLLECTION, req.params.id);
+  if (!p) return res.status(404).json({ error: 'Player not found' });
+  const b = req.body || {};
+  const patch = {};
+  if (b.bankName !== undefined || b.bank !== undefined) {
+    patch.bankName = String(b.bankName || b.bank || '').trim();
+    patch.bank = patch.bankName;
+  }
+  if (b.holder !== undefined) patch.holder = String(b.holder).trim();
+  if (b.accountNumber !== undefined || b.number !== undefined) {
+    patch.accountNumber = String(b.accountNumber || b.number || '').trim();
+    patch.number = patch.accountNumber;
+  }
+  if (b.status !== undefined) patch.status = b.status;
+
+  const existing = store
+    .list('bank_accounts')
+    .find((a) => String(a.playerId) === String(p.id) && (a.status || 'active') === 'active');
+  if (existing) return res.json(store.update('bank_accounts', existing.id, patch));
+  // None yet — create one (admin can bind on the player's behalf).
+  const acc = store.insert('bank_accounts', {
+    playerId: p.id, username: p.username, status: 'active',
+    bankName: patch.bankName || '', bank: patch.bankName || '',
+    holder: patch.holder || '', accountNumber: patch.accountNumber || '', number: patch.accountNumber || '',
+  });
+  res.status(201).json(acc);
+});
+
+// ---- ADMIN: manually verify email / mobile, or set KYC status ----
+router.patch('/:id/verify', requireAuth, (req, res) => {
+  const p = store.get(COLLECTION, req.params.id);
+  if (!p) return res.status(404).json({ error: 'Player not found' });
+  const patch = {};
+  if (req.body?.email !== undefined) patch.emailVerified = !!req.body.email;
+  if (req.body?.mobile !== undefined) patch.mobileVerified = !!req.body.mobile;
+  if (req.body?.kyc_status !== undefined) patch.kyc_status = String(req.body.kyc_status);
+  res.json(publicView(store.update(COLLECTION, p.id, patch)));
+});
+
+// ---- ADMIN: edit allowed profile fields (admin may change name/currency) ----
+router.put('/:id', requireAuth, (req, res) => {
+  const p = store.get(COLLECTION, req.params.id);
+  if (!p) return res.status(404).json({ error: 'Player not found' });
+  const b = req.body || {};
+  const allowed = ['firstName', 'lastName', 'fullName', 'email', 'phone', 'country', 'currency', 'vipLevel', 'status'];
+  const patch = {};
+  allowed.forEach((k) => { if (b[k] !== undefined) patch[k] = b[k]; });
+  if (patch.firstName !== undefined || patch.lastName !== undefined) {
+    patch.fullName = `${patch.firstName ?? p.firstName ?? ''} ${patch.lastName ?? p.lastName ?? ''}`.trim();
+  }
+  res.json(publicView(store.update(COLLECTION, p.id, patch)));
+});
 
 // ---- ADMIN: delete ----
 router.delete('/:id', requireAuth, (req, res) => {

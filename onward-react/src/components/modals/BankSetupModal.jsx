@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Modal from './Modal.jsx';
 import { useUI } from '../../context/UIContext';
+import { useAuth } from '../../context/AuthContext';
 import { saveBankAccount } from '../../services/playersService';
 
 const labelStyle = { display: 'block', fontSize: '11px', fontWeight: 700, letterSpacing: '.09em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '7px' };
@@ -9,20 +10,24 @@ const fieldStyle = { width: '100%', background: 'var(--bg3)', color: 'var(--text
 // Post-registration "Set Up Withdrawal Account" modal (#bank-setup-modal).
 export default function BankSetupModal() {
   const { activeModal, modalData, closeModal, toast } = useUI();
+  const { profile, refreshProfile } = useAuth();
   const open = activeModal === 'bank';
   const [type, setType] = useState('');
-  const [name, setName] = useState(modalData?.name || '');
   const [number, setNumber] = useState('');
   const [busy, setBusy] = useState(false);
 
+  // Account holder MUST match the player's registered name — so we lock it to
+  // the registered full name rather than letting the player type a mismatch.
+  const registeredName = (profile?.fullName || modalData?.name || '').trim();
+
   const save = async () => {
     if (!type) { toast('Select a bank or e-wallet', 'error'); return; }
-    if (!name.trim()) { toast('Enter the account holder name', 'error'); return; }
     if (!number.trim()) { toast('Enter the account number', 'error'); return; }
     setBusy(true);
     try {
-      await saveBankAccount({ type, holder: name, number });
+      await saveBankAccount({ bankName: type, holder: registeredName, accountNumber: number });
       toast('Withdrawal account saved');
+      await refreshProfile();
       closeModal();
     } catch (e) {
       toast(e.message || 'Could not save account', 'error');
@@ -86,7 +91,8 @@ export default function BankSetupModal() {
         </div>
         <div>
           <label style={labelStyle}><span data-i18n="bsm_holder">Account Holder Name</span> <span style={{ color: 'var(--red)' }}>*</span></label>
-          <input type="text" placeholder="Full name on account" value={name} onChange={(e) => setName(e.target.value)} style={fieldStyle} />
+          <input type="text" value={registeredName} readOnly disabled style={{ ...fieldStyle, opacity: 0.75, cursor: 'not-allowed' }} />
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>Must match your registered name. Contact support to change it.</div>
         </div>
         <div>
           <label style={labelStyle}>Account / Mobile Number <span style={{ color: 'var(--red)' }}>*</span></label>

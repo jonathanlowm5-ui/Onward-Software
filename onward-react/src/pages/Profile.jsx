@@ -1,5 +1,5 @@
 // Profile / Settings — faithful HTML→React conversion of the original #view-profile view.
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { useUI } from '../context/UIContext';
 import { useAuth } from '../context/AuthContext';
 import useSectionNav from '../hooks/useSectionNav';
@@ -107,10 +107,23 @@ const peso = (v, frac = 0) => '₱' + v.toLocaleString('en', { minimumFractionDi
 
 /* ════════════════════════════════════════════ */
 
+// Currency code -> display symbol (falls back to the code itself).
+const CUR_SYM = { PHP: '₱', USD: '$', EUR: '€', INR: '₹', THB: '฿', VND: '₫', IDR: 'Rp', MYR: 'RM', CNY: '¥', JPY: '¥' };
+const curSym = (c) => CUR_SYM[c] || c || '₱';
+
 export default function Profile() {
   const { openModal, toast } = useUI();
-  const { logout } = useAuth();
+  const { profile, isLoggedIn, loading, logout } = useAuth();
   const go = useSectionNav();
+  const sym = curSym(profile?.currency);
+  const bal = Number(profile?.balance || 0);
+  const bonus = Number(profile?.bonus || 0);
+
+  // Member-only page: bounce to the public lobby once we know there's no session
+  // (covers logout and reaching /profile via the browser Back button).
+  useEffect(() => {
+    if (!loading && !isLoggedIn) go('lobby');
+  }, [loading, isLoggedIn, go]);
 
   // Left-nav selection: which right-hand panel is shown.
   const [nav, setNav] = useState('security'); // security | transactions | wager | history | agent
@@ -136,22 +149,26 @@ export default function Profile() {
                 <div className="prof-avatar-edit">✏</div>
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="prof-username" id="prof-username">Player</div>
-                <div className="prof-id">ID 4289334 📋</div>
+                <div className="prof-username" id="prof-username">{profile?.username || 'Player'}</div>
+                <div className="prof-id" title="Your permanent Player ID"
+                  onClick={() => { if (profile?.playerCode) { navigator.clipboard?.writeText(profile.playerCode); toast('Player ID copied'); } }}
+                  style={{ cursor: profile?.playerCode ? 'pointer' : 'default' }}>
+                  {profile?.playerCode || '—'} 📋
+                </div>
                 <div className="prof-xp-bar"><div className="prof-xp-fill"></div></div>
-                <div className="prof-xp-label">0.00% · 0₱ / 615.05₱</div>
+                <div className="prof-xp-label">VIP {profile?.vipLevel || 0}</div>
               </div>
             </div>
             <div className="prof-balance-section">
               <div className="prof-bal-total-label" data-i18n="prof_total_balance">Total balance</div>
-              <div className="prof-bal-total"><span id="prof-bal-main">0.00</span> <span>₱</span></div>
+              <div className="prof-bal-total"><span id="prof-bal-main">{(bal + bonus).toFixed(2)}</span> <span>{sym}</span></div>
               <div className="prof-bal-row">
                 <span className="prof-bal-row-label" data-i18n="prof_main_balance">Main balance</span>
-                <span className="prof-bal-row-val" id="prof-main-bal">0.00 ₱</span>
+                <span className="prof-bal-row-val" id="prof-main-bal">{bal.toFixed(2)} {sym}</span>
               </div>
               <div className="prof-bal-row">
                 <span className="prof-bal-row-label" data-i18n="prof_bonus_balance">Bonus Balance</span>
-                <span className="prof-bal-row-val bonus" id="prof-bonus-bal">0.00 ₱</span>
+                <span className="prof-bal-row-val bonus" id="prof-bonus-bal">{bonus.toFixed(2)} {sym}</span>
               </div>
             </div>
             <div className="prof-action-btns">
@@ -266,95 +283,170 @@ function Toggle({ initialOn = false }) {
   return <div className={'prof-toggle' + (on ? ' on' : '')} onClick={() => setOn((v) => !v)}></div>;
 }
 
-/* ── SECURITY TAB ── */
+/* ── SECURITY TAB (live: verify email/mobile, change password, 2FA) ── */
+function VerifyRow({ label, value, verified, onRequest, onConfirm }) {
+  const { toast } = useUI();
+  const [code, setCode] = useState('');
+  const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const send = async () => {
+    setBusy(true);
+    try {
+      const r = await onRequest();
+      setSent(true);
+      // MOCK provider returns the code so it's testable now.
+      toast(r?.devCode ? `Code sent (dev): ${r.devCode}` : 'Verification code sent');
+    } catch (e) { toast(e.message || 'Could not send code', 'error'); }
+    finally { setBusy(false); }
+  };
+  const confirm = async () => {
+    setBusy(true);
+    try { await onConfirm(code.trim()); toast(`${label} verified`); setSent(false); setCode(''); }
+    catch (e) { toast(e.message || 'Invalid code', 'error'); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="prof-section">
+      <div className="prof-section-title">{label} confirmation</div>
+      <div className="prof-section-sub">Confirm your {label.toLowerCase()} to enable withdrawals</div>
+      <div className="prof-email-row">
+        <span className="prof-email-icon">{label === 'Email' ? '✉️' : '📱'}</span>
+        <span className="prof-email-text">{value || '—'}</span>
+        <div className="prof-email-status" style={{ background: verified ? 'var(--green,#22c55e)' : undefined }}>{verified ? '✓' : '!'}</div>
+      </div>
+      {!verified && !sent && (
+        <button className="prof-resend-btn" onClick={send} disabled={busy}>{busy ? 'SENDING…' : 'SEND CODE'}</button>
+      )}
+      {!verified && sent && (
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <input value={code} onChange={(e) => setCode(e.target.value)} placeholder="6-digit code" maxLength={6}
+            style={{ flex: 1, background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px' }} />
+          <button className="prof-resend-btn" onClick={confirm} disabled={busy}>VERIFY</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ChangePassword() {
+  const { toast } = useUI();
+  const [cur, setCur] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [busy, setBusy] = useState(false);
+  const f = { width: '100%', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8, padding: '11px 14px', marginBottom: 10, boxSizing: 'border-box' };
+
+  const submit = async () => {
+    if (next.length < 6) { toast('New password must be at least 6 characters', 'error'); return; }
+    if (next !== confirm) { toast('Passwords do not match', 'error'); return; }
+    setBusy(true);
+    try {
+      await playersService.changePassword(cur, next);
+      toast('Password changed successfully', 'success');
+      setCur(''); setNext(''); setConfirm('');
+    } catch (e) { toast(e.message || 'Could not change password', 'error'); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="prof-section">
+      <div className="prof-section-title" data-i18n="auth_password">Change Password</div>
+      <div className="prof-section-sub">Use at least 6 characters.</div>
+      <input type="password" placeholder="Current password" value={cur} onChange={(e) => setCur(e.target.value)} style={f} />
+      <input type="password" placeholder="New password" value={next} onChange={(e) => setNext(e.target.value)} style={f} />
+      <input type="password" placeholder="Confirm new password" value={confirm} onChange={(e) => setConfirm(e.target.value)} style={f} />
+      <button className="prof-save-btn" onClick={submit} disabled={busy}>{busy ? 'Saving…' : 'Update Password'}</button>
+    </div>
+  );
+}
+
 function SecurityTab({ show }) {
+  const { profile, refreshProfile } = useAuth();
+  const { toast } = useUI();
+  const [twoFA, setTwoFA] = useState(!!profile?.twoFactorEnabled);
+
+  const toggle2fa = async () => {
+    const enabled = !twoFA;
+    setTwoFA(enabled);
+    try { await playersService.setTwoFactor(enabled); await refreshProfile(); toast(`Two-factor ${enabled ? 'enabled' : 'disabled'}`); }
+    catch (e) { setTwoFA(!enabled); toast(e.message || 'Could not update 2FA', 'error'); }
+  };
+
   return (
     <div id="prof-tab-security" style={{ display: show ? 'block' : 'none' }}>
-      <div className="prof-section">
-        <div className="prof-section-title" data-i18n="prof_email_confirm">Email confirmation</div>
-        <div className="prof-section-sub" data-i18n="prof_email_desc">Confirm your email to make withdrawals</div>
-        <div className="prof-email-row">
-          <span className="prof-email-icon">✉️</span>
-          <span className="prof-email-text" id="prof-email">player@email.com</span>
-          <div className="prof-email-status">!</div>
-        </div>
-        <button className="prof-resend-btn" data-i18n="ui_resend">RESEND</button>
-      </div>
+      <VerifyRow label="Email" value={profile?.email} verified={!!profile?.emailVerified}
+        onRequest={playersService.requestEmailCode}
+        onConfirm={async (c) => { await playersService.confirmEmailCode(c); await refreshProfile(); }} />
 
-      <div className="prof-section">
-        <div className="prof-section-title" data-i18n="prof_alt_login">Alternate Login Methods</div>
-        <div className="prof-section-sub" data-i18n="prof_alt_login_desc">Add social accounts for alternative sign in</div>
-        <div className="prof-social-btns">
-          <button className="prof-social-btn" title="Google">G</button>
-          <button className="prof-social-btn" title="Steam">♨</button>
-          <button className="prof-social-btn" title="Telegram">✈</button>
-          <button className="prof-social-btn" title="Discord">💬</button>
-          <button className="prof-social-btn" title="Twitch">📺</button>
-        </div>
-      </div>
+      <VerifyRow label="Mobile" value={profile?.phone} verified={!!profile?.mobileVerified}
+        onRequest={playersService.requestMobileCode}
+        onConfirm={async (c) => { await playersService.confirmMobileCode(c); await refreshProfile(); }} />
 
-      <div className="prof-section">
-        <div className="prof-section-title" data-i18n="auth_password">Password</div>
-        <div className="prof-section-sub" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ color: 'var(--blue)' }}>ℹ️</span> <span data-i18n="prof_pwd_hint">If you want to edit password firstly you need to approve email.</span>
-        </div>
-      </div>
+      <ChangePassword />
 
       <div className="prof-section">
         <div className="prof-section-title" data-i18n="prof_2fa">Two-factor Authentication</div>
-        <div className="prof-section-sub" data-i18n="prof_2fa_desc">Enabling two-factor authentication will require a code when updating or viewing sensitive information</div>
+        <div className="prof-section-sub" data-i18n="prof_2fa_desc">Adds an extra verification step for sensitive actions (optional).</div>
         <div className="prof-toggle-row">
           <div className="prof-toggle-info">
             <div className="prof-toggle-label" data-i18n="prof_2fa_enable">Enable Two-factor Authentication</div>
           </div>
-          <Toggle />
-        </div>
-      </div>
-
-      <div className="prof-section">
-        <div className="prof-section-title" data-i18n="prof_hide">Hide profile</div>
-        <div className="prof-section-sub" data-i18n="prof_hide_desc">You can hide personal information by switching this option. Nickname, avatar and any profile statistics will be hidden.</div>
-        <div className="prof-toggle-row">
-          <div className="prof-toggle-info">
-            <div className="prof-toggle-label" data-i18n="prof_hide_my">Hide my profile</div>
-          </div>
-          <Toggle />
-        </div>
-        <div className="prof-toggle-row">
-          <div className="prof-toggle-info">
-            <div className="prof-toggle-label" data-i18n="prof_hide_stats">Hide profile stats only</div>
-          </div>
-          <Toggle />
+          <div className={'prof-toggle' + (twoFA ? ' on' : '')} onClick={toggle2fa}></div>
         </div>
       </div>
     </div>
   );
 }
 
-/* ── PERSONAL TAB (includes KYC) ── */
+/* ── PERSONAL TAB (live profile + KYC) ── */
 function PersonalTab({ show, toast }) {
+  const { profile, updateProfile } = useAuth();
+  const [email, setEmail] = useState('');
+  const [mobile, setMobile] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useMemo(() => {
+    setEmail(profile?.email || '');
+    setMobile(profile?.phone || '');
+  }, [profile?.email, profile?.phone]);
+
+  const regDate = profile?.registrationDate
+    ? new Date(profile.registrationDate).toLocaleDateString()
+    : '—';
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      await updateProfile({ email: email.trim(), mobile: mobile.trim() });
+      toast('Profile updated!', 'success');
+    } catch (e) {
+      toast(e.message || 'Could not update profile', 'error');
+    } finally { setBusy(false); }
+  };
+
+  const ro = { opacity: 0.7, cursor: 'not-allowed' };
+
   return (
     <div id="prof-tab-personal" style={{ display: show ? 'block' : 'none' }}>
 
-      {/* Personal Info Form */}
+      {/* Personal Info Form — Player ID / username / name / currency / reg date
+          are system-fixed (read-only). Only email & mobile are editable. */}
       <div className="prof-section">
         <div className="prof-section-title" data-i18n="prof_personal">Personal Information</div>
-        <div className="prof-section-sub" data-i18n="prof_personal_desc">Update your personal details</div>
+        <div className="prof-section-sub" data-i18n="prof_personal_desc">Player ID, username, name, currency and registration date are fixed by the system.</div>
         <div className="prof-form-grid">
-          <div className="prof-field"><label data-i18n="auth_first_name">First Name</label><input type="text" id="prof-pf-first" placeholder="Juan" /></div>
-          <div className="prof-field"><label data-i18n="auth_last_name">Last Name</label><input type="text" id="prof-pf-last" placeholder="Cruz" /></div>
-          <div className="prof-field"><label data-i18n="auth_username_field">Username</label><input type="text" id="prof-username-input" placeholder="juancruz88" disabled /></div>
-          <div className="prof-field"><label data-i18n="auth_phone">Phone Number</label><input type="tel" id="prof-pf-phone" placeholder="+63 9XX XXX XXXX" /></div>
-          <div className="prof-field"><label data-i18n="auth_dob">Date of Birth</label><input type="date" id="prof-pf-dob" /></div>
-          <div className="prof-field"><label data-i18n="auth_gender">Gender</label>
-            <select id="prof-pf-gender" defaultValue="Prefer not to say"><option>Prefer not to say</option><option>Male</option><option>Female</option><option>Other</option></select>
-          </div>
-          <div className="prof-field"><label data-i18n="auth_country">Country</label>
-            <select id="prof-pf-country" defaultValue=""><option value="">Select country</option><option>Philippines</option><option>Malaysia</option><option>Singapore</option><option>Thailand</option><option>Indonesia</option><option>Vietnam</option><option>Other</option></select>
-          </div>
-          <div className="prof-field"><label data-i18n="auth_city">City</label><input type="text" id="prof-pf-city" placeholder="Manila" /></div>
+          <div className="prof-field"><label>Player ID</label><input type="text" value={profile?.playerCode || '—'} disabled style={ro} /></div>
+          <div className="prof-field"><label data-i18n="auth_username_field">Username</label><input type="text" value={profile?.username || ''} disabled style={ro} /></div>
+          <div className="prof-field"><label data-i18n="auth_first_name">First Name</label><input type="text" value={profile?.firstName || ''} disabled style={ro} /></div>
+          <div className="prof-field"><label data-i18n="auth_last_name">Last Name</label><input type="text" value={profile?.lastName || ''} disabled style={ro} /></div>
+          <div className="prof-field"><label data-i18n="auth_email">Email</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your@email.com" /></div>
+          <div className="prof-field"><label data-i18n="auth_phone">Mobile Number</label><input type="tel" value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="+63 9XX XXX XXXX" /></div>
+          <div className="prof-field"><label>Currency</label><input type="text" value={profile?.currency || ''} disabled style={ro} /></div>
+          <div className="prof-field"><label>Registration Date</label><input type="text" value={regDate} disabled style={ro} /></div>
         </div>
-        <button className="prof-save-btn" id="prof-save-btn" onClick={() => toast('Profile saved!', 'success')} data-i18n="auth_save_changes">Save Changes</button>
+        <button className="prof-save-btn" onClick={save} disabled={busy} data-i18n="auth_save_changes">{busy ? 'Saving…' : 'Save Changes'}</button>
       </div>
 
       {/* KYC / Identity Verification */}
@@ -493,25 +585,45 @@ function KycSection({ toast }) {
 
 /* ── BANK TAB ── */
 function BankTab({ show, toast }) {
+  const { profile, refreshProfile } = useAuth();
   const [accounts, setAccounts] = useState([]);
   const [bank, setBank] = useState('');
   const [bankLabel, setBankLabel] = useState('');
-  const [holder, setHolder] = useState('');
   const [acct, setAcct] = useState('');
-  const [isDefault, setIsDefault] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  // Account holder must match the registered name — locked, not free-typed.
+  const registeredName = (profile?.fullName || '').trim();
+
+  const load = async () => {
+    try {
+      const rows = await playersService.getBankAccounts();
+      setAccounts((rows || []).map((a) => ({
+        name: a.holder || registeredName,
+        bankLabel: a.bankName || a.bank || '',
+        acct: a.accountNumber || a.number || '',
+        isDefault: (a.status || 'active') === 'active',
+      })));
+    } catch { /* not logged in / offline */ }
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (show) load(); }, [show, profile?.id]);
+
+  // Only one active bank account is allowed by default.
+  const hasActive = accounts.length > 0;
 
   const save = async () => {
-    if (!bank || !holder.trim() || !acct.trim()) {
-      toast('Please fill in all required fields.', 'warning'); return;
-    }
+    if (!bank || !acct.trim()) { toast('Choose a bank and enter the account number.', 'warning'); return; }
+    setBusy(true);
     try {
-      await playersService.saveBankAccount({ bank, holder: holder.trim(), account: acct.trim(), isDefault }).catch(() => null); // stubbed
-      setAccounts((a) => [...a, { name: holder.trim(), bankLabel, acct: acct.trim(), isDefault }]);
-      setBank(''); setBankLabel(''); setHolder(''); setAcct(''); setIsDefault(false);
+      await playersService.saveBankAccount({ bankName: bankLabel || bank, holder: registeredName, accountNumber: acct.trim() });
+      setBank(''); setBankLabel(''); setAcct('');
+      await load();
+      await refreshProfile();
       toast('Bank account saved!', 'success');
-    } catch {
-      toast('Could not save bank account.', 'error');
-    }
+    } catch (e) {
+      toast(e.message || 'Could not save bank account.', 'error');
+    } finally { setBusy(false); }
   };
 
   return (
@@ -585,10 +697,9 @@ function BankTab({ show, toast }) {
 
             <div className="prof-field-group">
               <label className="prof-label" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 7, display: 'block' }}>Account Holder Name <span style={{ color: 'var(--red)' }}>*</span></label>
-              <input className="prof-input" type="text" placeholder="Full name on account" id="bank-holder-name"
-                value={holder} onChange={(e) => setHolder(e.target.value)}
-                style={{ width: '100%', background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: '11px 14px', color: 'var(--text)', fontSize: 14, outline: 'none' }}
-                onFocus={(e) => { e.target.style.borderColor = 'var(--gold)'; }} onBlur={(e) => { e.target.style.borderColor = 'var(--border)'; }} />
+              <input className="prof-input" type="text" value={registeredName} readOnly disabled
+                style={{ width: '100%', background: 'transparent', border: '1px solid var(--border)', borderRadius: 8, padding: '11px 14px', color: 'var(--text)', fontSize: 14, outline: 'none', opacity: 0.7, cursor: 'not-allowed' }} />
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6 }}>Must match your registered name.</div>
             </div>
 
             <div className="prof-field-group">
@@ -599,13 +710,14 @@ function BankTab({ show, toast }) {
                 onFocus={(e) => { e.target.style.borderColor = 'var(--gold)'; }} onBlur={(e) => { e.target.style.borderColor = 'var(--border)'; }} />
             </div>
 
-            <label style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8, cursor: 'pointer', fontSize: 14, color: 'var(--text-muted)' }}>
-              <input type="checkbox" id="bank-default" checked={isDefault} onChange={(e) => setIsDefault(e.target.checked)} style={{ accentColor: 'var(--gold)', width: 15, height: 15 }} />
-              Set as default withdrawal account
-            </label>
+            {hasActive && (
+              <div style={{ fontSize: 12, color: 'var(--gold)', background: 'rgba(240,192,64,.08)', border: '1px solid rgba(240,192,64,.2)', borderRadius: 8, padding: '10px 12px' }}>
+                You already have an active withdrawal account. Contact support to change it.
+              </div>
+            )}
 
-            <button onClick={save} style={{ width: '100%', padding: 14, background: 'linear-gradient(135deg,var(--gold),var(--gold-dark))', color: '#06091a', fontSize: 15, fontWeight: 800, border: 'none', borderRadius: 10, cursor: 'pointer', letterSpacing: '.04em', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-              💾 Save Account
+            <button onClick={save} disabled={busy || hasActive} style={{ width: '100%', padding: 14, background: 'linear-gradient(135deg,var(--gold),var(--gold-dark))', color: '#06091a', fontSize: 15, fontWeight: 800, border: 'none', borderRadius: 10, cursor: (busy || hasActive) ? 'not-allowed' : 'pointer', opacity: (busy || hasActive) ? 0.55 : 1, letterSpacing: '.04em', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              {busy ? 'Saving…' : '💾 Save Account'}
             </button>
 
             <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>

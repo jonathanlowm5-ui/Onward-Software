@@ -6,8 +6,11 @@ import { deposit as depositRequest } from '../../services/playersService';
 
 const EMPTY_REG = {
   first: '', last: '', username: '', email: '', phone: '',
-  country: '', dob: '', password: '', confirm: '', referral: '',
+  country: '', dob: '', currency: 'PHP', password: '', confirm: '', referral: '',
 };
+
+// Currencies offered at registration (must match backend playerUtils.CURRENCIES).
+const CURRENCIES = ['PHP', 'USD', 'EUR', 'INR', 'THB', 'VND', 'IDR', 'MYR', 'CNY', 'JPY'];
 
 /**
  * Login / Register / Deposit modal — the original #auth-modal with its three
@@ -67,6 +70,8 @@ export default function AuthModal() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(reg.email)) { toast('Please enter a valid email.', 'error'); return; }
     if (reg.password.length < 6) { toast('Password must be at least 6 characters.', 'error'); return; }
     if (reg.confirm !== reg.password) { toast('Passwords do not match.', 'error'); return; }
+    if (!reg.first || !reg.last) { toast('Please enter your first and last name.', 'error'); return; }
+    if (!reg.phone) { toast('Please enter your mobile number.', 'error'); return; }
     setBusy(true);
     try {
       await register({
@@ -77,8 +82,10 @@ export default function AuthModal() {
         first_name: reg.first,
         last_name: reg.last,
         phone: reg.phone,
+        mobile: reg.phone,
         country: reg.country,
         dob: reg.dob,
+        currency: reg.currency,
         referral_code: reg.referral,
       });
       toast('Account created! Welcome bonus added.');
@@ -168,9 +175,17 @@ export default function AuthModal() {
             <label data-i18n="auth_email">Email</label>
             <input type="email" id="reg-email" placeholder="your@email.com" value={reg.email} onChange={setR('email')} />
           </div>
-          <div className="form-group">
-            <label data-i18n="auth_phone">Phone Number</label>
-            <input type="tel" id="reg-phone" placeholder="+63 9XX XXX XXXX" value={reg.phone} onChange={setR('phone')} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+            <div className="form-group">
+              <label data-i18n="auth_phone">Mobile Number</label>
+              <input type="tel" id="reg-phone" placeholder="+63 9XX XXX XXXX" value={reg.phone} onChange={setR('phone')} />
+            </div>
+            <div className="form-group">
+              <label data-i18n="auth_currency">Currency</label>
+              <select id="reg-currency" value={reg.currency} onChange={setR('currency')} style={{ width: '100%', padding: '12px', borderRadius: '8px', background: '#0c1322', color: '#fff', border: '1px solid #2a3a5c', fontSize: '14px' }}>
+                {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div className="form-group">
