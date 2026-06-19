@@ -17,11 +17,20 @@ ADMIN_SITE="${FIREBASE_ADMIN_SITE:-onwards-61e6c-admin}"
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 
-if [ -z "${FIREBASE_TOKEN:-}" ]; then
-  echo "ERROR: FIREBASE_TOKEN is not set."
+if [ -z "${FIREBASE_TOKEN:-}" ] && [ -z "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]; then
+  echo "ERROR: no Firebase credentials."
   echo "  On your own machine run:  firebase login:ci"
   echo "  then:  export FIREBASE_TOKEN='<the token it prints>'"
+  echo "  (or set GOOGLE_APPLICATION_CREDENTIALS to a service-account key path)"
   exit 1
+fi
+
+# Resolve the Firebase CLI (use global if present, otherwise npx).
+if command -v firebase >/dev/null 2>&1; then
+  FB="firebase"
+else
+  echo "==> firebase CLI not found; using npx firebase-tools"
+  FB="npx --yes firebase-tools"
 fi
 
 echo "==> [1/5] Building customer frontend (onward-react)"
@@ -31,15 +40,15 @@ echo "==> [2/5] Building admin panel (onward-admin)"
 ( cd onward-admin && npm install --no-audit --no-fund && npm run build )
 
 echo "==> [3/5] Ensuring admin Hosting site '$ADMIN_SITE' exists"
-firebase hosting:sites:create "$ADMIN_SITE" --project "$PROJECT" 2>/dev/null \
+$FB hosting:sites:create "$ADMIN_SITE" --project "$PROJECT" 2>/dev/null \
   || echo "    (site already exists — continuing)"
 
 echo "==> [4/5] Binding Hosting targets"
-firebase target:apply hosting frontend "$PROJECT"    --project "$PROJECT"
-firebase target:apply hosting admin    "$ADMIN_SITE" --project "$PROJECT"
+$FB target:apply hosting frontend "$PROJECT"    --project "$PROJECT"
+$FB target:apply hosting admin    "$ADMIN_SITE" --project "$PROJECT"
 
 echo "==> [5/5] Deploying Firestore rules + Functions + Hosting"
-firebase deploy \
+$FB deploy \
   --only firestore:rules,functions,hosting \
   --project "$PROJECT" \
   --non-interactive --force
