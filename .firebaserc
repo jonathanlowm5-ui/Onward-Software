@@ -5,9 +5,14 @@
   "targets": {
     "onward-1590a": {
       "hosting": {
-        "frontend": ["onward-1590a"],
-        "admin": ["onward-1590a-admin"]
+        "frontend": [
+          "onward-1590a"
+        ],
+        "admin": [
+          "onward-1590a-admin"
+        ]
       }
     }
-  }
+  },
+  "etags": {}
 }
