@@ -21,9 +21,14 @@
  */
 const crypto = require('crypto');
 const admin = require('firebase-admin');
+const { getFirestore } = require('firebase-admin/firestore');
 
 if (!admin.apps.length) admin.initializeApp();
-const db = admin.firestore();
+
+// This project uses a NAMED Firestore database (not "(default)"). Point the
+// Admin SDK at it; override with FIRESTORE_DB if you rename/clone it.
+const DB_ID = process.env.FIRESTORE_DB || 'onward';
+const db = DB_ID && DB_ID !== '(default)' ? getFirestore(DB_ID) : getFirestore();
 try {
   // Records carry optional fields; never throw on an undefined value.
   db.settings({ ignoreUndefinedProperties: true });

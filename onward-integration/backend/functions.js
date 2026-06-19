@@ -17,6 +17,8 @@ const os = require('os');
 process.env.UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(os.tmpdir(), 'onward-uploads');
 // Always use Firestore when running on Cloud Functions.
 process.env.STORE = process.env.STORE || 'firestore';
+// This project's Firestore database is named "onward" (not the default).
+process.env.FIRESTORE_DB = process.env.FIRESTORE_DB || 'onward';
 
 const { onRequest } = require('firebase-functions/v2/https');
 const { setGlobalOptions } = require('firebase-functions/v2');
