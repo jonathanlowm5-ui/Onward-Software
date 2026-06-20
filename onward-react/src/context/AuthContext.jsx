@@ -30,6 +30,21 @@ export function AuthProvider({ children }) {
 
   useEffect(() => { loadProfile(); }, [loadProfile]);
 
+  // Keep the session fresh so admin-side changes (wallet credits, KYC, status)
+  // surface without a manual reload: refresh on tab focus and on a light poll.
+  useEffect(() => {
+    if (!getToken()) return undefined;
+    const onFocus = () => { if (getToken()) loadProfile(); };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+    const id = setInterval(() => { if (getToken()) loadProfile(); }, 30000);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+      clearInterval(id);
+    };
+  }, [loadProfile, profile?.id]);
+
   const login = useCallback(async (username, password) => {
     setError('');
     try {

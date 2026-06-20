@@ -2,6 +2,7 @@ import { Outlet } from 'react-router-dom';
 import Header from './Header.jsx';
 import Sidebar from './Sidebar.jsx';
 import Footer from './Footer.jsx';
+import H5BottomNav from './H5BottomNav.jsx';
 import ModalsRoot from '../modals/ModalsRoot.jsx';
 import Dropdowns from './Dropdowns.jsx';
 import Toaster from '../common/Toaster.jsx';
@@ -28,6 +29,9 @@ export default function Layout() {
       </div>
 
       <Footer />
+
+      {/* Mobile bottom navigation (shown <=640px via CSS) */}
+      <H5BottomNav />
 
       {/* Modals, dropdowns, toasts */}
       <ModalsRoot />

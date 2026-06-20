@@ -23,12 +23,20 @@ process.env.FIRESTORE_DB = process.env.FIRESTORE_DB || 'onward';
 const { onRequest } = require('firebase-functions/v2/https');
 const { setGlobalOptions } = require('firebase-functions/v2');
 
-setGlobalOptions({ region: process.env.FUNCTIONS_REGION || 'us-central1', maxInstances: 10 });
+setGlobalOptions({ region: process.env.FUNCTIONS_REGION || 'us-central1' });
 
 const app = require('./server');
 
+// IMPORTANT: the Firestore store keeps an in-memory cache PER INSTANCE (loaded
+// once at cold start, written through on changes). With multiple instances each
+// holds its own cache, so a write on one instance isn't visible to a read on
+// another — e.g. a player registered on instance A returns 404 from instance B,
+// and an admin wallet credit on A isn't seen by the player on B. Pinning to a
+// single instance (with high request concurrency) makes that one cache the
+// single source of truth, keeping reads and writes consistent. Fine for this
+// scale; revisit with a shared cache / per-request Firestore reads to scale out.
 exports.api = onRequest(
-  { memory: '512MiB', timeoutSeconds: 60, concurrency: 80 },
+  { memory: '512MiB', timeoutSeconds: 60, concurrency: 80, maxInstances: 1 },
   async (req, res) => {
     // Hold the first cold-start requests until the catalogue is loaded/seeded.
     try {
