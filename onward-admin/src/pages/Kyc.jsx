@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useUI } from '../context/UIContext';
 import { Table, BOk, BPend, BBad } from '../components/ui.jsx';
-import { listKYC, approveKYC, rejectKYC } from '../services/kycService';
+import { listKYC, approveKYC, rejectKYC, getKycConfig, saveKycConfig } from '../services/kycService';
 
 const DEMO_KYCQ = [
   { row: 'New User 1 · #PLY-82355', n: 'New User 1', p: '#PLY-82355', d: 'Passport', t: '2d ago', st: 'pending' },
@@ -13,15 +13,19 @@ const DEMO_KYCQ = [
 
 const kycBadge = (st) => (st === 'pending' ? <BPend>Pending Review</BPend> : st === 'approved' ? <BOk>Approved</BOk> : <BBad>Rejected</BBad>);
 
-// Map a KYC record from the API into the shape this view renders.
+const DOC_LABEL = { id: 'National ID', passport: 'Passport', license: "Driver's License" };
+const docLabel = (d) => DOC_LABEL[d] || d || 'Document';
+const fmtTime = (t) => { if (!t) return '—'; const d = new Date(t); return Number.isNaN(d.getTime()) ? String(t) : d.toLocaleString(); };
+
+// Map a KYC record from the API into the shape this view renders (username-first).
 const normalize = (k, i) => ({
   id: k.id ?? i,
-  row: k.row || k.username || k.player || k.n || `#${k.id ?? i}`,
-  n: k.n || k.name || k.username || 'Player',
-  p: k.p || k.player_id || k.pid || `#PLY-${k.id ?? i}`,
-  d: k.d || k.document || k.doc_type || 'Document',
-  t: k.t || k.submitted || k.submitted_at || '—',
-  st: k.st || k.status || 'pending',
+  row: k.username || k.row || k.player || k.n || `#${k.id ?? i}`,
+  n: k.username || k.n || k.name || 'Player',
+  p: k.username || k.player || '—',
+  d: docLabel(k.docType || k.doc_type || k.d),
+  t: k.createdAt ? fmtTime(k.createdAt) : (k.t || k.submitted || '—'),
+  st: k.status || k.st || 'pending',
 });
 
 export default function Kyc() {
@@ -31,6 +35,20 @@ export default function Kyc() {
   const [reviewIdx, setReviewIdx] = useState(-1);
   // per-section decisions in the modal: { [sectionIdx]: 1 | 0 }
   const [picks, setPicks] = useState({});
+  // KYC approval bonus (credited to the player when KYC is approved, if > 0)
+  const [kycBonus, setKycBonus] = useState(0);
+  const [bonusInput, setBonusInput] = useState('');
+
+  useEffect(() => {
+    getKycConfig().then((c) => { setKycBonus(Number(c.kycBonus || 0)); setBonusInput(String(c.kycBonus || 0)); }).catch(() => {});
+  }, []);
+  const saveBonus = async () => {
+    try {
+      const c = await saveKycConfig(Math.max(0, Number(bonusInput) || 0));
+      setKycBonus(Number(c.kycBonus || 0));
+      toast('KYC approval bonus set to ₱' + Number(c.kycBonus || 0).toLocaleString());
+    } catch (e) { toast('Could not save bonus: ' + (e.message || 'error')); }
+  };
 
   useEffect(() => {
     let active = true;
@@ -52,11 +70,16 @@ export default function Kyc() {
 
   const setStatus = (i, st) => setQueue((prev) => prev.map((k, j) => (j === i ? { ...k, st } : k)));
 
+  const approvedToast = (name, r) =>
+    toast('KYC approved! ✔ ' + name + (r && r.bonusCredited ? ' · ₱' + Number(r.bonusCredited).toLocaleString() + ' bonus credited' : ''));
+
   const quickApprove = async (i) => {
     const k = queue[i];
     setStatus(i, 'approved');
-    try { if (k.id != null) await approveKYC(k.id); } catch { /* offline demo */ }
-    toast('KYC approved! ✔ ' + k.n);
+    try {
+      if (k.id != null) { const r = await approveKYC(k.id); approvedToast(k.n, r); return; }
+    } catch { /* offline demo */ }
+    approvedToast(k.n);
   };
 
   const openReview = (i) => { setReviewIdx(i); setPicks({}); };
@@ -83,11 +106,12 @@ export default function Kyc() {
     const rej = Object.values(picks).some((v) => !v);
     const k = queue[reviewIdx];
     setStatus(reviewIdx, rej ? 'rejected' : 'approved');
+    let r = null;
     try {
-      if (k.id != null) { if (rej) await rejectKYC(k.id); else await approveKYC(k.id); }
+      if (k.id != null) { if (rej) await rejectKYC(k.id); else r = await approveKYC(k.id); }
     } catch { /* offline demo */ }
     closeReview();
-    toast(rej ? 'Decision saved — KYC rejected ✗' : 'KYC approved! ✓ ' + k.n);
+    if (rej) toast('Decision saved — KYC rejected ✗'); else approvedToast(k.n, r);
   };
 
   const review = reviewIdx >= 0 ? queue[reviewIdx] : null;
@@ -105,10 +129,24 @@ export default function Kyc() {
 
   return (
     <>
-      <h1 className="hero-h">KYC Verification</h1>
-      <div className="hero-sub">{pend} document{pend === 1 ? '' : 's'} pending review — open <b>View Doc</b> to review before approving.</div>
+      <div className="page-head">
+        <div>
+          <h1 className="hero-h">KYC Verification</h1>
+          <div className="hero-sub" style={{ marginBottom: 0 }}>
+            {pend} document{pend === 1 ? '' : 's'} pending review — open <b>View Doc</b> to review before approving.
+            {kycBonus > 0
+              ? <> · <b style={{ color: 'var(--gold)' }}>₱{kycBonus.toLocaleString()} bonus</b> is credited on approval.</>
+              : <> · No approval bonus set.</>}
+          </div>
+        </div>
+        <span className="pr" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <label style={{ fontSize: 13, color: 'var(--muted)' }}>KYC Approval Bonus (₱)</label>
+          <input type="number" min="0" value={bonusInput} onChange={(e) => setBonusInput(e.target.value)} placeholder="0" style={{ width: 110 }} />
+          <button className="btn-search" onClick={saveBonus}>Save</button>
+        </span>
+      </div>
       <div className="card">
-        <Table cols={['Player', 'Document', 'Submitted', 'Status', 'Actions']} rows={rows} />
+        <Table cols={['Player (username)', 'Document', 'Submitted', 'Status', 'Actions']} rows={rows} />
       </div>
 
       {review && (
@@ -123,7 +161,7 @@ export default function Kyc() {
               <div className="kyc-info">
                 <div className="cell"><div className="lb">Document Type</div><div className="vl">{review.d}</div></div>
                 <div className="cell"><div className="lb">Submitted</div><div className="vl">{review.t}</div></div>
-                <div className="cell"><div className="lb">Player ID</div><div className="vl">{review.p}</div></div>
+                <div className="cell"><div className="lb">Username</div><div className="vl">{review.p}</div></div>
                 <div className="cell"><div className="lb">Country</div><div className="vl">🇵🇭 Philippines</div></div>
               </div>
               <div className="kyc-status"><span className="os">Overall Status:</span><span className="pend">⏳ Pending Review</span></div>

@@ -79,27 +79,23 @@ module.exports = function seed() {
     console.log(`Seeded ${promos.length} demo promotions (1 intentionally expired)`);
   }
 
-  // ---- one-time removal of the seeded demo player ----
-  // We no longer ship a demo player (so the admin only ever shows real, web
-  // registered accounts). This deletes the original seeded "player" and its
-  // demo transactions/KYC exactly once; it matches by username AND the seed
-  // email, so a real player can never be removed by accident.
+  // ---- one-time wipe of all demo/test players ----
+  // Requested clean slate before real test players are created. Deletes every
+  // player and their related records, once (guarded by a flag), then future
+  // real registrations are kept untouched.
   const cfg = store.getSettings();
-  if (!cfg.demoPlayerRemoved) {
-    const demo = store.list('players').find(
-      (p) => (p.username || '').toLowerCase() === 'player'
-        && (p.email || '').toLowerCase() === 'player@onward.test'
-    );
-    if (demo) {
+  if (!cfg.playersWipedV1) {
+    const all = store.list('players');
+    all.forEach((p) => {
       ['transactions', 'kyc', 'bank_accounts', 'login_history'].forEach((col) => {
         store.list(col)
-          .filter((r) => String(r.playerId) === String(demo.id))
+          .filter((r) => String(r.playerId) === String(p.id))
           .forEach((r) => store.remove(col, r.id));
       });
-      store.remove('players', demo.id);
-      console.log('Removed seeded demo player (player) and its demo data');
-    }
-    store.saveSettings({ demoPlayerRemoved: true });
+      store.remove('players', p.id);
+    });
+    if (all.length) console.log(`Wiped ${all.length} demo/test player(s) and related data`);
+    store.saveSettings({ playersWipedV1: true, demoPlayerRemoved: true });
   }
 
   // ---- default API configuration ----

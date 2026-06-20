@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useUI } from '../context/UIContext';
-import { onlinePlayers, kickPlayer } from '../services/playerService';
+import { onlinePlayers, kickPlayer, getPlayer } from '../services/playerService';
 
 const opSecFmt = (s) => { const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return h ? `${h}h ${String(m).padStart(2, '0')}m` : `0h ${m}m`; };
 const opLong = (s) => s >= 3600;
@@ -62,7 +62,12 @@ export default function OnlinePlayers() {
   const active = visibleRows.filter((p) => p.sec < 120).length; // joined in last 2 min
   const totalBal = visibleRows.reduce((s, p) => s + p.balance, 0);
 
-  const view = (p) => toast('👁 ' + p.name + ' (' + p.user + ') · balance ₱' + p.balance.toLocaleString());
+  const [detail, setDetail] = useState(null); // full player record for the info modal
+  const view = async (p) => {
+    setDetail({ __loading: true });
+    try { setDetail(await getPlayer(p.id)); }
+    catch (e) { setDetail(null); toast('Could not load player: ' + (e.message || 'API error')); }
+  };
   // Kick: end the player's session on the backend, then drop them from view.
   const kick = async (p) => {
     if (!p.id) { setHidden((prev) => new Set(prev).add(p.id)); return; }
@@ -115,6 +120,66 @@ export default function OnlinePlayers() {
           </tbody>
         </table></div>
       </div>
+
+      {detail && <PlayerInfoModal detail={detail} onClose={() => setDetail(null)} />}
     </>
+  );
+}
+
+const dt = (t) => { if (!t) return '—'; const d = new Date(t); return Number.isNaN(d.getTime()) ? String(t) : d.toLocaleString(); };
+
+function PlayerInfoModal({ detail, onClose }) {
+  const loading = detail.__loading;
+  const p = detail || {};
+  const Row = ({ k, v }) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, padding: '8px 0', borderBottom: '1px solid var(--border, #1e2d47)' }}>
+      <span style={{ color: 'var(--muted, #8898b8)', fontSize: 13 }}>{k}</span>
+      <span style={{ color: 'var(--text, #fff)', fontWeight: 600, fontSize: 13, textAlign: 'right', wordBreak: 'break-word' }}>{v ?? '—'}</span>
+    </div>
+  );
+  const yn = (b) => (b ? '✓ Yes' : '✗ No');
+
+  return (
+    <div className="modal-ov show" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 16px', zIndex: 4000, overflowY: 'auto' }}>
+      <div style={{ width: 'min(560px, 100%)', background: 'var(--surface, #0f1830)', border: '1px solid var(--border, #1e2d47)', borderRadius: 14, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '16px 18px', borderBottom: '1px solid var(--border, #1e2d47)' }}>
+          <span style={{ fontSize: '1.2rem' }}>👤</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 800, color: 'var(--text, #fff)' }}>{loading ? 'Loading…' : (p.username || 'Player')}</div>
+            <div style={{ fontSize: 12, color: 'var(--muted, #8898b8)' }}>{loading ? '' : (p.playerCode || '')}</div>
+          </div>
+          <button onClick={onClose} aria-label="Close" style={{ background: 'rgba(255,255,255,.08)', border: 'none', color: '#fff', width: 30, height: 30, borderRadius: 8, cursor: 'pointer' }}>✕</button>
+        </div>
+        <div style={{ padding: '8px 18px 18px' }}>
+          {loading ? (
+            <div style={{ padding: 24, textAlign: 'center', color: 'var(--muted, #8898b8)' }}>Loading player info…</div>
+          ) : (
+            <>
+              <Row k="Full name" v={p.fullName} />
+              <Row k="Username" v={p.username} />
+              <Row k="Player ID" v={p.playerCode} />
+              <Row k="Email" v={<>{p.email} {p.emailVerified ? '✓' : '✗'}</>} />
+              <Row k="Mobile" v={<>{p.phone} {p.mobileVerified ? '✓' : '✗'}</>} />
+              <Row k="Currency" v={p.currency} />
+              <Row k="Balance" v={'₱' + Number(p.balance || 0).toLocaleString()} />
+              <Row k="Bonus" v={'₱' + Number(p.bonus || 0).toLocaleString()} />
+              <Row k="VIP level" v={p.vipLevel} />
+              <Row k="KYC status" v={p.kyc_status} />
+              <Row k="Account status" v={p.status} />
+              <Row k="2FA" v={yn(p.twoFactorEnabled)} />
+              <Row k="Registration IP" v={p.registrationIp} />
+              <Row k="Device" v={p.registrationDevice} />
+              <Row k="Registered" v={dt(p.registrationDate || p.createdAt)} />
+              <Row k="Last login" v={dt(p.lastLoginAt)} />
+              <Row k="Last seen" v={dt(p.lastSeenAt)} />
+              {Array.isArray(p.bankAccounts) && p.bankAccounts.length > 0 && (
+                <Row k="Bank" v={p.bankAccounts.map((b) => `${b.bankName || b.bank || ''} · ${b.accountNumber || b.number || ''}`).join(', ')} />
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

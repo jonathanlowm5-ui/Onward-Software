@@ -469,8 +469,9 @@ function PersonalTab({ show, toast }) {
 }
 
 function KycSection({ toast }) {
+  const { profile, refreshProfile } = useAuth();
+  const status = profile?.kyc_status || 'unverified'; // unverified | pending | approved | rejected
   const [docType, setDocType] = useState('id');
-  const [status, setStatus] = useState('unverified'); // unverified | pending
   const [files, setFiles] = useState({ front: null, back: null, selfie: null }); // {name, url}
   const inputs = { front: useRef(null), back: useRef(null), selfie: useRef(null) };
 
@@ -505,17 +506,21 @@ function KycSection({ toast }) {
       if (inputs.front.current?.files[0]) fd.append('front', inputs.front.current.files[0]);
       if (inputs.back.current?.files[0]) fd.append('back', inputs.back.current.files[0]);
       if (inputs.selfie.current?.files[0]) fd.append('selfie', inputs.selfie.current.files[0]);
-      await playersService.submitKYC(fd).catch(() => null); // stubbed network call
-      setStatus('pending');
+      await playersService.submitKYC({ docType }).catch(() => null);
+      await refreshProfile();
       toast('KYC documents submitted successfully!', 'success');
     } catch {
       toast('Could not submit KYC. Please try again.', 'error');
     }
   };
 
-  const statusText = status === 'pending'
-    ? '⏳ Documents submitted — under review (24-48 hours)'
-    : 'Not Verified — Submit your documents to enable withdrawals';
+  const statusText = status === 'approved'
+    ? '✓ Verified — your identity has been approved'
+    : status === 'rejected'
+      ? '✗ Rejected — please review and resubmit your documents'
+      : status === 'pending'
+        ? '⏳ Documents submitted — under review (24-48 hours)'
+        : 'Not Verified — Submit your documents to enable withdrawals';
 
   return (
     <div className="kyc-section">
