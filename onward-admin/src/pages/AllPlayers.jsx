@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useUI } from '../context/UIContext';
 import { listPlayers, blockPlayer, updatePlayer } from '../services/playerService';
+import { credit as creditWallet, debit as debitWallet } from '../services/walletService';
 
 /* ---- Players dataset (demo fallback) ----
    [username, realName, rank, id, cur, email, phone, bal, dep, vip, vipColor, active, ip, joined, hl] */
@@ -26,7 +27,7 @@ const toRow = (p, i) => [
   p.username || p.user || p.name || `player${i}`,
   p.realName || p.real_name || p.name || p.username || '—',
   p.rank ?? i + 1,
-  p.playerId || p.player_id || p.id || `LGX${i}`,
+  p.playerCode || p.playerId || p.player_id || p.id || `LGX${i}`,
   p.currency || p.cur || 'PHP',
   p.email || `${p.username || 'player'}@email.com`,
   p.phone || p.contact || '—',
@@ -38,6 +39,7 @@ const toRow = (p, i) => [
   p.ip || p.registerIp || p.register_ip || '0.0.0.0',
   p.joined || p.createdAt || p.created_at || '—',
   p.hl || '',
+  p.id || p.playerId || p.player_id || null, // [15] backend record id for API calls
 ];
 
 const selF = (l, opts, req) => (
@@ -174,17 +176,33 @@ export default function AllPlayers() {
     toast('Player suspended ⛔');
   };
 
-  const applyAdjustment = () => {
+  const applyAdjustment = async () => {
     const { type } = adjForm;
     const amt = moneyNum(adjForm.amt);
     const rem = adjForm.remark.trim();
     const p = players[pmIdx];
+    const playerId = p[15]; // backend record id
     let bal = moneyNum(p[7]); let neg = false;
-    if (type.includes('Deduct')) { bal = Math.max(0, bal - amt); neg = true; }
-    else if (type.includes('Reset Balance')) { bal = 0; neg = true; }
-    else if (type.includes('Add Balance') || type.includes('Bonus')) { bal += amt; }
+    let apiCall = null; // what to persist to the backend
+    if (type.includes('Deduct')) { neg = true; apiCall = () => debitWallet(playerId, amt, rem || 'Admin deduct'); bal = Math.max(0, bal - amt); }
+    else if (type.includes('Reset Balance')) { neg = true; apiCall = () => debitWallet(playerId, bal, rem || 'Reset balance'); bal = 0; }
+    else if (type.includes('Add Balance') || type.includes('Bonus')) { apiCall = () => creditWallet(playerId, amt, rem || 'Admin credit'); bal += amt; }
     else { toast('Applied: ' + type + ' ✔'); return; }
     if (!amt && !type.includes('Reset')) { toast('⚠ Enter an amount'); return; }
+
+    // Persist to the backend so the player's wallet actually changes.
+    if (playerId && apiCall) {
+      try {
+        const res = await apiCall();
+        if (res && typeof res.balance === 'number') bal = res.balance; // trust server
+      } catch (e) {
+        toast('⚠ Could not save to server: ' + (e.message || 'API error'));
+        return;
+      }
+    } else if (!playerId) {
+      toast('⚠ This is demo data — connect a real player to adjust balance');
+    }
+
     const newBal = moneyFmt(bal);
     setPlayers((prev) => prev.map((x, j) => (j === pmIdx ? Object.assign([...x], { 7: newBal }) : x)));
     setAdj((prev) => {
