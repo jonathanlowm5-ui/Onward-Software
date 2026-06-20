@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import useSectionNav from '../../hooks/useSectionNav';
@@ -27,9 +28,12 @@ const LANGS = [
 ];
 
 export default function Dropdowns() {
-  const { dropdown, closeDropdown, setCurrency, currency, setLang, lang } = useUI();
-  const { isLoggedIn, logout } = useAuth();
+  const { dropdown, closeDropdown, setCurrency, currency, setLang, lang, openModal } = useUI();
+  const { isLoggedIn, logout, profile } = useAuth();
   const go = useSectionNav();
+  const navigate = useNavigate();
+  // Open the profile page already drilled into a specific section.
+  const goSection = (section) => { navigate('/profile', { state: { section } }); closeDropdown(); };
 
   return (
     <>
@@ -67,14 +71,26 @@ export default function Dropdowns() {
 
       {/* PROFILE MENU */}
       {dropdown === 'profile' && isLoggedIn && (
-        <div id="profile-menu" style={{ ...panel, right: 16 }}>
-          <button style={row} onClick={() => { go('profile'); closeDropdown(); }}>👤 My Profile</button>
-          <button style={row} onClick={() => { go('profile'); closeDropdown(); }}>💳 Transactions</button>
-          <button style={row} onClick={() => { go('profile'); closeDropdown(); }}>📜 Game History</button>
-          <button style={row} onClick={() => { go('vip'); closeDropdown(); }}>💎 VIP Club</button>
-          <button style={row} onClick={() => { go('referral'); closeDropdown(); }}>🤝 Referral</button>
-          <div style={{ height: 1, background: 'var(--border)', margin: '6px 0' }} />
-          <button style={{ ...row, color: 'var(--red)' }} onClick={() => { logout(); closeDropdown(); }}>🚪 Logout</button>
+        <div id="profile-menu" style={{ ...panel, right: 16, minWidth: 264, padding: 0, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'var(--bg3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>🎮</div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{profile?.username || 'Player'}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{profile?.playerCode || ''}</div>
+            </div>
+          </div>
+          <div style={{ padding: 8 }}>
+            <button style={row} onClick={() => goSection('security')}>👤 My Profile</button>
+            <button style={row} onClick={() => goSection('history')}>📜 Game History</button>
+            <button style={row} onClick={() => goSection('transactions')}>💳 Transactions</button>
+            <button style={row} onClick={() => goSection('wager')}>🎰 Wager</button>
+            <button style={row} onClick={() => { openModal('deposit'); closeDropdown(); }}>💰 Deposit</button>
+            <button style={row} onClick={() => { openModal('withdraw'); closeDropdown(); }}>🏦 Withdraw</button>
+            <button style={row} onClick={() => { go('vip'); closeDropdown(); }}>💎 VIP Club</button>
+            <button style={row} onClick={() => { go('referral'); closeDropdown(); }}>🤝 Referral</button>
+            <div style={{ height: 1, background: 'var(--border)', margin: '6px 0' }} />
+            <button style={{ ...row, color: 'var(--red)' }} onClick={() => { logout(); closeDropdown(); go('lobby'); }}>🚪 Logout</button>
+          </div>
         </div>
       )}
     </>

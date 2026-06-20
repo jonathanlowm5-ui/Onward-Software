@@ -1,5 +1,6 @@
 // Profile / Settings — faithful HTML→React conversion of the original #view-profile view.
 import { useState, useRef, useMemo, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useUI } from '../context/UIContext';
 import { useAuth } from '../context/AuthContext';
 import useSectionNav from '../hooks/useSectionNav';
@@ -133,6 +134,14 @@ export default function Profile() {
   // the page switches to that panel full-width (CSS keys off `.drilled`).
   const [drilled, setDrilled] = useState(false);
   const openSection = (section) => { setNav(section); setDrilled(true); };
+
+  // Open a specific section when arriving from the avatar dropdown
+  // (e.g. "Game History" -> history panel).
+  const location = useLocation();
+  useEffect(() => {
+    const s = location.state?.section;
+    if (s) { setNav(s); setDrilled(true); }
+  }, [location.state]);
 
   const showProfPanel = nav === 'security';
 
