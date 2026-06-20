@@ -90,8 +90,10 @@ function move(req, res, sign) {
   if (!(amount > 0)) return res.status(400).json({ error: 'A positive amount is required' });
   const updated = store.update(COLLECTION, req.params.id, { balance: Number(p.balance || 0) + sign * amount });
   store.insert('transactions', {
-    playerId: p.id, type: 'adjustment', amount: sign * amount,
-    method: 'admin', status: 'approved', note: req.body?.note || (sign > 0 ? 'Admin credit' : 'Admin debit'),
+    playerId: p.id, username: p.username, currency: p.currency || 'PHP',
+    type: 'adjustment', amount: sign * amount,
+    method: 'admin', source: 'manual-adjustment', status: 'approved',
+    note: req.body?.note || (sign > 0 ? 'Admin credit' : 'Admin debit'),
   });
   res.json({ playerId: p.id, balance: updated.balance });
 }

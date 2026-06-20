@@ -11,6 +11,7 @@ const MENU=[
  {cat:"Finance",ic:"💰",id:"finance",sub:[
    {id:"deposits",ic:"💳",t:"Deposits"},
    {id:"withdrawals",ic:"💸",t:"Withdrawals",badge:[12]},
+   {id:"transactions",ic:"📒",t:"Transactions"},
    {id:"bonuses",ic:"🎁",t:"Bonuses"},
    {id:"bank",ic:"🏦",t:"Bank"}]},
  {cat:"Games",ic:"🎮",id:"games",sub:[
