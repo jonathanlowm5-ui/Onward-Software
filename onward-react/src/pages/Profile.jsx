@@ -129,15 +129,19 @@ export default function Profile() {
   const [nav, setNav] = useState('security'); // security | transactions | wager | history | agent
   // Settings tab selection inside the main profile panel.
   const [tab, setTab] = useState('security');
+  // Mobile drill-in: the account menu is shown until a section is opened, then
+  // the page switches to that panel full-width (CSS keys off `.drilled`).
+  const [drilled, setDrilled] = useState(false);
+  const openSection = (section) => { setNav(section); setDrilled(true); };
 
   const showProfPanel = nav === 'security';
 
   return (
     <div id="view-profile">
-      <div className="profile-page">
+      <div className={'profile-page' + (drilled ? ' drilled' : '')}>
 
         {/* H5 drill-in back bar (only shows on mobile when a sub-page is open) */}
-        <button id="prof-back-bar" type="button" onClick={() => setNav('security')}>← <span>Back to account menu</span></button>
+        <button id="prof-back-bar" type="button" onClick={() => setDrilled(false)}>← <span>Back to account menu</span></button>
 
         {/* LEFT SIDEBAR */}
         <div className="prof-sidebar">
@@ -179,19 +183,19 @@ export default function Profile() {
 
           {/* Navigation */}
           <div className="prof-nav">
-            <button className={'prof-nav-item' + (nav === 'security' ? ' active' : '')} id="prof-nav-profile" onClick={() => setNav('security')}>
+            <button className={'prof-nav-item' + (nav === 'security' ? ' active' : '')} id="prof-nav-profile" onClick={() => openSection('security')}>
               <span className="prof-nav-icon">👤</span> <span data-i18n="menu_profile">Profile</span>
             </button>
-            <button className={'prof-nav-item' + (nav === 'transactions' ? ' active' : '')} id="prof-nav-transactions" onClick={() => setNav('transactions')}>
+            <button className={'prof-nav-item' + (nav === 'transactions' ? ' active' : '')} id="prof-nav-transactions" onClick={() => openSection('transactions')}>
               <span className="prof-nav-icon">↔️</span> <span data-i18n="menu_transactions">Transactions</span>
             </button>
-            <button className={'prof-nav-item' + (nav === 'wager' ? ' active' : '')} onClick={() => setNav('wager')}>
+            <button className={'prof-nav-item' + (nav === 'wager' ? ' active' : '')} onClick={() => openSection('wager')}>
               <span className="prof-nav-icon">🎰</span> <span data-i18n="prof_nav_wager">Wager</span>
             </button>
-            <button className={'prof-nav-item' + (nav === 'history' ? ' active' : '')} onClick={() => setNav('history')}>
+            <button className={'prof-nav-item' + (nav === 'history' ? ' active' : '')} onClick={() => openSection('history')}>
               <span className="prof-nav-icon">🕐</span> <span data-i18n="prof_nav_history">Game History</span>
             </button>
-            <button className={'prof-nav-item' + (nav === 'agent' ? ' active' : '')} id="prof-nav-agent" onClick={() => setNav('agent')}>
+            <button className={'prof-nav-item' + (nav === 'agent' ? ' active' : '')} id="prof-nav-agent" onClick={() => openSection('agent')}>
               <span className="prof-nav-icon">🧑‍💼</span> <span data-i18n="prof_nav_agent">Agent</span>
             </button>
             <button className="prof-nav-item" onClick={() => { logout(); go('lobby'); }}>
