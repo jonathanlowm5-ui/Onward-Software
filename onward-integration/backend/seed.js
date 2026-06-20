@@ -79,22 +79,27 @@ module.exports = function seed() {
     console.log(`Seeded ${promos.length} demo promotions (1 intentionally expired)`);
   }
 
-  // ---- demo player (so login works out of the box: player / player123) ----
-  if (store.list('players').length === 0) {
-    const player = store.insert('players', {
-      username: 'player',
-      email: 'player@onward.test',
-      firstName: 'Juan', lastName: 'Dela Cruz', fullName: 'Juan Dela Cruz',
-      phone: '+63 900 000 0000', country: 'Philippines',
-      passwordHash: bcrypt.hashSync('player123', 10),
-      role: 'player', status: 'active',
-      balance: 2500, bonus: 500, kyc_status: 'unverified', vipLevel: 1,
-    });
-    // a couple of transactions + a pending KYC so the admin has real data to act on
-    store.insert('transactions', { playerId: player.id, username: 'player', type: 'deposit', amount: 1000, method: 'GCash', status: 'approved', note: 'Welcome deposit' });
-    store.insert('transactions', { playerId: player.id, username: 'player', type: 'withdrawal', amount: 500, method: 'Bank', status: 'pending', note: '' });
-    store.insert('kyc', { playerId: player.id, username: 'player', docType: 'id', frontUrl: '', backUrl: '', selfieUrl: '', status: 'pending', note: '' });
-    console.log('Seeded demo player (player / player123) with sample transactions + KYC');
+  // ---- one-time removal of the seeded demo player ----
+  // We no longer ship a demo player (so the admin only ever shows real, web
+  // registered accounts). This deletes the original seeded "player" and its
+  // demo transactions/KYC exactly once; it matches by username AND the seed
+  // email, so a real player can never be removed by accident.
+  const cfg = store.getSettings();
+  if (!cfg.demoPlayerRemoved) {
+    const demo = store.list('players').find(
+      (p) => (p.username || '').toLowerCase() === 'player'
+        && (p.email || '').toLowerCase() === 'player@onward.test'
+    );
+    if (demo) {
+      ['transactions', 'kyc', 'bank_accounts', 'login_history'].forEach((col) => {
+        store.list(col)
+          .filter((r) => String(r.playerId) === String(demo.id))
+          .forEach((r) => store.remove(col, r.id));
+      });
+      store.remove('players', demo.id);
+      console.log('Removed seeded demo player (player) and its demo data');
+    }
+    store.saveSettings({ demoPlayerRemoved: true });
   }
 
   // ---- default API configuration ----
