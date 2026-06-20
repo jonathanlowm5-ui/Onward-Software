@@ -53,9 +53,22 @@ router.post('/register', (req, res) => {
   res.status(201).json({ ok: true, player: publicView(player) });
 });
 
-// ---- ADMIN: list registrations ----
+// ---- ADMIN: list registrations (supports ?online=1, ?vip=1) ----
+const ONLINE_WINDOW_MS = 5 * 60 * 1000; // "online" = seen in the last 5 minutes
 router.get('/', requireAuth, (req, res) => {
-  const players = store.list(COLLECTION).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  let players = store.list(COLLECTION);
+  if (req.query.online) {
+    const cutoff = Date.now() - ONLINE_WINDOW_MS;
+    players = players
+      .filter((p) => p.lastSeenAt && new Date(p.lastSeenAt).getTime() >= cutoff)
+      .sort((a, b) => String(b.lastSeenAt || '').localeCompare(String(a.lastSeenAt || '')));
+  } else if (req.query.vip) {
+    players = players
+      .filter((p) => Number(p.vipLevel || 0) > 0)
+      .sort((a, b) => Number(b.vipLevel || 0) - Number(a.vipLevel || 0));
+  } else {
+    players = players.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  }
   res.json(players.map(publicView));
 });
 

@@ -150,6 +150,12 @@ router.get('/me', requirePlayer, (req, res) => {
   let p = currentPlayer(req);
   if (!p) return res.status(404).json({ error: 'Player not found' });
   p = ensurePlayerCode(store, p) || p;
+  // Heartbeat for "online" tracking (the frontend polls /me ~every 30s).
+  // Throttled so we don't write on every single poll.
+  const last = p.lastSeenAt ? new Date(p.lastSeenAt).getTime() : 0;
+  if (Date.now() - last > 20000) {
+    p = store.update(PLAYERS, p.id, { lastSeenAt: new Date().toISOString() }) || p;
+  }
   res.json(view(p));
 });
 

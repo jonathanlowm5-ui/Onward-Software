@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useUI } from '../context/UIContext';
-import { listPlayers, blockPlayer, updatePlayer } from '../services/playerService';
+import { listPlayers, blockPlayer, updatePlayer, deletePlayer } from '../services/playerService';
 import { credit as creditWallet, debit as debitWallet } from '../services/walletService';
 
 /* ---- Players dataset (demo fallback) ----
@@ -111,8 +111,23 @@ export default function AllPlayers() {
   const togglePlayer = async (i) => {
     const wasActive = players[i][11];
     setPlayers((prev) => prev.map((p, j) => (j === i ? Object.assign([...p], { 11: p[11] ? 0 : 1 }) : p)));
-    try { await blockPlayer(players[i][3], wasActive ? true : false); } catch { /* offline demo */ }
+    try { await blockPlayer(players[i][15], wasActive ? true : false); } catch { /* offline demo */ }
     toast(wasActive ? players[i][0] + ' suspended ⛔ — Player suspended' : players[i][0] + ' activated ✔');
+  };
+
+  // Delete a player (use to clean out dummy / test accounts).
+  const delPlayer = async (i) => {
+    const p = players[i];
+    if (!window.confirm(`Delete ${p[0]} (${p[3]})? This permanently removes the account.`)) return;
+    const id = p[15];
+    if (!id) { setPlayers((prev) => prev.filter((_, j) => j !== i)); toast('Demo row removed'); return; }
+    try {
+      await deletePlayer(id);
+      setPlayers((prev) => prev.filter((_, j) => j !== i));
+      toast('Player deleted ✔ ' + p[0]);
+    } catch (e) {
+      toast('Could not delete: ' + (e.message || 'API error'));
+    }
   };
 
   const exportCSV = () => {
@@ -164,7 +179,7 @@ export default function AllPlayers() {
         np[10] = { gold: 'g', silver: 's', diamond: 'd', bronze: 'b', platinum: 'p' }[v] || np[10];
         return np;
       }));
-      try { await updatePlayer(players[pmIdx][3], { username: pmForm.user, realName: pmForm.name, email: pmForm.email, phone: pmForm.phone, active: pmForm.status === 'active', vip: v }); } catch { /* offline demo */ }
+      try { await updatePlayer(players[pmIdx][15], { username: pmForm.user, realName: pmForm.name, email: pmForm.email, phone: pmForm.phone, active: pmForm.status === 'active', vip: v }); } catch { /* offline demo */ }
     }
     closePlayer();
     toast('Player saved! ✔');
@@ -229,7 +244,7 @@ export default function AllPlayers() {
         <td className="ipmono">{ip}</td><td>{joined}</td>
         <td><button className="mini-btn" onClick={() => openPlayer(i)}>View</button> {act
           ? <button className="act-suspend" onClick={() => togglePlayer(i)}>Suspend</button>
-          : <button className="act-activate" onClick={() => togglePlayer(i)}>Activate</button>}</td>
+          : <button className="act-activate" onClick={() => togglePlayer(i)}>Activate</button>} <button className="act-suspend" onClick={() => delPlayer(i)}>Delete</button></td>
       </tr>
     );
   };
@@ -259,6 +274,7 @@ export default function AllPlayers() {
           {act
             ? <button className="act-suspend" onClick={(e) => { e.stopPropagation(); togglePlayer(i); }}>Suspend</button>
             : <button className="act-activate" onClick={(e) => { e.stopPropagation(); togglePlayer(i); }}>Activate</button>}
+          <button className="act-suspend" onClick={(e) => { e.stopPropagation(); delPlayer(i); }}>Delete</button>
         </div>
       </div>
     );
