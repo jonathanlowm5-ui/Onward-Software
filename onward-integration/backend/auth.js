@@ -67,4 +67,18 @@ function requirePlayer(req, res, next) {
   }
 }
 
-module.exports = { sign, signPlayer, requireAuth, requirePlayer, JWT_SECRET };
+// Accept any valid token (admin or player) — used for image uploads so both the
+// admin panel and logged-in players (KYC docs, avatars) can upload.
+function requireAnyUser(req, res, next) {
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+  if (!token) return res.status(401).json({ error: 'Please sign in' });
+  try {
+    req.token = jwt.verify(token, JWT_SECRET);
+    next();
+  } catch {
+    return res.status(401).json({ error: 'Invalid or expired session' });
+  }
+}
+
+module.exports = { sign, signPlayer, requireAuth, requirePlayer, requireAnyUser, JWT_SECRET };

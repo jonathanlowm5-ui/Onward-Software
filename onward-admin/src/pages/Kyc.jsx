@@ -26,7 +26,19 @@ const normalize = (k, i) => ({
   d: docLabel(k.docType || k.doc_type || k.d),
   t: k.createdAt ? fmtTime(k.createdAt) : (k.t || k.submitted || '—'),
   st: k.status || k.st || 'pending',
+  frontUrl: k.frontUrl || '',
+  backUrl: k.backUrl || '',
+  selfieUrl: k.selfieUrl || '',
 });
+
+function KycImg({ label, url }) {
+  return (
+    <a href={url} target="_blank" rel="noreferrer" style={{ display: 'block', width: 150 }}>
+      <img src={url} alt={label} style={{ width: 150, height: 95, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)', display: 'block' }} />
+      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4, textAlign: 'center' }}>{label} · View full</div>
+    </a>
+  );
+}
 
 export default function Kyc() {
   const { toast } = useUI();
@@ -174,7 +186,14 @@ export default function Kyc() {
                     <>
                       <div className="kyc-box" style={{ padding: 0, border: 'none', background: 'transparent' }}><div className="lb" style={{ marginBottom: '6px' }}>Document Type</div>
                         <select className="kyc-sel" defaultValue={review.d}><option>{review.d}</option><option>National ID</option><option>Driver License</option><option>Passport</option></select></div>
-                      <div className="kyc-file"><span className="fi">🖼️</span><span><div className="fn">passport_scan.jpg</div><div className="fm">2.8 MB · Uploaded 2026-06-03 09:12</div></span><button className="view" onClick={() => toast('Opening passport_scan.jpg 👁')}>👁 View</button></div>
+                      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
+                        {review.frontUrl && <KycImg label="Front" url={review.frontUrl} />}
+                        {review.backUrl && <KycImg label="Back" url={review.backUrl} />}
+                        {review.selfieUrl && <KycImg label="Selfie" url={review.selfieUrl} />}
+                        {!review.frontUrl && !review.backUrl && !review.selfieUrl && (
+                          <div className="kyc-note">No document images were uploaded for this submission.</div>
+                        )}
+                      </div>
                     </>
                   )}
                   {si === 1 && (

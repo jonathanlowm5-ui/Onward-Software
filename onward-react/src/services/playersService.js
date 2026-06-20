@@ -45,10 +45,16 @@ export const requestMobileCode = () =>
 export const confirmMobileCode = (code) =>
   api.post('/player/me/verify/mobile/confirm', { code }).then((r) => r.data);
 
-export const submitKYC = (formData) =>
-  api
-    .post('/player/kyc', formData, { headers: { 'Content-Type': 'multipart/form-data' } })
-    .then((r) => r.data);
+export const submitKYC = (payload) =>
+  api.post('/player/kyc', payload).then((r) => r.data);
+
+// Upload an image to Firebase Storage (KYC docs / avatar) -> { url }.
+export const uploadFile = (file, kind = 'kyc') => {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('kind', kind);
+  return api.post('/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
+};
 
 export const registerPlayer = (payload) =>
   api.post('/players/register', payload).then((r) => r.data);

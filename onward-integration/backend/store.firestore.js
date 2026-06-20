@@ -1,137 +1,141 @@
 /*
- * store.firestore.js — Cloud Firestore backend (for Firebase / Cloud Functions).
+ * store.firestore.js — Cloud Firestore backend (tidy, one collection per entity).
  *
  * Enable with: STORE=firestore
- * Needs:       firebase-admin (auto-initialised with the function's default
- *              service-account credentials when running on Cloud Functions).
  *
- * Same SYNCHRONOUS interface as the other stores (list / get / insert / update /
- * remove / getSettings / saveSettings / findUser / insertUser), backed by an
- * in-memory cache that is loaded once at boot and written through to Firestore
- * on every change. This keeps the route layer unchanged and means seed.js's
- * "is this collection empty?" checks hit the cache (free) instead of Firestore.
+ * Each app collection (players, bank_accounts, kyc, transactions,
+ * login_history, game_history, games, banners, promotions, users) is its own
+ * Firestore collection, and every record is a clean document with its fields at
+ * the top level (id, username, playerCode, email, phone, balance, …) — easy to
+ * read and query in the Firebase console. App config lives in
+ * app_settings/singleton.
  *
- * Callers that must wait for the cache (the Cloud Function entry, the seeder)
- * await the exported `whenReady` promise first.
+ * Same SYNCHRONOUS interface as the other stores, backed by an in-memory cache
+ * loaded once at boot and written through to Firestore on every change. With
+ * the API pinned to a single instance (see functions.js) this cache is the
+ * single source of truth. Callers that must wait for the cache await whenReady.
  *
- * Storage model: one Firestore collection (`records`) holds every app record as
- * { collection, data, createdAt, updatedAt }; app config lives in a single
- * `app_settings/singleton` document. All access goes through the Admin SDK, so
- * client-side Firestore rules stay locked down (see firestore.rules).
+ * On first boot it migrates any legacy data from the old single "records"
+ * collection into the tidy per-entity collections (once), so existing
+ * games/banners/promotions/admin survive the move.
  */
 const crypto = require('crypto');
 const admin = require('firebase-admin');
 const { getFirestore } = require('firebase-admin/firestore');
 
 if (!admin.apps.length) admin.initializeApp();
-
-// This project uses a NAMED Firestore database (not "(default)"). Point the
-// Admin SDK at it; override with FIRESTORE_DB if you rename/clone it.
 const DB_ID = process.env.FIRESTORE_DB || 'onward';
 const db = DB_ID && DB_ID !== '(default)' ? getFirestore(DB_ID) : getFirestore();
-try {
-  // Records carry optional fields; never throw on an undefined value.
-  db.settings({ ignoreUndefinedProperties: true });
-} catch {
-  /* settings can only be set once; ignore if already initialised */
-}
+try { db.settings({ ignoreUndefinedProperties: true }); } catch { /* already set */ }
 
-const RECORDS = process.env.FIRESTORE_RECORDS || 'records';
 const SETTINGS_DOC = db.collection('app_settings').doc('singleton');
+const COLLECTIONS = [
+  'players', 'bank_accounts', 'kyc', 'transactions', 'login_history',
+  'game_history', 'games', 'banners', 'promotions', 'users',
+];
 
 const now = () => new Date().toISOString();
 const newId = () => crypto.randomUUID();
 
-const cache = { records: [], settings: {} };
+const cache = {};
+COLLECTIONS.forEach((c) => { cache[c] = []; });
+let settingsCache = {};
 let ready = false;
 
 const whenReady = (async function init() {
-  const snap = await db.collection(RECORDS).get();
-  cache.records = snap.docs.map((d) => {
-    const row = d.data() || {};
-    return {
-      ...(row.data || {}),
-      id: d.id,
-      collection: row.collection,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-    };
-  });
-  const s = await SETTINGS_DOC.get();
-  cache.settings = s.exists ? s.data() || {} : {};
+  const sSnap = await SETTINGS_DOC.get();
+  settingsCache = sSnap.exists ? sSnap.data() || {} : {};
+
+  // One-time migration from the legacy "records" collection (records held
+  // { collection, data, createdAt, updatedAt }).
+  if (!settingsCache.migratedToTidyV1) {
+    try {
+      const old = await db.collection('records').get();
+      let batch = db.batch();
+      let n = 0;
+      for (const d of old.docs) {
+        const row = d.data() || {};
+        if (!row.collection) continue;
+        batch.set(db.collection(row.collection).doc(d.id), {
+          id: d.id, ...(row.data || {}), createdAt: row.createdAt, updatedAt: row.updatedAt,
+        });
+        if (++n % 400 === 0) { await batch.commit(); batch = db.batch(); }
+      }
+      if (n % 400 !== 0) await batch.commit();
+      if (n) console.log(`[store] migrated ${n} legacy records into tidy collections`);
+    } catch (e) {
+      console.error('[store] migration skipped:', e.message);
+    }
+    settingsCache = { ...settingsCache, migratedToTidyV1: true };
+    await SETTINGS_DOC.set(settingsCache, { merge: true });
+  }
+
+  await Promise.all(COLLECTIONS.map(async (col) => {
+    const snap = await db.collection(col).get();
+    cache[col] = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  }));
   ready = true;
-  console.log('[store] firestore ready,', cache.records.length, 'records');
+  const total = COLLECTIONS.reduce((s, c) => s + cache[c].length, 0);
+  console.log(`[store] firestore (tidy) ready — ${total} records across ${COLLECTIONS.length} collections`);
 })();
 whenReady.catch((e) => console.error('[store] firestore init failed:', e.message));
 
-function ensure() {
-  if (!ready) throw new Error('Database not ready yet — retry in a moment');
-}
-const docRef = (id) => db.collection(RECORDS).doc(id);
+function ensure() { if (!ready) throw new Error('Database not ready yet — retry in a moment'); }
+function col(name) { if (!cache[name]) cache[name] = []; return cache[name]; }
+function ref(name, id) { return db.collection(name).doc(id); }
 
 module.exports = {
   whenReady,
 
   list(collection) {
     ensure();
-    return cache.records
-      .filter((r) => r.collection === collection)
-      .map(({ collection: _c, ...rest }) => rest);
+    return col(collection).map((r) => ({ ...r }));
   },
 
   get(collection, id) {
     ensure();
-    const r = cache.records.find((x) => x.collection === collection && x.id === id);
-    if (!r) return null;
-    const { collection: _c, ...rest } = r;
-    return rest;
+    const r = col(collection).find((x) => x.id === id);
+    return r ? { ...r } : null;
   },
 
   insert(collection, data) {
     ensure();
     const record = { id: newId(), ...data, createdAt: now(), updatedAt: now() };
-    cache.records.push({ ...record, collection });
-    const { id, createdAt, updatedAt, ...rest } = record;
-    docRef(id)
-      .set({ collection, data: rest, createdAt, updatedAt })
-      .catch((e) => console.error('[store] insert', e.message));
-    return record;
+    col(collection).push(record);
+    ref(collection, record.id).set(record).catch((e) => console.error('[store] insert', collection, e.message));
+    return { ...record };
   },
 
   update(collection, id, patch) {
     ensure();
-    const i = cache.records.findIndex((x) => x.collection === collection && x.id === id);
+    const arr = col(collection);
+    const i = arr.findIndex((x) => x.id === id);
     if (i === -1) return null;
-    cache.records[i] = { ...cache.records[i], ...patch, id, collection, updatedAt: now() };
-    const { collection: _c, id: _i, createdAt, updatedAt, ...rest } = cache.records[i];
-    docRef(id)
-      .set({ collection, data: rest, createdAt, updatedAt })
-      .catch((e) => console.error('[store] update', e.message));
-    const { collection: _c2, ...out } = cache.records[i];
-    return out;
+    arr[i] = { ...arr[i], ...patch, id, updatedAt: now() };
+    ref(collection, id).set(arr[i]).catch((e) => console.error('[store] update', collection, e.message));
+    return { ...arr[i] };
   },
 
   remove(collection, id) {
     ensure();
-    const i = cache.records.findIndex((x) => x.collection === collection && x.id === id);
+    const arr = col(collection);
+    const i = arr.findIndex((x) => x.id === id);
     if (i === -1) return false;
-    cache.records.splice(i, 1);
-    docRef(id).delete().catch((e) => console.error('[store] remove', e.message));
+    arr.splice(i, 1);
+    ref(collection, id).delete().catch((e) => console.error('[store] remove', collection, e.message));
     return true;
   },
 
   getSettings() {
     ensure();
-    return { ...cache.settings };
+    return { ...settingsCache };
   },
 
   saveSettings(patch) {
     ensure();
-    cache.settings = { ...cache.settings, ...patch, updatedAt: now() };
-    SETTINGS_DOC.set(cache.settings, { merge: true }).catch((e) =>
-      console.error('[store] settings', e.message)
-    );
-    return { ...cache.settings };
+    settingsCache = { ...settingsCache, ...patch, updatedAt: now() };
+    SETTINGS_DOC.set(settingsCache, { merge: true }).catch((e) => console.error('[store] settings', e.message));
+    return { ...settingsCache };
   },
 
   findUser(username) {

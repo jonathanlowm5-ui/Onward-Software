@@ -496,21 +496,30 @@ function KycSection({ toast }) {
   const onChange = (e, side) => handleFile(e.target.files[0], side);
   const onDrop = (e, side) => { e.preventDefault(); handleFile(e.dataTransfer.files[0], side); };
 
+  const [submitting, setSubmitting] = useState(false);
   const submit = async () => {
     if (!files.front || !files.back) {
       toast('Please upload both front and back sides of your document.', 'error'); return;
     }
+    setSubmitting(true);
     try {
-      const fd = new FormData();
-      fd.append('docType', docType);
-      if (inputs.front.current?.files[0]) fd.append('front', inputs.front.current.files[0]);
-      if (inputs.back.current?.files[0]) fd.append('back', inputs.back.current.files[0]);
-      if (inputs.selfie.current?.files[0]) fd.append('selfie', inputs.selfie.current.files[0]);
-      await playersService.submitKYC({ docType }).catch(() => null);
+      // Upload the document images to Firebase Storage, then submit their URLs.
+      const up = async (refEl) => {
+        const f = refEl.current?.files?.[0];
+        if (!f) return '';
+        const r = await playersService.uploadFile(f, 'kyc');
+        return r?.url || '';
+      };
+      const [frontUrl, backUrl, selfieUrl] = await Promise.all([
+        up(inputs.front), up(inputs.back), up(inputs.selfie),
+      ]);
+      await playersService.submitKYC({ docType, frontUrl, backUrl, selfieUrl });
       await refreshProfile();
       toast('KYC documents submitted successfully!', 'success');
-    } catch {
-      toast('Could not submit KYC. Please try again.', 'error');
+    } catch (e) {
+      toast(e.message || 'Could not submit KYC. Please try again.', 'error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -596,7 +605,7 @@ function KycSection({ toast }) {
         </div>
       </div>
 
-      <button className="kyc-submit-btn" onClick={submit} data-i18n="kyc_submit">Submit for Verification</button>
+      <button className="kyc-submit-btn" onClick={submit} disabled={submitting} style={submitting ? { opacity: 0.7 } : undefined} data-i18n="kyc_submit">{submitting ? 'Uploading…' : 'Submit for Verification'}</button>
     </div>
   );
 }
