@@ -9,5 +9,6 @@ export const updatePlayer = (id, data) => players.update(id, data);
 export const blockPlayer = (id, blocked = true) =>
   api.patch(`/players/${id}/block`, { blocked }).then((r) => r.data);
 export const deletePlayer = (id) => api.delete(`/players/${id}`).then((r) => r.data);
+export const kickPlayer = (id) => api.post(`/players/${id}/kick`).then((r) => r.data);
 export const onlinePlayers = () => api.get('/players', { params: { online: 1 } }).then((r) => r.data);
 export const listVIP = () => api.get('/players', { params: { vip: 1 } }).then((r) => r.data);

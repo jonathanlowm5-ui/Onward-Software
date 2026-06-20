@@ -88,6 +88,19 @@ router.patch('/:id/block', requireAuth, (req, res) => {
   res.json(publicView(store.update(COLLECTION, req.params.id, { status: blocked ? 'blocked' : 'active' })));
 });
 
+// ---- ADMIN: kick (end the player's current session without blocking) ----
+// Invalidates every token issued before now; the player is logged out on their
+// next request but can sign back in. Also drops them from the online list.
+router.post('/:id/kick', requireAuth, (req, res) => {
+  const p = store.get(COLLECTION, req.params.id);
+  if (!p) return res.status(404).json({ error: 'Player not found' });
+  store.update(COLLECTION, req.params.id, {
+    sessionValidAfter: Math.floor(Date.now() / 1000),
+    lastSeenAt: new Date(0).toISOString(),
+  });
+  res.json({ ok: true });
+});
+
 // ---- ADMIN: read a player's wallet ----
 router.get('/:id/wallet', requireAuth, (req, res) => {
   const p = store.get(COLLECTION, req.params.id);

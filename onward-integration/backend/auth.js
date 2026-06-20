@@ -46,6 +46,20 @@ function requirePlayer(req, res, next) {
     if (decoded.role !== 'player' && decoded.role !== 'agent') {
       return res.status(403).json({ error: 'Player account required' });
     }
+    // Session invalidation: an admin "kick" stamps sessionValidAfter (epoch
+    // seconds); any token issued before that is rejected (the player is logged
+    // out on their next request but can still sign back in). Also reject if the
+    // account was removed or blocked.
+    try {
+      const store = require('./store');
+      const rec = store.get('players', decoded.sub);
+      if (rec) {
+        if (rec.status === 'blocked') return res.status(403).json({ error: 'Account is blocked' });
+        if (rec.sessionValidAfter && decoded.iat && decoded.iat < rec.sessionValidAfter) {
+          return res.status(401).json({ error: 'Session ended. Please sign in again.', code: 'KICKED' });
+        }
+      }
+    } catch { /* store not ready — don't block legitimate users */ }
     req.auth = decoded;
     next();
   } catch {

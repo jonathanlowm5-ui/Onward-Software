@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useUI } from '../context/UIContext';
-import { onlinePlayers } from '../services/playerService';
+import { onlinePlayers, kickPlayer } from '../services/playerService';
 
 const opSecFmt = (s) => { const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return h ? `${h}h ${String(m).padStart(2, '0')}m` : `0h ${m}m`; };
 const opLong = (s) => s >= 3600;
@@ -63,7 +63,17 @@ export default function OnlinePlayers() {
   const totalBal = visibleRows.reduce((s, p) => s + p.balance, 0);
 
   const view = (p) => toast('👁 ' + p.name + ' (' + p.user + ') · balance ₱' + p.balance.toLocaleString());
-  const kick = (p) => { setHidden((prev) => new Set(prev).add(p.id)); toast('Removed from view ⚡ ' + p.name + ' — reappears on refresh if still online'); };
+  // Kick: end the player's session on the backend, then drop them from view.
+  const kick = async (p) => {
+    if (!p.id) { setHidden((prev) => new Set(prev).add(p.id)); return; }
+    try {
+      await kickPlayer(p.id);
+      setHidden((prev) => new Set(prev).add(p.id));
+      toast('Player kicked ⚡ ' + p.name + ' — session ended (logged out on their next refresh)');
+    } catch (e) {
+      toast('Kick failed: ' + (e.message || 'API error'));
+    }
+  };
   const kickAll = () => {
     if (!visibleRows.length) { toast('No active sessions'); return; }
     setHidden((prev) => { const n = new Set(prev); visibleRows.forEach((p) => n.add(p.id)); return n; });
