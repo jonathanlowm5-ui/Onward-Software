@@ -1,4 +1,6 @@
-import { useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import useSectionNav from '../../hooks/useSectionNav';
@@ -18,11 +20,18 @@ export default function Header() {
   const { toggleSidebar, openModal, setSearchQuery, searchQuery, toggleDropdown, currency } = useUI();
   const { isLoggedIn, profile, logout } = useAuth();
   const go = useSectionNav();
+  const navigate = useNavigate();
   const location = useLocation();
+
+  // Self-contained account menu (avatar). Local state + a portal to <body> so it
+  // can never be clipped or out-stacked by the header.
+  const [acctOpen, setAcctOpen] = useState(false);
+  const goSection = (section) => { setAcctOpen(false); navigate('/profile', { state: { section } }); };
 
   // Logout: clear the session token (done in AuthContext) then return to the
   // public landing/lobby so member pages aren't reachable via the Back button.
   const handleLogout = async () => {
+    setAcctOpen(false);
     await logout();
     go('lobby');
   };
@@ -160,7 +169,7 @@ export default function Header() {
                   <span className="hdr-bal-amount" id="hdr-bal-amount">{balance} {currency.code}</span>
                 </div>
                 <button className="hdr-deposit-btn" onClick={() => openModal('deposit')}>DEPOSIT</button>
-                <div className="hdr-avatar-wrap" onClick={(e) => { e.stopPropagation(); toggleDropdown('profile'); }}>
+                <div className="hdr-avatar-wrap" onClick={(e) => { e.stopPropagation(); setAcctOpen((o) => !o); }} style={{ cursor: 'pointer' }}>
                   <div className="hdr-avatar" id="hdr-avatar">🎮</div>
                   <div className="hdr-avatar-badge" id="hdr-avatar-badge">0</div>
                 </div>
@@ -169,9 +178,53 @@ export default function Header() {
           </div>
         </div>
       </div>
+
+      {/* Avatar account menu — portalled to <body>, always on top */}
+      {acctOpen && isLoggedIn && createPortal(
+        <>
+          <div onClick={() => setAcctOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 5000 }} />
+          <div style={{ position: 'fixed', top: 96, right: 16, zIndex: 5001, width: 264, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, boxShadow: '0 20px 60px rgba(0,0,0,.6)', overflow: 'hidden', maxHeight: '80vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'var(--bg3,#0c1322)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>🎮</div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{profile?.username || 'Player'}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{profile?.playerCode || ''}</div>
+              </div>
+            </div>
+            <div style={{ padding: 8 }}>
+              {[
+                ['👤', 'My Profile', () => goSection('security')],
+                ['📜', 'Game History', () => goSection('history')],
+                ['💳', 'Transactions', () => goSection('transactions')],
+                ['🎰', 'Wager', () => goSection('wager')],
+                ['🏦', 'Bank', () => goSection('security')],
+                ['💰', 'Deposit', () => { setAcctOpen(false); openModal('deposit'); }],
+                ['💸', 'Withdraw', () => { setAcctOpen(false); openModal('withdraw'); }],
+                ['💎', 'VIP Club', () => { setAcctOpen(false); go('vip'); }],
+                ['🤝', 'Referral', () => { setAcctOpen(false); go('referral'); }],
+              ].map(([ic, label, fn]) => (
+                <button key={label} onClick={fn} style={acctRow}>
+                  <span style={{ width: 22, textAlign: 'center' }}>{ic}</span><span>{label}</span>
+                </button>
+              ))}
+              <div style={{ height: 1, background: 'var(--border)', margin: '6px 0' }} />
+              <button onClick={handleLogout} style={{ ...acctRow, color: 'var(--red,#e8293a)' }}>
+                <span style={{ width: 22, textAlign: 'center' }}>🚪</span><span>Logout</span>
+              </button>
+            </div>
+          </div>
+        </>,
+        document.body
+      )}
     </>
   );
 }
+
+const acctRow = {
+  display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left',
+  background: 'none', border: 'none', color: 'var(--text)', padding: '10px',
+  borderRadius: 8, cursor: 'pointer', fontSize: 14, fontFamily: 'inherit',
+};
 
 // Determine which nav pill is active for the current route.
 function sectionMatch(id, pathname) {
