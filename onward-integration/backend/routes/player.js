@@ -26,6 +26,7 @@ const {
   CURRENCIES, normalizeCurrency, generatePlayerCode, ensurePlayerCode,
   publicView, registeredFullName, holderMatchesPlayer, clientIp, deviceFrom, recordLogin, gen6,
 } = require('../playerUtils');
+const { geoLookup, isBlocked } = require('../geoip');
 
 const router = express.Router();
 const PLAYERS = 'players';
@@ -51,7 +52,7 @@ function view(p) {
 }
 
 // ---------- public: register ----------
-router.post('/register', (req, res) => {
+router.post('/register', async (req, res) => {
   const b = req.body || {};
   const username = String(b.username || '').trim();
   const email = String(b.email || '').trim().toLowerCase();
@@ -74,6 +75,13 @@ router.post('/register', (req, res) => {
     return res.status(409).json({ error: 'That username is already taken' });
   if (players.some((p) => (p.email || '').toLowerCase() === email))
     return res.status(409).json({ error: 'That email is already registered' });
+
+  // Geolocate the registration IP (for the admin + country restrictions).
+  const regIp = clientIp(req);
+  const geo = await geoLookup(regIp);
+  if (isBlocked(store.getSettings(), geo)) {
+    return res.status(403).json({ error: `Registration isn’t available in your region${geo.country ? ` (${geo.country})` : ''}.` });
+  }
 
   // Permanent Player ID: ONW + random unique 7-digit number + currency.
   const playerCode = generatePlayerCode(store, currency);
@@ -98,16 +106,21 @@ router.post('/register', (req, res) => {
     mobileVerified: false,
     twoFactorEnabled: false,
     vipLevel: 0,
-    registrationIp: clientIp(req),
+    registrationIp: regIp,
+    registrationCountry: geo.country || '',
+    registrationCountryCode: geo.countryCode || '',
+    registrationCity: geo.city || '',
+    registrationIsp: geo.isp || '',
+    registrationProxy: !!geo.proxy,
     registrationDevice: deviceFrom(req.headers['user-agent']),
     registrationUserAgent: String(req.headers['user-agent'] || ''),
   });
-  recordLogin(store, player, req, 'register');
+  await recordLogin(store, player, req, 'register');
   res.status(201).json({ token: signPlayer(player), player: view(player) });
 });
 
 // ---------- public: login (username or email) ----------
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   const id = String(req.body?.username || req.body?.email || '').trim().toLowerCase();
   const password = String(req.body?.password || '');
   let player = store.list(PLAYERS).find(
@@ -118,9 +131,15 @@ router.post('/login', (req, res) => {
   if (player.status === 'blocked') return res.status(403).json({ error: 'Account is blocked' });
   if (player.status === 'suspended') return res.status(403).json({ error: 'Account is suspended — contact support' });
 
+  // Country restriction check before issuing a session.
+  const geo = await geoLookup(clientIp(req));
+  if (isBlocked(store.getSettings(), geo)) {
+    return res.status(403).json({ error: `Access isn’t available in your region${geo.country ? ` (${geo.country})` : ''}.` });
+  }
+
   player = ensurePlayerCode(store, player) || player; // backfill legacy/demo players
   player = store.update(PLAYERS, player.id, { lastLoginAt: new Date().toISOString() }) || player;
-  recordLogin(store, player, req, 'login');
+  await recordLogin(store, player, req, 'login');
   res.json({ token: signPlayer(player), player: view(player) });
 });
 
@@ -187,7 +206,7 @@ router.put('/me', requirePlayer, (req, res) => {
 });
 
 // ---------- player: change password ----------
-router.post('/me/change-password', requirePlayer, (req, res) => {
+router.post('/me/change-password', requirePlayer, async (req, res) => {
   const p = currentPlayer(req);
   if (!p) return res.status(404).json({ error: 'Player not found' });
   const current = String(req.body?.currentPassword || '');
@@ -196,7 +215,7 @@ router.post('/me/change-password', requirePlayer, (req, res) => {
     return res.status(400).json({ error: 'Current password is incorrect' });
   if (next.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters' });
   store.update(PLAYERS, p.id, { passwordHash: bcrypt.hashSync(next, 10) });
-  recordLogin(store, p, req, 'password-change');
+  await recordLogin(store, p, req, 'password-change');
   res.json({ ok: true });
 });
 

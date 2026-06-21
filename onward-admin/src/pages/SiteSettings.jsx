@@ -1,6 +1,72 @@
 import { useEffect, useState } from 'react';
 import { useUI } from '../context/UIContext';
 import { getSettings, updateSettings } from '../services/cmsService';
+import { getGeoBlock, saveGeoBlock } from '../services/playerService';
+
+// Self-contained country / IP restriction panel. Blocks registration AND login
+// from the listed countries (ISO 3166 alpha-2 codes, e.g. US, GB, CN).
+function GeoBlockCard() {
+  const { toast } = useUI();
+  const [enabled, setEnabled] = useState(false);
+  const [countries, setCountries] = useState([]);
+  const [input, setInput] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    getGeoBlock()
+      .then((d) => { if (!alive) return; setEnabled(!!d.enabled); setCountries(Array.isArray(d.countries) ? d.countries : []); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  const persist = async (nextEnabled, nextCountries) => {
+    setBusy(true);
+    try {
+      const saved = await saveGeoBlock(nextEnabled, nextCountries);
+      setEnabled(!!saved.enabled);
+      setCountries(Array.isArray(saved.countries) ? saved.countries : []);
+      toast('Country restrictions saved ✔');
+    } catch (e) {
+      toast('⚠ Save failed: ' + (e.message || 'error'));
+    } finally { setBusy(false); }
+  };
+
+  const addCodes = () => {
+    const codes = input.toUpperCase().split(/[\s,]+/).map((c) => c.trim().slice(0, 2)).filter((c) => /^[A-Z]{2}$/.test(c));
+    if (!codes.length) { toast('Enter 2-letter country codes, e.g. US, GB, CN'); return; }
+    const next = [...new Set([...countries, ...codes])];
+    setInput('');
+    persist(enabled, next);
+  };
+  const removeCode = (c) => persist(enabled, countries.filter((x) => x !== c));
+  const toggle = () => persist(!enabled, countries);
+
+  return (
+    <div className="set-card" style={{ marginTop: 16 }}>
+      <div className="ch">🚫 Country / IP Restrictions</div>
+      <div className="desc">Block registration and login from specific countries (detected by IP). Use ISO 2-letter codes — e.g. <b>US</b>, <b>GB</b>, <b>CN</b>, <b>SG</b>.</div>
+      <div className="gss-sec-tog" style={{ margin: '8px 0' }}>
+        <label className="switch"><input type="checkbox" checked={enabled} disabled={busy} onChange={toggle} /><span className="slider"></span></label>
+        {enabled ? 'Country blocking ENABLED' : 'Country blocking disabled'}
+      </div>
+      <div style={{ display: 'flex', gap: 8, margin: '8px 0' }}>
+        <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="US, GB, CN…"
+          onKeyDown={(e) => { if (e.key === 'Enter') addCodes(); }}
+          style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border,#1e2d47)', background: 'var(--bg3,#0b1224)', color: 'var(--text,#fff)' }} />
+        <button className="gss-savebtn" style={{ margin: 0 }} disabled={busy} onClick={addCodes}>Add</button>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+        {countries.length === 0 && <span style={{ color: 'var(--muted,#8898b8)', fontSize: 13 }}>No countries blocked.</span>}
+        {countries.map((c) => (
+          <span key={c} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 20, background: 'rgba(255,102,117,.12)', border: '1px solid rgba(255,102,117,.35)', color: '#ff9aa6', fontSize: 13, fontWeight: 700 }}>
+            {c}<button onClick={() => removeCode(c)} disabled={busy} style={{ background: 'none', border: 'none', color: '#ff9aa6', cursor: 'pointer', fontWeight: 900 }}>✕</button>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // Original static defaults — used as offline fallback.
 const DEFAULT_CFG = { online: true, name: 'Onward Gaming', url: 'https://onward.com', currency: 'PHP', minDep: 100, minWd: 500, maxWdDay: 50000 };
@@ -126,6 +192,7 @@ export default function SiteSettings() {
             <div className="gss-sec-tog"><label className="switch"><input type="checkbox" checked={sec.regOpen} onChange={() => secToggle('regOpen')} /><span className="slider"></span></label> New registrations open</div>
             <div className="gss-set-fld" style={{ margin: '6px 0 0' }}><label>Max Withdrawal / Day (₱)</label><input value={cfg.maxWdDay} inputMode="numeric" onChange={(e) => setCfgField('maxWdDay', e.target.value)} /></div>
           </div>
+          <GeoBlockCard />
         </div>
         <div className="set-card gss-feat">
           <div className="ch">🌐 Global Site Switch</div>

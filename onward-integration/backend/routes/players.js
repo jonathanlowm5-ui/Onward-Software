@@ -17,11 +17,36 @@ const store = require('../store');
 const { requireAuth } = require('../auth');
 const { requirePerm } = require('../permissions');
 const { publicView, holderMatchesPlayer, registeredFullName } = require('../playerUtils');
+const { isPrivate } = require('../geoip');
 
 const router = express.Router();
 const COLLECTION = 'players';
 
 const emailOk = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+
+// Build an index of public IP -> set of player IDs (from registration, last
+// login and the full login history). Private/LAN IPs are ignored so shared
+// office/dev networks don't trigger false "same IP" fraud flags.
+function buildIpIndex(store) {
+  const map = new Map();
+  const add = (ip, pid) => {
+    if (!ip || isPrivate(ip)) return;
+    const k = String(ip);
+    if (!map.has(k)) map.set(k, new Set());
+    map.get(k).add(String(pid));
+  };
+  store.list(COLLECTION).forEach((p) => { add(p.registrationIp, p.id); add(p.lastIp, p.id); });
+  store.list('login_history').forEach((l) => add(l.ip, l.playerId));
+  return map;
+}
+
+// IPs a player has used + how many OTHER accounts share any of them.
+function sharedFor(map, p) {
+  const ips = [...new Set([p.registrationIp, p.lastIp].filter((ip) => ip && !isPrivate(ip)).map(String))];
+  const others = new Set();
+  ips.forEach((ip) => (map.get(ip) || new Set()).forEach((pid) => { if (pid !== String(p.id)) others.add(pid); }));
+  return { sharedIpCount: others.size, sharedIpFlag: others.size > 0, ips };
+}
 
 // ---- PUBLIC: register (called by the frontend register form) ----
 router.post('/register', (req, res) => {
@@ -70,7 +95,25 @@ router.get('/', requireAuth, (req, res) => {
   } else {
     players = players.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
   }
-  res.json(players.map(publicView));
+  const ipIndex = buildIpIndex(store);
+  res.json(players.map((p) => {
+    const s = sharedFor(ipIndex, p);
+    return { ...publicView(p), sharedIpCount: s.sharedIpCount, sharedIpFlag: s.sharedIpFlag };
+  }));
+});
+
+// ---- ADMIN: country / geo-block configuration (must be before /:id) ----
+router.get('/geo-block/config', requireAuth, (req, res) => {
+  const s = store.getSettings();
+  res.json({ enabled: !!s.geoBlockEnabled, countries: Array.isArray(s.blockedCountries) ? s.blockedCountries : [] });
+});
+router.put('/geo-block/config', requireAuth, requirePerm('settings.manage'), (req, res) => {
+  const enabled = !!req.body?.enabled;
+  const countries = Array.isArray(req.body?.countries)
+    ? [...new Set(req.body.countries.map((c) => String(c).toUpperCase().trim().slice(0, 2)).filter(Boolean))]
+    : [];
+  store.saveSettings({ geoBlockEnabled: enabled, blockedCountries: countries });
+  res.json({ enabled, countries });
 });
 
 // ---- ADMIN: suspend / reactivate ----
@@ -127,7 +170,7 @@ function move(req, res, sign) {
 router.post('/:id/wallet/credit', requireAuth, requirePerm('players.adjust'), (req, res) => move(req, res, 1));
 router.post('/:id/wallet/debit', requireAuth, requirePerm('players.adjust'), (req, res) => move(req, res, -1));
 
-// ---- ADMIN: full player detail (incl. bank + recent login history) ----
+// ---- ADMIN: full player detail (incl. bank + login history + shared-IP accounts) ----
 router.get('/:id', requireAuth, (req, res) => {
   const p = store.get(COLLECTION, req.params.id);
   if (!p) return res.status(404).json({ error: 'Player not found' });
@@ -136,7 +179,27 @@ router.get('/:id', requireAuth, (req, res) => {
     .filter((g) => String(g.playerId) === String(p.id))
     .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
     .slice(0, 50);
-  res.json({ ...publicView(p), bankAccounts: banks, loginHistory: logins });
+
+  // Other accounts that have shared any of this player's public IPs.
+  const ipIndex = buildIpIndex(store);
+  const s = sharedFor(ipIndex, p);
+  const relatedIds = new Set();
+  s.ips.forEach((ip) => (ipIndex.get(ip) || new Set()).forEach((pid) => { if (pid !== String(p.id)) relatedIds.add(pid); }));
+  const relatedAccounts = [...relatedIds].map((pid) => {
+    const o = store.get(COLLECTION, pid);
+    if (!o) return null;
+    const sharedIps = s.ips.filter((ip) => String(o.registrationIp) === ip || String(o.lastIp) === ip);
+    return { id: o.id, username: o.username, playerCode: o.playerCode, status: o.status, sharedIps };
+  }).filter(Boolean);
+
+  res.json({
+    ...publicView(p),
+    bankAccounts: banks,
+    loginHistory: logins,
+    sharedIpCount: relatedAccounts.length,
+    sharedIpFlag: relatedAccounts.length > 0,
+    relatedAccounts,
+  });
 });
 
 // ---- ADMIN: reset a player's password ----

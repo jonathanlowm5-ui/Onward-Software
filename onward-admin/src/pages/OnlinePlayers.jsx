@@ -27,6 +27,11 @@ function toRow(p) {
     balance: Number(p.balance || 0),
     sec,
     status: 'online',
+    ip: p.lastIp || p.registrationIp || '',
+    country: p.lastCountry || p.registrationCountry || '',
+    proxy: !!(p.lastProxy || p.registrationProxy),
+    sharedIpFlag: !!p.sharedIpFlag,
+    sharedIpCount: p.sharedIpCount || 0,
   };
 }
 
@@ -111,7 +116,7 @@ export default function OnlinePlayers() {
             ) : visibleRows.length ? visibleRows.map((p, i) => (
               <tr key={p.id || i}>
                 <td style={{ color: 'var(--muted)', fontWeight: 800 }}>{i + 1}</td>
-                <td><div className="op-player"><div className="op-av">{opInit(p.name)}</div><div><div className="op-pname" onClick={() => view(p)}>{p.name}</div><div className="op-puser">{p.sub || '—'}</div></div></div></td>
+                <td><div className="op-player"><div className="op-av">{opInit(p.name)}</div><div><div className="op-pname" onClick={() => view(p)}>{p.name} {p.proxy && <span title="VPN/Proxy" style={{ color: '#ff6675' }}>⚠</span>} {p.sharedIpFlag && <span title={`Shares IP with ${p.sharedIpCount} account(s)`} style={{ color: '#ffb02e' }}>👥</span>}</div><div className="op-puser">{p.sub || '—'}{p.ip ? ` · ${p.ip}${p.country ? ' · ' + p.country : ''}` : ''}</div></div></div></td>
                 <td><span className={`op-vip vip-${p.vip}`}>{vipLabel(p.vipLevel)}</span></td>
                 <td style={{ color: '#c4cde0' }}>{p.user}</td>
                 <td><span className="op-wager">₱{p.balance.toLocaleString()}</span></td>
@@ -132,6 +137,7 @@ export default function OnlinePlayers() {
 }
 
 const dt = (t) => { if (!t) return '—'; const d = new Date(t); return Number.isNaN(d.getTime()) ? String(t) : d.toLocaleString(); };
+const geoStr = (...parts) => parts.filter(Boolean).join(', ') || '—';
 
 function PlayerInfoModal({ detail, onClose }) {
   const loading = detail.__loading;
@@ -173,13 +179,49 @@ function PlayerInfoModal({ detail, onClose }) {
               <Row k="KYC status" v={p.kyc_status} />
               <Row k="Account status" v={p.status} />
               <Row k="2FA" v={yn(p.twoFactorEnabled)} />
-              <Row k="Registration IP" v={p.registrationIp} />
               <Row k="Device" v={p.registrationDevice} />
               <Row k="Registered" v={dt(p.registrationDate || p.createdAt)} />
               <Row k="Last login" v={dt(p.lastLoginAt)} />
               <Row k="Last seen" v={dt(p.lastSeenAt)} />
+
+              {/* IP / geolocation */}
+              <div style={{ fontWeight: 800, color: 'var(--text, #fff)', margin: '14px 0 4px', fontSize: 13 }}>🌐 IP &amp; Location</div>
+              <Row k="Current IP" v={<>{p.lastIp || p.registrationIp || '—'} {(p.lastProxy || p.registrationProxy) && <span style={{ color: '#ff6675', fontWeight: 800 }}>⚠ VPN/Proxy</span>}</>} />
+              <Row k="Current location" v={geoStr(p.lastCity || p.registrationCity, p.lastRegion, p.lastCountry || p.registrationCountry)} />
+              <Row k="ISP" v={p.lastIsp || p.registrationIsp} />
+              <Row k="Registration IP" v={p.registrationIp} />
+              <Row k="Registration location" v={geoStr(p.registrationCity, p.registrationRegion, p.registrationCountry)} />
+
+              {/* Shared-IP fraud flag */}
+              {p.sharedIpFlag && (
+                <div style={{ margin: '12px 0', padding: '10px 12px', borderRadius: 8, background: 'rgba(255,102,117,.1)', border: '1px solid rgba(255,102,117,.35)', color: '#ff9aa6', fontSize: 12.5, fontWeight: 600 }}>
+                  ⚠ Shares an IP with {p.sharedIpCount} other account{p.sharedIpCount === 1 ? '' : 's'} (possible multi-accounting)
+                  {Array.isArray(p.relatedAccounts) && p.relatedAccounts.length > 0 && (
+                    <div style={{ marginTop: 6, color: '#ffc2c9' }}>
+                      {p.relatedAccounts.slice(0, 8).map((r) => `${r.username || r.id}${r.playerCode ? ' (' + r.playerCode + ')' : ''}`).join(', ')}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {Array.isArray(p.bankAccounts) && p.bankAccounts.length > 0 && (
                 <Row k="Bank" v={p.bankAccounts.map((b) => `${b.bankName || b.bank || ''} · ${b.accountNumber || b.number || ''}`).join(', ')} />
+              )}
+
+              {/* Recent login history with location */}
+              {Array.isArray(p.loginHistory) && p.loginHistory.length > 0 && (
+                <>
+                  <div style={{ fontWeight: 800, color: 'var(--text, #fff)', margin: '14px 0 4px', fontSize: 13 }}>🕑 Recent logins</div>
+                  {p.loginHistory.slice(0, 8).map((l, i) => (
+                    <div key={l.id || i} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0', borderBottom: '1px solid var(--border, #1e2d47)', fontSize: 12 }}>
+                      <span style={{ color: 'var(--muted, #8898b8)' }}>{dt(l.createdAt)} · {l.event || 'login'}</span>
+                      <span style={{ color: 'var(--text, #fff)', textAlign: 'right' }}>
+                        {l.ip || '—'} {l.proxy && <span style={{ color: '#ff6675' }}>⚠</span>}<br />
+                        <span style={{ color: 'var(--muted, #8898b8)' }}>{geoStr(l.city, l.region, l.country)}</span>
+                      </span>
+                    </div>
+                  ))}
+                </>
               )}
             </>
           )}

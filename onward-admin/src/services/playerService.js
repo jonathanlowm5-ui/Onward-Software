@@ -14,3 +14,8 @@ export const resetPlayerPassword = (id, newPassword) =>
   api.post(`/players/${id}/reset-password`, { newPassword }).then((r) => r.data);
 export const onlinePlayers = () => api.get('/players', { params: { online: 1 } }).then((r) => r.data);
 export const listVIP = () => api.get('/players', { params: { vip: 1 } }).then((r) => r.data);
+
+// Country / geo-IP restrictions.
+export const getGeoBlock = () => api.get('/players/geo-block/config').then((r) => r.data);
+export const saveGeoBlock = (enabled, countries) =>
+  api.put('/players/geo-block/config', { enabled, countries }).then((r) => r.data);

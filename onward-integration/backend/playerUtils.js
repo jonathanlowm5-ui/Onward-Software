@@ -8,6 +8,8 @@
  *   0002918  7-digit zero-padded auto-increment sequence (permanent)
  *   PHP      player's currency at registration
  */
+const { geoLookup } = require('./geoip');
+
 const PLATFORM_CODE = 'ONW';
 
 // Currencies offered at registration; the 3-letter code is baked into Player ID.
@@ -103,16 +105,32 @@ function deviceFrom(ua = '') {
   return `${br} on ${os}`;
 }
 
-// Record a login/security event the admin can review.
-function recordLogin(store, player, req, event = 'login') {
-  return store.insert('login_history', {
+// Record a login/security event the admin can review. Enriches the row (and the
+// player's "last known" fields) with geolocation + VPN/proxy detection.
+async function recordLogin(store, player, req, event = 'login') {
+  const ip = clientIp(req);
+  const row = store.insert('login_history', {
     playerId: player.id,
     username: player.username,
     event,
-    ip: clientIp(req),
+    ip,
     device: deviceFrom(req.headers['user-agent']),
     userAgent: String(req.headers['user-agent'] || ''),
   });
+  let geo = {};
+  try { geo = await geoLookup(ip); } catch { geo = {}; }
+  try {
+    store.update('login_history', row.id, {
+      country: geo.country || '', countryCode: geo.countryCode || '', city: geo.city || '',
+      region: geo.region || '', isp: geo.isp || '', proxy: !!geo.proxy, hosting: !!geo.hosting,
+    });
+    store.update('players', player.id, {
+      lastIp: ip, lastCountry: geo.country || '', lastCountryCode: geo.countryCode || '',
+      lastCity: geo.city || '', lastRegion: geo.region || '', lastIsp: geo.isp || '',
+      lastProxy: !!geo.proxy, lastHosting: !!geo.hosting,
+    });
+  } catch { /* store unavailable — keep the bare login row */ }
+  return { ...row, ...geo };
 }
 
 const gen6 = () => String(Math.floor(100000 + Math.random() * 900000));
