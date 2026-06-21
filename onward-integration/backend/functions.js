@@ -13,6 +13,8 @@
 const path = require('path');
 const os = require('os');
 
+// deploy-rev: 2 (force a fresh instance to reload the store cache)
+
 // Read-only deployment FS -> writable uploads in tmp (ephemeral on Functions).
 process.env.UPLOAD_DIR = process.env.UPLOAD_DIR || path.join(os.tmpdir(), 'onward-uploads');
 // Always use Firestore when running on Cloud Functions.
