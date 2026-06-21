@@ -56,14 +56,14 @@ router.post('/register', (req, res) => {
   const username = String(b.username || '').trim();
   const email = String(b.email || '').trim().toLowerCase();
   const password = String(b.password || '');
-  const firstName = String(b.first_name || b.firstName || '').trim();
-  const lastName = String(b.last_name || b.lastName || '').trim();
+  // Single full name (must match the player's bank account holder name exactly —
+  // splitting into first/last risks mismatching the payment gateway).
+  const fullName = String(b.fullName || b.full_name || b.name || `${b.first_name || ''} ${b.last_name || ''}`).trim().replace(/\s+/g, ' ');
   const mobile = String(b.mobile || b.phone || '').trim();
   const currency = normalizeCurrency(b.currency);
 
   if (!username) return res.status(400).json({ error: 'Username is required' });
-  if (!firstName) return res.status(400).json({ error: 'First name is required' });
-  if (!lastName) return res.status(400).json({ error: 'Last name is required' });
+  if (!fullName) return res.status(400).json({ error: 'Name is required' });
   if (!emailOk(email)) return res.status(400).json({ error: 'A valid email is required' });
   if (!mobile) return res.status(400).json({ error: 'Mobile number is required' });
   if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
@@ -82,9 +82,7 @@ router.post('/register', (req, res) => {
     playerCode,
     username,
     email,
-    firstName,
-    lastName,
-    fullName: `${firstName} ${lastName}`.trim(),
+    fullName,
     phone: mobile,
     currency,
     dob: String(b.dob || b.dateOfBirth || '').trim(),
@@ -301,7 +299,8 @@ router.get('/login-history', requirePlayer, (req, res) => {
   res.json(rows);
 });
 
-// ---------- player: bank accounts (one active account, name must match) ----------
+// ---------- player: bank accounts (up to 2 active, name must match) ----------
+const MAX_BANK_ACCOUNTS = 2;
 router.get('/bank-accounts', requirePlayer, (req, res) => {
   res.json(
     store.list('bank_accounts').filter((a) => String(a.playerId) === String(req.auth.sub))
@@ -322,12 +321,15 @@ router.post('/bank-accounts', requirePlayer, (req, res) => {
   // Account holder must match the player's registered name.
   if (!holderMatchesPlayer(p, holder))
     return res.status(400).json({ error: `Account holder must match your registered name (${registeredFullName(p)})` });
-  // Only one active bank account is allowed by default.
-  const already = store
+  // Up to two active bank accounts are allowed.
+  const activeAccts = store
     .list('bank_accounts')
-    .some((a) => String(a.playerId) === String(p.id) && (a.status || 'active') === 'active');
-  if (already)
-    return res.status(409).json({ error: 'You already have an active bank account. Contact support to change it.' });
+    .filter((a) => String(a.playerId) === String(p.id) && (a.status || 'active') === 'active');
+  if (activeAccts.length >= MAX_BANK_ACCOUNTS)
+    return res.status(409).json({ error: `You can have at most ${MAX_BANK_ACCOUNTS} bank accounts. Contact support to change one.` });
+  // No exact duplicates.
+  if (activeAccts.some((a) => String(a.accountNumber || a.number) === accountNumber && (a.bankName || a.bank) === bankName))
+    return res.status(409).json({ error: 'That bank account is already saved.' });
 
   const acc = store.insert('bank_accounts', {
     playerId: p.id,

@@ -472,8 +472,7 @@ function PersonalTab({ show, toast }) {
         <div className="prof-form-grid">
           <div className="prof-field"><label>Player ID</label><input type="text" value={profile?.playerCode || '—'} disabled style={ro} /></div>
           <div className="prof-field"><label data-i18n="auth_username_field">Username</label><input type="text" value={profile?.username || ''} disabled style={ro} /></div>
-          <div className="prof-field"><label data-i18n="auth_first_name">First Name</label><input type="text" value={profile?.firstName || ''} disabled style={ro} /></div>
-          <div className="prof-field"><label data-i18n="auth_last_name">Last Name</label><input type="text" value={profile?.lastName || ''} disabled style={ro} /></div>
+          <div className="prof-field"><label data-i18n="auth_full_name">Name</label><input type="text" value={profile?.fullName || [profile?.firstName, profile?.lastName].filter(Boolean).join(' ') || ''} disabled style={ro} /></div>
           <div className="prof-field"><label data-i18n="auth_email">Email</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your@email.com" /></div>
           <div className="prof-field"><label data-i18n="auth_phone">Mobile Number</label><input type="tel" value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="+63 9XX XXX XXXX" /></div>
           <div className="prof-field"><label>Date of Birth</label><input type="text" value={profile?.dob || '—'} disabled style={ro} /></div>
@@ -657,8 +656,9 @@ function BankTab({ show, toast }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (show) load(); }, [show, profile?.id]);
 
-  // Only one active bank account is allowed by default.
-  const hasActive = accounts.length > 0;
+  // Players may save up to two bank accounts.
+  const MAX_ACCOUNTS = 2;
+  const hasMax = accounts.length >= MAX_ACCOUNTS;
 
   const save = async () => {
     if (!bank || !acct.trim()) { toast('Choose a bank and enter the account number.', 'warning'); return; }
@@ -758,13 +758,13 @@ function BankTab({ show, toast }) {
                 onFocus={(e) => { e.target.style.borderColor = 'var(--gold)'; }} onBlur={(e) => { e.target.style.borderColor = 'var(--border)'; }} />
             </div>
 
-            {hasActive && (
+            {hasMax && (
               <div style={{ fontSize: 12, color: 'var(--gold)', background: 'rgba(240,192,64,.08)', border: '1px solid rgba(240,192,64,.2)', borderRadius: 8, padding: '10px 12px' }}>
-                You already have an active withdrawal account. Contact support to change it.
+                You already have {MAX_ACCOUNTS} withdrawal accounts (the maximum). Contact support to change one.
               </div>
             )}
 
-            <button onClick={save} disabled={busy || hasActive} style={{ width: '100%', padding: 14, background: 'linear-gradient(135deg,var(--gold),var(--gold-dark))', color: '#06091a', fontSize: 15, fontWeight: 800, border: 'none', borderRadius: 10, cursor: (busy || hasActive) ? 'not-allowed' : 'pointer', opacity: (busy || hasActive) ? 0.55 : 1, letterSpacing: '.04em', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <button onClick={save} disabled={busy || hasMax} style={{ width: '100%', padding: 14, background: 'linear-gradient(135deg,var(--gold),var(--gold-dark))', color: '#06091a', fontSize: 15, fontWeight: 800, border: 'none', borderRadius: 10, cursor: (busy || hasMax) ? 'not-allowed' : 'pointer', opacity: (busy || hasMax) ? 0.55 : 1, letterSpacing: '.04em', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
               {busy ? 'Saving…' : '💾 Save Account'}
             </button>
 

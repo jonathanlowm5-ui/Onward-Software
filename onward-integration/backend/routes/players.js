@@ -228,16 +228,9 @@ router.put('/:id', requireAuth, requirePerm('players.edit'), (req, res) => {
       patch.email = e;
     }
   }
-  // Full name (also keep firstName/lastName in sync).
+  // Single full name (must match the bank holder name — no first/last split).
   const fullName = b.fullName ?? b.realName ?? b.name;
-  if (fullName !== undefined) {
-    patch.fullName = String(fullName).trim();
-    const parts = patch.fullName.split(/\s+/);
-    patch.firstName = parts[0] || '';
-    patch.lastName = parts.slice(1).join(' ') || '';
-  }
-  if (b.firstName !== undefined) patch.firstName = String(b.firstName).trim();
-  if (b.lastName !== undefined) patch.lastName = String(b.lastName).trim();
+  if (fullName !== undefined) patch.fullName = String(fullName).trim().replace(/\s+/g, ' ');
   if (b.phone !== undefined || b.mobile !== undefined) patch.phone = String(b.phone ?? b.mobile).trim();
   if (b.dob !== undefined) patch.dob = String(b.dob).trim();
   if (b.country !== undefined) patch.country = b.country;

@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { deposit as depositRequest } from '../../services/playersService';
 
 const EMPTY_REG = {
-  first: '', last: '', username: '', email: '', phone: '',
+  name: '', username: '', email: '', phone: '',
   country: '', dob: '', currency: 'PHP', password: '', confirm: '', referral: '',
 };
 
@@ -70,17 +70,15 @@ export default function AuthModal() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(reg.email)) { toast('Please enter a valid email.', 'error'); return; }
     if (reg.password.length < 6) { toast('Password must be at least 6 characters.', 'error'); return; }
     if (reg.confirm !== reg.password) { toast('Passwords do not match.', 'error'); return; }
-    if (!reg.first || !reg.last) { toast('Please enter your first and last name.', 'error'); return; }
+    if (!reg.name.trim()) { toast('Please enter your full name (as on your bank account).', 'error'); return; }
     if (!reg.phone) { toast('Please enter your mobile number.', 'error'); return; }
     setBusy(true);
     try {
       await register({
         email: reg.email,
         password: reg.password,
-        fullName: `${reg.first} ${reg.last}`.trim() || reg.username,
+        fullName: reg.name.trim(),
         username: reg.username,
-        first_name: reg.first,
-        last_name: reg.last,
         phone: reg.phone,
         mobile: reg.phone,
         country: reg.country,
@@ -90,7 +88,7 @@ export default function AuthModal() {
       });
       toast('Account created! Welcome bonus added.');
       closeModal();
-      openModal('bank', { name: `${reg.first} ${reg.last}`.trim() || reg.username });
+      openModal('bank', { name: reg.name.trim() });
     } catch (e) {
       toast(e.message || 'Registration failed', 'error');
     } finally {
@@ -157,15 +155,9 @@ export default function AuthModal() {
               <div className="modal-promo-text" style={{ color: 'var(--text-muted)', fontSize: '12px' }}><span data-i18n="reg_first_deposit_sub">Up to ₱10,000 on first deposit</span></div>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <div className="form-group">
-              <label data-i18n="auth_first_name">First Name</label>
-              <input type="text" id="reg-first" placeholder="Juan" value={reg.first} onChange={setR('first')} />
-            </div>
-            <div className="form-group">
-              <label data-i18n="auth_last_name">Last Name</label>
-              <input type="text" id="reg-last" placeholder="Cruz" value={reg.last} onChange={setR('last')} />
-            </div>
+          <div className="form-group">
+            <label data-i18n="auth_full_name">Full Name (as on your bank account)</label>
+            <input type="text" id="reg-name" placeholder="Juan Dela Cruz" value={reg.name} onChange={setR('name')} />
           </div>
           <div className="form-group">
             <label data-i18n="auth_username_field">Username</label>
