@@ -11,13 +11,16 @@ const vipLabel = (lvl) => `VIP ${Number(lvl || 0)}`;
 const opStatChip = () => <span className="op-stat browse">🟢 Online</span>;
 
 // Map a backend player record (online list) into the row shape this view renders.
+// Username is the primary indicator (that's what staff ask players for); the real
+// name and Player ID are shown as secondary detail.
 function toRow(p) {
   const start = p.lastLoginAt || p.lastSeenAt;
   const sec = start ? Math.max(0, Math.floor((Date.now() - new Date(start).getTime()) / 1000)) : 0;
   return {
     id: p.id,
-    name: p.fullName || p.username || 'Player',
-    user: p.playerCode || p.username || '—',
+    name: p.username || 'Player',          // username = headline
+    sub: p.fullName || '',                 // real name (secondary)
+    user: p.playerCode || '—',             // Player ID
     vip: vipClass(p.vipLevel),
     vipLevel: p.vipLevel || 0,
     balance: Number(p.balance || 0),
@@ -106,7 +109,7 @@ export default function OnlinePlayers() {
             ) : visibleRows.length ? visibleRows.map((p, i) => (
               <tr key={p.id || i}>
                 <td style={{ color: 'var(--muted)', fontWeight: 800 }}>{i + 1}</td>
-                <td><div className="op-player"><div className="op-av">{opInit(p.name)}</div><div><div className="op-pname" onClick={() => view(p)}>{p.name}</div><div className="op-puser">{p.user}</div></div></div></td>
+                <td><div className="op-player"><div className="op-av">{opInit(p.name)}</div><div><div className="op-pname" onClick={() => view(p)}>{p.name}</div><div className="op-puser">{p.sub || '—'}</div></div></div></td>
                 <td><span className={`op-vip vip-${p.vip}`}>{vipLabel(p.vipLevel)}</span></td>
                 <td style={{ color: '#c4cde0' }}>{p.user}</td>
                 <td><span className="op-wager">₱{p.balance.toLocaleString()}</span></td>
