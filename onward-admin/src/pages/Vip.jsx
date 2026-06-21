@@ -1,47 +1,51 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useUI } from '../context/UIContext';
-
-const NAMES = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Sapphire', 'Ruby', 'Emerald', 'Diamond', 'Royal', 'Legend'];
-const ICS = ['🟤', '⚪', '🟡', '💠', '🔵', '🔴', '🟢', '💎', '👑', '🏆'];
-const DEP = [1000, 5000, 15000, 50000, 120000, 250000, 500000, 1000000, 2500000, 5000000];
-const EXP = [500, 2500, 7500, 25000, 60000, 125000, 250000, 500000, 1250000, 2500000];
-const BONUS = [88, 188, 388, 888, 1888, 3888, 8888, 18888, 88888, 188888];
-const W_MAX_DAY = [5000, 10000, 20000, 50000, 100000, 200000, 400000, 800000, 1500000, 3000000];
-const W_TX_DAY = [3, 3, 4, 5, 6, 8, 10, 12, 15, 20];
-const W_MIN = [200, 200, 200, 500, 500, 500, 1000, 1000, 1000, 1000];
-const W_MAX_SINGLE = [5000, 10000, 20000, 50000, 100000, 200000, 400000, 800000, 1500000, 3000000];
-
-const initVips = () =>
-  [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((l) => ({
-    lv: l,
-    n: NAMES[l - 1],
-    ic: ICS[l - 1],
-    dep: DEP[l - 1],
-    exp: EXP[l - 1],
-    d: +(l * 0.5).toFixed(1),
-    w: +(l * 0.8).toFixed(1),
-    m: +(l * 1.2).toFixed(1),
-    rb: +(l * 0.3).toFixed(1),
-    mgr: l >= 10 ? 'Dedicated' : l >= 7 ? 'Yes' : '—',
-    bonus: BONUS[l - 1],
-    wMaxDay: W_MAX_DAY[l - 1],
-    wTxDay: W_TX_DAY[l - 1],
-    wMin: W_MIN[l - 1],
-    wMaxSingle: W_MAX_SINGLE[l - 1],
-  }));
+import { getTiers, saveTiers } from '../services/vipService';
+import { uploadImage } from '../services/uploadService';
+import { useAuth } from '../context/AuthContext';
 
 const icHtml = (v) => (v.icImg ? <img className="vip-ic-img" src={v.icImg} alt="" /> : v.ic);
 
 export default function Vip() {
   const { toast } = useUI();
-  const [vips, setVips] = useState(initVips);
+  const { can } = useAuth();
+  const editable = !can || can('settings.manage');
+  const [vips, setVips] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [cfgOpen, setCfgOpen] = useState(true);
   const [editIdx, setEditIdx] = useState(-1);
   const [draft, setDraft] = useState(null);
-  const [icTmp, setIcTmp] = useState(undefined); // undefined=unchanged, null=removed, string=new
+  const [icTmp, setIcTmp] = useState(undefined); // undefined=unchanged, null=removed, string=new url
+  const [saving, setSaving] = useState(false);
   const fileRef = useRef(null);
 
   const num = (x) => parseFloat(String(x).replace(/[^0-9.]/g, '')) || 0;
+
+  // Load the shared VIP config from the backend on mount.
+  useEffect(() => {
+    let alive = true;
+    getTiers()
+      .then((rows) => { if (alive && Array.isArray(rows)) setVips(rows); })
+      .catch((e) => toast('⚠ Could not load VIP config: ' + (e.message || 'error')))
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [toast]);
+
+  // Persist the full tiers array to the backend (shared with the player site).
+  const persist = useCallback(async (next) => {
+    if (!editable) { toast('⚠ You do not have permission to edit VIP tiers'); return false; }
+    setSaving(true);
+    try {
+      const saved = await saveTiers(next);
+      if (Array.isArray(saved)) setVips(saved);
+      return true;
+    } catch (e) {
+      toast('⚠ Save failed: ' + (e.message || 'error'));
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }, [editable, toast]);
 
   const cfgSet = (i, f, val) => {
     setVips((prev) => {
@@ -49,7 +53,7 @@ export default function Vip() {
       const v = next[i];
       if (f === 'n' || f === 'mgr') v[f] = String(val).trim() || v[f];
       else v[f] = parseFloat(String(val).replace(/[^0-9.]/g, '')) || 0;
-      toast('VIP criteria saved ✔ ' + v.ic + ' V' + v.lv);
+      persist(next).then((ok) => { if (ok) toast('VIP criteria saved ✔ ' + v.ic + ' V' + v.lv); });
       return next;
     });
   };
@@ -63,32 +67,41 @@ export default function Vip() {
 
   const setDraftField = (f, val) => setDraft((d) => ({ ...d, [f]: val }));
 
-  const icUpload = (inp) => {
+  const icUpload = async (inp) => {
     const f = inp.files && inp.files[0];
     if (!f) return;
-    if (f.size > 300 * 1024) { toast('⚠ Image too large — keep it under 300 KB'); inp.value = ''; return; }
-    const r = new FileReader();
-    r.onload = () => { setIcTmp(r.result); toast('Icon image loaded — press Save Tier 💾'); };
-    r.readAsDataURL(f);
+    if (f.size > 2 * 1024 * 1024) { toast('⚠ Image too large — keep it under 2 MB'); inp.value = ''; return; }
     inp.value = '';
+    try {
+      toast('Uploading icon…');
+      const { url } = await uploadImage(f);
+      setIcTmp(url); // hosted Firebase Storage URL
+      toast('Icon image uploaded — press Save Tier 💾');
+    } catch (e) {
+      toast('⚠ Upload failed: ' + (e.message || 'error'));
+    }
   };
   const icRemove = () => { setIcTmp(null); toast('Image removed — emoji icon will be used'); };
 
-  const save = () => {
-    setVips((prev) => prev.map((x, j) => {
+  const save = async () => {
+    const next = vips.map((x, j) => {
       if (j !== editIdx) return x;
       const v = { ...x };
       v.n = String(draft.n).trim() || v.n;
       v.ic = String(draft.ic).trim() || v.ic;
-      if (icTmp !== undefined) { if (icTmp) v.icImg = icTmp; else delete v.icImg; }
+      if (icTmp !== undefined) v.icImg = icTmp || '';
       v.wMaxDay = num(draft.wMaxDay); v.wTxDay = num(draft.wTxDay); v.wMin = num(draft.wMin); v.wMaxSingle = num(draft.wMaxSingle);
       v.dep = num(draft.dep); v.exp = num(draft.exp);
       v.d = num(draft.d); v.w = num(draft.w); v.m = num(draft.m); v.rb = num(draft.rb);
       v.mgr = draft.mgr; v.bonus = num(draft.bonus);
-      toast('VIP criteria saved successfully! ✔ ' + v.ic + ' V' + v.lv + ' ' + v.n);
       return v;
-    }));
-    closeEdit();
+    });
+    const ok = await persist(next);
+    if (ok) {
+      const v = next[editIdx];
+      toast('VIP tier saved & live on player site ✔ V' + v.lv + ' ' + v.n);
+      closeEdit();
+    }
   };
 
   // icon preview in modal
@@ -96,10 +109,19 @@ export default function Vip() {
     ? (icTmp ? <img src={icTmp} alt="" /> : (draft.ic || vips[editIdx].ic))
     : icHtml(vips[editIdx] || draft));
 
+  if (loading) {
+    return (
+      <>
+        <h1 className="hero-h">VIP Level</h1>
+        <div className="hero-sub">Loading VIP configuration…</div>
+      </>
+    );
+  }
+
   return (
     <>
       <h1 className="hero-h">VIP Level</h1>
-      <div className="hero-sub">10-level VIP configuration — deposit/exp targets, cashback, rebate &amp; level bonuses. <b style={{ color: 'var(--gold)' }}>Click any level to edit.</b></div>
+      <div className="hero-sub">10-level VIP configuration — deposit/exp targets, cashback, rebate &amp; level bonuses. {editable ? <b style={{ color: 'var(--gold)' }}>Click any level to edit — changes go live on the player site.</b> : <b style={{ color: 'var(--muted)' }}>View only — you lack permission to edit.</b>} {saving && <span style={{ color: 'var(--gold)' }}>· saving…</span>}</div>
       <div className="grid vip-grid">
         {vips.map((v, i) => (
           <div className="vip-card" onClick={() => openEdit(i)} key={i}>

@@ -2,9 +2,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useUI } from '../context/UIContext';
 import useSectionNav from '../hooks/useSectionNav';
+import api from '../services/api';
 
-// ---- Data (ported from js-04-inline-4.js) ----
-const VIP_LEVELS = [
+// ---- Default theme (used until the admin-configured tiers load) ----
+const DEFAULT_VIP_LEVELS = [
   { lvl: 1, c: '#cd7f32', cl: '#e3a565', cd: '#9c5e20', rgb: '205,127,50', rb: '1%' },
   { lvl: 2, c: '#c0c8d0', cl: '#e6ecf2', cd: '#8b929b', rgb: '192,200,208', rb: '1.5%' },
   { lvl: 3, c: '#f0c040', cl: '#fbe08a', cd: '#c9971a', rgb: '240,192,64', rb: '2%' },
@@ -16,6 +17,23 @@ const VIP_LEVELS = [
   { lvl: 9, c: '#ef4444', cl: '#f88080', cd: '#c22e2e', rgb: '239,68,68', rb: '8%' },
   { lvl: 10, c: '#5ad1ed', cl: '#a8eeff', cd: '#22b8d4', rgb: '90,209,237', rb: '10%' },
 ];
+
+// Map an admin VIP tier (from /api/vip/tiers) into the shape this page renders.
+function tierToLevel(t, i) {
+  const def = DEFAULT_VIP_LEVELS[i] || DEFAULT_VIP_LEVELS[0];
+  return {
+    lvl: t.lv ?? def.lvl,
+    c: t.c || def.c,
+    cl: t.cl || def.cl,
+    cd: t.cd || def.cd,
+    rgb: t.rgb || def.rgb,
+    rb: t.rake || def.rb,        // rakeback chip on the card
+    name: t.n || '',             // admin-configured tier name
+    ic: t.ic || '',              // emoji icon
+    icImg: t.icImg || '',        // uploaded icon picture (Firebase Storage)
+    bonus: Number(t.bonus) || 0, // claimable level bonus
+  };
+}
 
 const VIP_FAQ = [
   { q: 'Why should I become a VIP on Onward?', a: 'VIP members enjoy exclusive benefits including higher cashback rates, personal account managers, special bonuses, and access to exclusive giveaways and tournaments.' },
@@ -51,8 +69,8 @@ const T = {
 };
 
 // One horizontal VIP rank card (port of vipHCardHTML).
-function VipHCard({ l, idx, active, mine, onTap, cardRef }) {
-  const next = VIP_LEVELS[idx + 1];
+function VipHCard({ l, idx, active, mine, onTap, cardRef, levels }) {
+  const next = levels[idx + 1];
   const nextLabel = next ? 'VIP ' + next.lvl : T.max;
   const depDone = 1000, depTarget = 1600, depMore = Math.max(depTarget - depDone, 0);
   const depPct = Math.min(100, Math.round((depDone / depTarget) * 100));
@@ -66,8 +84,8 @@ function VipHCard({ l, idx, active, mine, onTap, cardRef }) {
       onClick={onTap}
     >
       {mine && <div className="vipw-mine-tag">{T.ribbon}</div>}
-      <div className="vipw-badge">★</div>
-      <div className="vipw-level-title">VIP {l.lvl}</div>
+      <div className="vipw-badge">{l.icImg ? <img className="vipw-badge-img" src={l.icImg} alt="" /> : (l.ic || '★')}</div>
+      <div className="vipw-level-title">VIP {l.lvl}{l.name ? ' · ' + l.name : ''}</div>
       <div className="vipw-current">
         {mine ? T.yourLevel : T.level + ' ' + l.lvl}{' '}
         <span className="vipw-rb-chip">♻️ {T.rakeback} <b>{l.rb}</b></span>
@@ -88,8 +106,23 @@ export default function VIP() {
   const { openModal } = useUI();
   const go = useSectionNav();
 
+  // Admin-configured VIP tiers (names, icon pictures, rebate, level bonus).
+  // Falls back to the bundled default theme until the backend responds.
+  const [VIP_LEVELS, setVipLevels] = useState(DEFAULT_VIP_LEVELS);
+  useEffect(() => {
+    let alive = true;
+    api.get('/vip/tiers')
+      .then((r) => {
+        if (alive && Array.isArray(r.data) && r.data.length) {
+          setVipLevels(r.data.map(tierToLevel));
+        }
+      })
+      .catch(() => { /* keep defaults if the config can't be loaded */ });
+    return () => { alive = false; };
+  }, []);
+
   // Selected VIP level (index into VIP_LEVELS), default to player's achieved level.
-  const [selLevel, setSelLevel] = useState(Math.min(Math.max(PLAYER_VIP_LEVEL - 1, 0), VIP_LEVELS.length - 1));
+  const [selLevel, setSelLevel] = useState(Math.min(Math.max(PLAYER_VIP_LEVEL - 1, 0), DEFAULT_VIP_LEVELS.length - 1));
   const [benefitsOpen, setBenefitsOpen] = useState(false);
   const [openFaqs, setOpenFaqs] = useState(() => new Set());
   const toggleFaq = (i) =>
@@ -154,7 +187,10 @@ export default function VIP() {
   // Benefit cards for the selected level (port of selectVIPLevel).
   const benefitCards = VIP_BENEFITS.map((b, bi) => {
     const unlocked = l.lvl >= b.minLevel;
-    const amt = b.amts ? b.amts[Math.min(l.lvl, 10) - 1] : 0;
+    // The "Upgrade Bonus" reflects the admin-configured claimable level bonus.
+    const amt = b.name === 'Upgrade Bonus' && l.bonus
+      ? l.bonus
+      : (b.amts ? b.amts[Math.min(l.lvl, 10) - 1] : 0);
     const amtAtUnlock = b.amts ? b.amts[b.minLevel - 1] : 0;
     return (
       <div key={bi} className={'vipw-bcard ' + (unlocked ? 'active' : 'locked')}>
@@ -266,6 +302,7 @@ export default function VIP() {
                         active={g === N + selLevel}
                         onTap={() => vipCardTap(g)}
                         cardRef={(el) => { cardRefs.current[g] = el; }}
+                        levels={VIP_LEVELS}
                       />
                     );
                   })}

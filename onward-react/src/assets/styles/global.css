@@ -3344,6 +3344,10 @@ footer{
   border:2px solid rgba(255,255,255,.45);
   clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);
 }
+.vipw-badge-img{
+  width:62px;height:62px;object-fit:contain;
+  filter:drop-shadow(0 2px 6px rgba(0,0,0,.45));
+}
 .vipw-level-title{
   font-family:'Cinzel',serif;font-size:32px;font-weight:900;
   color:var(--vc);
