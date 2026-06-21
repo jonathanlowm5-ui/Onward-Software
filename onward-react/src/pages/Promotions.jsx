@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useUI } from '../context/UIContext';
 import useSectionNav from '../hooks/useSectionNav';
+import api from '../services/api';
 
 const VALID_PROMO_CODES = ['WELCOME100', 'LEGOX', 'VIP500', 'FREESPIN55'];
 
@@ -19,6 +20,18 @@ export default function Promotions() {
   const go = useSectionNav();
   const [promoCode, setPromoCode] = useState('');
   const [activeTab, setActiveTab] = useState('all');
+
+  // Live promotions created in the admin panel (backend-driven). Only real
+  // server records are shown here — when none exist the built-in showcase below
+  // remains as-is.
+  const [apiPromos, setApiPromos] = useState([]);
+  useEffect(() => {
+    let alive = true;
+    api.get('/promotions?active=1')
+      .then((r) => { if (alive && Array.isArray(r.data)) setApiPromos(r.data); })
+      .catch(() => { /* keep the built-in showcase if the API is unreachable */ });
+    return () => { alive = false; };
+  }, []);
 
   const visible = SHOW_MAP[activeTab] || SHOW_MAP.all;
   const show = (id) => (visible.includes(id) ? {} : { display: 'none' });
@@ -159,6 +172,21 @@ export default function Promotions() {
         <div id="promo-section-bonuses" style={show('bonuses')}>
           <div className="promo-sub-title" data-i18n="promo_bonuses">BONUSES</div>
           <div className="promo-bonus-grid" id="promo-bonus-grid">
+
+            {/* Live promotions configured in the admin panel */}
+            {apiPromos.map((p, i) => (
+              <div
+                className={'pb-card' + (i === 0 ? ' highlighted' : '')}
+                key={p.id ?? 'api-' + i}
+                onClick={openPromoDetail}
+              >
+                {p.image && <img src={p.image} alt="" style={{ width: '100%', borderRadius: 10, marginBottom: 10, display: 'block' }} />}
+                {p.bonus && <div className="pb-deco">{p.bonus}</div>}
+                <div className="pb-title">{p.title}</div>
+                {p.description && <div className="pb-detail">{String(p.description).split('\n').map((l, j) => <span key={j}>{l}<br /></span>)}</div>}
+                {p.buttonText && <button className="wh-tier-btn primary" style={{ marginTop: 10 }}>{p.buttonText}</button>}
+              </div>
+            ))}
 
             <div className="pb-card highlighted" onClick={openPromoDetail}>
               <span className="pb-status awaits">AWAITS DEPOSIT</span>

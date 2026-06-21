@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useUI } from '../context/UIContext';
 import { Table } from '../components/ui.jsx';
-import { listPromotions, togglePromotion, removePromotion } from '../services/promotionService';
+import { listPromotions, togglePromotion, removePromotion, createPromotion, updatePromotion } from '../services/promotionService';
+import { uploadImage } from '../services/uploadService';
 
 /* ---------- demo data (fallbacks) ---------- */
 const DEMO_PROMOS = [
@@ -60,29 +61,130 @@ const KB_AWARDS = [
   ['ana***', 'kb-prog', 'In Progress', 22],
 ];
 
-/* normalize a server promotion record to the demo shape */
+/* map a promo `type` to its coloured pill class */
+const TYPE_CLASS = { welcome: 'vt-pct', deposit: 'vt-cash', referral: 'vt-cash', cashback: 'vt-fs', freespin: 'vt-nd' };
+const typeClass = (t) => TYPE_CLASS[t] || 'vt-pct';
+
+/* normalize a server promotion record to the table-display shape.
+ * Keeps the raw backend record under `raw` so the edit modal can prefill. */
 function normalizePromo(p) {
-  if (p && p.n && p.tc) return p;
+  if (p && p.n && p.tc && !p.title) return p; // already a demo row
+  const type = p.type || p.t || 'welcome';
   return {
-    n: p.name || p.title || p.n || '—',
+    n: p.title || p.name || p.n || '—',
     d: p.description || p.d || '—',
-    t: p.type || p.t || 'welcome',
-    tc: p.tc || 'vt-pct',
+    t: type,
+    tc: typeClass(type),
     b: p.bonus || p.b || '—',
-    mx: p.max || p.mx || 'max ₱0',
+    mx: p.maxBonus ? ('max ' + p.maxBonus) : (p.mx || 'max ₱0'),
     md: p.minDeposit || p.md || '₱0',
     w: p.wager || p.w || '0x',
     to: p.turnover || p.to || '0x',
     cl: p.claims || p.cl || '0',
-    ex: p.expiry || p.ex || 'No expiry',
-    on: (p.active ?? p.on) ? 1 : 0,
+    ex: p.endDate || p.expiry || p.ex || 'No expiry',
+    on: ((p.status ? p.status === 'active' : (p.active ?? p.on)) ? 1 : 0),
     id: p.id ?? p._id,
+    raw: p,
   };
+}
+
+/* a blank promotion form */
+const EMPTY_PROMO = {
+  title: '', type: 'welcome', bonus: '', maxBonus: '', minDeposit: '', wager: '', turnover: '',
+  description: '', image: '', startDate: '', endDate: '', status: 'active', buttonText: '', buttonLink: '',
+};
+
+/* ===================== create / edit modal ===================== */
+function PromoEditModal({ initial, onClose, onSaved }) {
+  const { toast } = useUI();
+  const [f, setF] = useState(() => ({ ...EMPTY_PROMO, ...(initial || {}) }));
+  const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
+  const isEdit = !!(initial && initial.id);
+
+  const pickImage = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) { toast('⚠ Image too large — keep it under 4 MB'); return; }
+    setUploading(true);
+    try {
+      const { url } = await uploadImage(file);
+      setF((p) => ({ ...p, image: url }));
+      toast('Image uploaded ✔');
+    } catch (err) {
+      toast('⚠ Upload failed: ' + (err.message || 'error'));
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const submit = async () => {
+    if (!f.title.trim()) { toast('Promotion title is required', 'error'); return; }
+    setBusy(true);
+    const payload = {
+      title: f.title.trim(), type: f.type, bonus: f.bonus, maxBonus: f.maxBonus,
+      minDeposit: f.minDeposit, wager: f.wager, turnover: f.turnover,
+      description: f.description, image: f.image, startDate: f.startDate, endDate: f.endDate,
+      status: f.status, buttonText: f.buttonText, buttonLink: f.buttonLink,
+    };
+    try {
+      const saved = isEdit ? await updatePromotion(initial.id, payload) : await createPromotion(payload);
+      toast(isEdit ? 'Promotion updated ✔ live on player site' : 'Promotion created ✔ live on player site');
+      onSaved(saved);
+    } catch (err) {
+      toast('⚠ Save failed: ' + (err.message || 'error'));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="modal-ov show" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="pm-modal" style={{ maxWidth: 620 }}>
+        <div className="pm-head">
+          <span style={{ fontSize: '1.3rem' }}>🎁</span>
+          <span><div className="nm">{isEdit ? 'Edit Promotion' : 'Create Promotion'}</div><div className="meta">Shown on the player Promotions page</div></span>
+          <button className="kyc-x" style={{ marginLeft: 'auto' }} onClick={onClose}>✕</button>
+        </div>
+        <div className="pm-body">
+          <div className="pm-grid">
+            <div className="pm-fld" style={{ gridColumn: '1 / -1' }}><label>Title <span style={{ color: 'var(--red)' }}>*</span></label><input value={f.title} onChange={set('title')} placeholder="200% Welcome Bonus" /></div>
+            <div className="pm-fld"><label>Type</label><select value={f.type} onChange={set('type')}><option value="welcome">welcome</option><option value="deposit">deposit</option><option value="referral">referral</option><option value="cashback">cashback</option><option value="freespin">freespin</option></select></div>
+            <div className="pm-fld"><label>Bonus</label><input value={f.bonus} onChange={set('bonus')} placeholder="200% / ₱500 / 100 spins" /></div>
+            <div className="pm-fld"><label>Max Bonus</label><input value={f.maxBonus} onChange={set('maxBonus')} placeholder="₱10,000" /></div>
+            <div className="pm-fld"><label>Min Deposit</label><input value={f.minDeposit} onChange={set('minDeposit')} placeholder="₱500" /></div>
+            <div className="pm-fld"><label>Wager</label><input value={f.wager} onChange={set('wager')} placeholder="30x" /></div>
+            <div className="pm-fld"><label>Turnover</label><input value={f.turnover} onChange={set('turnover')} placeholder="0x" /></div>
+            <div className="pm-fld"><label>Start Date</label><input type="date" value={f.startDate} onChange={set('startDate')} /></div>
+            <div className="pm-fld"><label>End Date (expiry)</label><input type="date" value={f.endDate} onChange={set('endDate')} /></div>
+            <div className="pm-fld"><label>Status</label><select value={f.status} onChange={set('status')}><option value="active">active</option><option value="inactive">inactive</option></select></div>
+            <div className="pm-fld" style={{ gridColumn: '1 / -1' }}><label>Description</label><input value={f.description} onChange={set('description')} placeholder="Get 200% on your first deposit up to ₱10,000" /></div>
+            <div className="pm-fld"><label>Button Text</label><input value={f.buttonText} onChange={set('buttonText')} placeholder="Deposit Now" /></div>
+            <div className="pm-fld"><label>Button Link</label><input value={f.buttonLink} onChange={set('buttonLink')} placeholder="/deposit" /></div>
+            <div className="pm-fld" style={{ gridColumn: '1 / -1' }}>
+              <label>Image</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <input type="file" accept="image/*" onChange={pickImage} />
+                {uploading && <span style={{ color: 'var(--gold)' }}>uploading…</span>}
+                {f.image && <img src={f.image} alt="" style={{ height: 40, borderRadius: 6 }} />}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="pm-foot">
+          <button className="btn-cancel" onClick={onClose}>Cancel</button>
+          <button className="btn-pm-save" onClick={submit} disabled={busy || uploading}>{busy ? 'Saving…' : (isEdit ? '💾 Update' : '＋ Create')}</button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /* ===================== sub-views ===================== */
 
-function PromosTab({ promos, setPromos, loading }) {
+function PromosTab({ promos, setPromos, loading, onEdit }) {
   const { toast } = useUI();
   const [typeF, setTypeF] = useState('');
   const [query, setQuery] = useState('');
@@ -132,7 +234,7 @@ function PromosTab({ promos, setPromos, loading }) {
               <td style={{ fontWeight: 800 }}>{x.cl}</td>
               <td style={x.on ? undefined : { color: 'var(--muted)' }}>{x.ex}</td>
               <td><label className="switch"><input type="checkbox" checked={!!x.on} onChange={(e) => onToggle(i, e.target.checked)} /><span className="slider"></span></label></td>
-              <td><button className="mini-btn gold" onClick={() => toast(`Edit promo: ${x.n} — demo`)}>✏️ Edit</button> <button className="del-btn" onClick={() => onDelete(i)}>🗑</button></td>
+              <td><button className="mini-btn gold" onClick={() => onEdit(x)}>✏️ Edit</button> <button className="del-btn" onClick={() => onDelete(i)}>🗑</button></td>
             </tr>
           ))}</tbody>
         </table></div>
@@ -468,44 +570,48 @@ export default function Promotions() {
   const [tab, setTab] = useState('promos');
   const [promos, setPromos] = useState(DEMO_PROMOS);
   const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(null); // null | {} (new) | backend record (edit)
   const [slices, setSlices] = useState(INITIAL_SLICES);
   const [bigwins, setBigwins] = useState(INITIAL_BIGWINS);
   const [tiers, setTiers] = useState(TIER_RC_INIT);
 
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const res = await listPromotions();
-        const arr = Array.isArray(res) ? res : (res?.data || res?.items || res?.promotions || []);
-        if (alive && Array.isArray(arr) && arr.length) {
-          setPromos(arr.map(normalizePromo));
-        }
-        // empty -> keep demo fallback
-      } catch {
-        // error -> keep demo fallback
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => { alive = false; };
-  }, []);
+  const reload = async () => {
+    try {
+      const res = await listPromotions();
+      const arr = Array.isArray(res) ? res : (res?.data || res?.items || res?.promotions || []);
+      if (Array.isArray(arr) && arr.length) setPromos(arr.map(normalizePromo));
+      else setPromos(DEMO_PROMOS); // nothing on the server yet -> sample data
+    } catch {
+      // error -> keep whatever is on screen (demo fallback)
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { let alive = true; reload().finally(() => { if (!alive) return; }); return () => { alive = false; }; }, []);
+
+  const onEdit = (x) => {
+    if (x.id == null) { toast('This is sample data — use ＋ Create Promotion to add a real one'); return; }
+    setEditing(x.raw || x);
+  };
+  const onSaved = async () => { setEditing(null); await reload(); };
 
   return (
     <>
       <div className="page-head">
         <div><h1 className="hero-h">🔔 Promotions</h1><div className="hero-sub" style={{ marginBottom: 0 }}>Manage bonus packages, wager requirements, banners and eligibility rules</div></div>
-        <span className="pr"><button className="btn-search" onClick={() => toast('Create Promotion — demo')}>＋ Create Promotion</button></span>
+        <span className="pr"><button className="btn-search" onClick={() => setEditing({})}>＋ Create Promotion</button></span>
       </div>
       <div className="ptabs">{PROMO_TABS.map((t) => (
         <button key={t[0]} className={`ptab ${tab === t[0] ? 'active' : ''}`} onClick={() => setTab(t[0])}>{t[1]}</button>
       ))}</div>
-      {tab === 'promos' ? <PromosTab promos={promos} setPromos={setPromos} loading={loading} />
+      {tab === 'promos' ? <PromosTab promos={promos} setPromos={setPromos} loading={loading} onEdit={onEdit} />
         : tab === 'mini' ? <MiniTab slices={slices} setSlices={setSlices} />
           : tab === 'bigwins' ? <BigwinsTab bigwins={bigwins} setBigwins={setBigwins} />
             : tab === 'tier' ? <TierTab tiers={tiers} setTiers={setTiers} />
               : tab === 'kyc' ? <KycTab />
                 : <SettingsTab />}
+      {editing !== null && <PromoEditModal initial={editing} onClose={() => setEditing(null)} onSaved={onSaved} />}
     </>
   );
 }

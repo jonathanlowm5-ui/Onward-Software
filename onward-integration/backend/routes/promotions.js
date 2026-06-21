@@ -24,6 +24,13 @@ function clean(body) {
     image: body.image || '',
     title: String(body.title || '').trim(),
     description: String(body.description || '').trim(),
+    // Economic / display fields (shown on the admin table and player cards).
+    type: String(body.type || 'welcome').trim(),
+    bonus: String(body.bonus || '').trim(),
+    maxBonus: String(body.maxBonus ?? body.max ?? '').trim(),
+    minDeposit: String(body.minDeposit ?? body.md ?? '').trim(),
+    wager: String(body.wager || '').trim(),
+    turnover: String(body.turnover || '').trim(),
     startDate: body.startDate || '',
     endDate: body.endDate || '',
     status: body.status === 'inactive' ? 'inactive' : 'active',
