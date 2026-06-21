@@ -40,6 +40,7 @@ const toRow = (p, i) => [
   p.joined || p.createdAt || p.created_at || '—',
   p.hl || '',
   p.id || p.playerId || p.player_id || null, // [15] backend record id for API calls
+  p.referralCode || p.referral_code || '',   // [16] referral code (for filtering)
 ];
 
 const selF = (l, opts, req) => (
@@ -75,6 +76,7 @@ export default function AllPlayers() {
   const [filterMin, setFilterMin] = useState(false);
   const [advOpen, setAdvOpen] = useState(false);
   const [quick, setQuick] = useState('');
+  const [filters, setFilters] = useState({}); // detailed filter form values
   const [adj, setAdj] = useState({}); // adjustment history per index
 
   // Add Player modal
@@ -105,8 +107,41 @@ export default function AllPlayers() {
 
   const ql = quick.toLowerCase();
   const matchesQuick = (p) => !ql || p.join(' ').toLowerCase().includes(ql);
-  const visible = players.map((p, i) => ({ p, i })).filter(({ p }) => matchesQuick(p));
+
+  // Detailed filter (the form fields). Each field narrows the list by what's typed.
+  const inc = (val, q) => !q || String(val ?? '').toLowerCase().includes(String(q).toLowerCase());
+  const statusMatch = (act, s) => {
+    if (!s) return true;
+    if (s === 'Active') return !!act;
+    if (s === 'Inactive' || s === 'Blocked') return !act;
+    return true; // others have no row data — don't exclude
+  };
+  const matchesFilters = (p) =>
+    inc(p[0], filters.username) &&
+    inc(p[3], filters.playerId) &&
+    inc(p[1], filters.name) &&
+    inc(p[6], filters.contact) &&
+    inc(p[5], filters.email) &&
+    inc(p[12], filters.registerIp) &&
+    inc(p[16], filters.referral) &&
+    statusMatch(p[11], filters.status);
+
+  const visible = players.map((p, i) => ({ p, i })).filter(({ p }) => matchesQuick(p) && matchesFilters(p));
   const resCount = visible.length;
+
+  // Controlled filter-field helpers (kept as functions so inputs don't remount).
+  const setF = (k) => (e) => setFilters((f) => ({ ...f, [k]: e.target.value }));
+  const txtF = (k, label, ph, req) => (
+    <div className="fld"><label className={req ? 'req' : ''}>{label}</label>
+      <input placeholder={ph} value={filters[k] || ''} onChange={setF(k)} /></div>
+  );
+  const selFC = (k, label, opts, req) => (
+    <div className="fld"><label className={req ? 'req' : ''}>{label}</label>
+      <select value={filters[k] || ''} onChange={setF(k)}>
+        {opts.map((o, i) => <option key={i} value={/please select|select all|select range/i.test(o) ? '' : o}>{o}</option>)}
+      </select></div>
+  );
+  const resetFilters = () => { setFilters({}); setQuick(''); toast('Filters reset'); };
 
   const togglePlayer = async (i) => {
     const wasActive = players[i][11];
@@ -405,7 +440,7 @@ export default function AllPlayers() {
 
   return (
     <>
-      <h1 className="hero-h">All Players</h1><div className="hero-sub">52,418 registered players across all markets.</div>
+      <h1 className="hero-h">All Players</h1><div className="hero-sub">{players.length.toLocaleString()} registered player{players.length === 1 ? '' : 's'}.</div>
       <div className="card">
         <div className="filter-collapse">
           <span className="ttl">🔍 Filter Players</span><span className="cnt">11 fields</span>
@@ -422,15 +457,15 @@ export default function AllPlayers() {
             <div className="filter-grid">
               {selF('Date Range', ['Select Range', 'Today', 'Yesterday', 'Last 7 Days', 'This Month', 'Custom…'])}
               {selF('Agent', ['Please Select', 'AG-Manila01', 'AG-Cebu88', 'AG-Hanoi12', 'AG-GZ-Wang'], 1)}
-              {inF('Username', 'Username')}
+              {txtF('username', 'Username', 'Username')}
               {selF('Player Group', ['Select All', 'Normal', 'VIP', 'Risk Watch', 'Blocked'])}
-              {inF('Name', 'Full name')}
-              {inF('Contact', 'Phone number')}
-              {inF('Email', 'Email address')}
-              {selF('Status', ['Please Select', 'Active', 'Inactive', 'KYC Pending', 'Blocked'], 1)}
-              {inF('Register IP', 'IP address')}
-              {inF('Player Referral', 'Referral code')}
-              {inF('Player Referral (Code)', 'Referral code')}
+              {txtF('name', 'Name', 'Full name')}
+              {txtF('contact', 'Contact', 'Phone number')}
+              {txtF('email', 'Email', 'Email address')}
+              {selFC('status', 'Status', ['Please Select', 'Active', 'Inactive', 'Blocked'], 1)}
+              {txtF('registerIp', 'Register IP', 'IP address')}
+              {txtF('referral', 'Player Referral', 'Referral code')}
+              {txtF('playerId', 'Player ID', 'ONW…')}
             </div>
 
             <div className={`adv-head ${advOpen ? '' : 'closed'}`} onClick={() => setAdvOpen((o) => !o)}>Advanced Search<span className="caret">▲</span></div>
@@ -444,8 +479,8 @@ export default function AllPlayers() {
             </div>
 
             <div className="filter-foot">
-              <button className="btn-search" onClick={() => toast('Searching players… 5 results')}>🔍 Search</button>
-              <button className="btn-ghost" onClick={() => toast('Filters reset')}>↺ Reset</button>
+              <button className="btn-search" onClick={() => toast(`Found ${resCount} player${resCount !== 1 ? 's' : ''}`)}>🔍 Search</button>
+              <button className="btn-ghost" onClick={resetFilters}>↺ Reset</button>
               <span className="right"><button className="btn-ghost" onClick={exportCSV}>⬇ Export CSV</button></span>
             </div>
           </div>
