@@ -14,6 +14,7 @@
 import { DICT, SUPPORTED_LANGS, RTL_LANGS } from './dict';
 
 const STORAGE_KEY = 'onward_lang';
+const OBSERVE_OPTS = { childList: true, subtree: true, characterData: true };
 let observer = null;
 let debounceTimer = null;
 
@@ -48,11 +49,12 @@ export function applyTranslations(lang) {
   const html = document.documentElement;
   html.setAttribute('lang', lang);
   html.setAttribute('dir', RTL_LANGS.has(lang) ? 'rtl' : 'ltr');
-  if (observer) observer.observe(document.body, { childList: true, subtree: true });
+  if (observer) observer.observe(document.body, OBSERVE_OPTS);
 }
 
-// Start watching for newly mounted content (route changes etc.) and translate
-// it to the current language. Returns a cleanup function.
+// Start watching for newly mounted content (route changes etc.) and for React
+// reverting translated text on re-render, then translate it to the current
+// language. Returns a cleanup function.
 export function startI18nObserver(getLang) {
   stopI18nObserver();
   observer = new MutationObserver(() => {
@@ -60,9 +62,9 @@ export function startI18nObserver(getLang) {
     debounceTimer = setTimeout(() => {
       const lang = getLang();
       if (lang && lang !== 'en') applyTranslations(lang);
-    }, 120);
+    }, 80);
   });
-  observer.observe(document.body, { childList: true, subtree: true });
+  observer.observe(document.body, OBSERVE_OPTS);
   return stopI18nObserver;
 }
 

@@ -12,14 +12,15 @@ const LANG_FLAGS = {
   hi: '🇮🇳', ko: '🇰🇷', ja: '🇯🇵', es: '🇪🇸', pt: '🇵🇹', ar: '🇸🇦',
 };
 
-// Top navigation pills used by both header variants.
+// Top navigation pills used by both header variants. Emoji is kept separate
+// from the translatable text so switching language never wipes the icon.
 const NAV = [
-  { id: 'lobby', label: '🎰 Lobby' },
-  { id: 'slots', label: '🎲 Slots' },
-  { id: 'live', label: '📡 Live Casino', i18n: 'sec_live_casino' },
-  { id: 'sports', label: '⚽ Sports' },
-  { id: 'fish', label: '🐟 Fish Games', i18n: 'sec_fish_title' },
-  { id: 'promos', label: '🎁 Promotions' },
+  { id: 'lobby', emoji: '🎰', text: 'Lobby', i18n: 'nav_lobby' },
+  { id: 'slots', emoji: '🎲', text: 'Slots', i18n: 'nav_slots' },
+  { id: 'live', emoji: '📡', text: 'Live Casino', i18n: 'nav_live' },
+  { id: 'sports', emoji: '⚽', text: 'Sports', i18n: 'nav_sports' },
+  { id: 'fish', emoji: '🐟', text: 'Fish Games', i18n: 'nav_fish' },
+  { id: 'promos', emoji: '🎁', text: 'Promotions', i18n: 'nav_promos' },
 ];
 
 export default function Header() {
@@ -63,9 +64,9 @@ export default function Header() {
                 key={n.id}
                 className={`nav-item${activeId === n.id ? ' active' : ''}`}
                 onClick={() => go(n.id)}
-                data-i18n={n.i18n}
               >
-                {n.label}
+                <span aria-hidden="true">{n.emoji}</span>{' '}
+                <span data-i18n={n.i18n}>{n.text}</span>
               </button>
             ))}
           </nav>

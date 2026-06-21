@@ -9,7 +9,7 @@
  */
 export const DICT = {
   zh: {
-    nav_slots: '老虎机', nav_live: '真人娱乐场', nav_sports: '体育', nav_fish: '捕鱼游戏',
+    nav_lobby: '大厅', nav_slots: '老虎机', nav_live: '真人娱乐场', nav_sports: '体育', nav_fish: '捕鱼游戏',
     nav_promos: '优惠活动', nav_referral: '推荐', nav_giveaways: '赠品', nav_tournaments: '锦标赛',
     ui_login: '登录', ui_register: '注册', ui_join_now: '立即加入', ui_logout: '退出',
     ui_deposit: '存款', ui_deposit_btn: '＋ 存款', ui_withdraw: '提款', ui_balance: '余额', ui_bonus: '奖金',
@@ -23,7 +23,7 @@ export const DICT = {
     sec_all_slots: '🎲 所有老虎机游戏', sec_live_jackpots: '实时累积奖金',
   },
   id: {
-    nav_slots: 'Slot', nav_live: 'Live Casino', nav_sports: 'Olahraga', nav_fish: 'Permainan Ikan',
+    nav_lobby: 'Lobi', nav_slots: 'Slot', nav_live: 'Live Casino', nav_sports: 'Olahraga', nav_fish: 'Permainan Ikan',
     nav_promos: 'Promosi', nav_referral: 'Referral', nav_giveaways: 'Hadiah', nav_tournaments: 'Turnamen',
     ui_login: 'Masuk', ui_register: 'Daftar', ui_join_now: 'Gabung Sekarang', ui_logout: 'Keluar',
     ui_deposit: 'Deposit', ui_deposit_btn: '＋ Deposit', ui_withdraw: 'Tarik Dana', ui_balance: 'Saldo', ui_bonus: 'Bonus',
@@ -37,7 +37,7 @@ export const DICT = {
     sec_all_slots: '🎲 Semua Permainan Slot', sec_live_jackpots: 'Jackpot Langsung',
   },
   ms: {
-    nav_slots: 'Slot', nav_live: 'Kasino Langsung', nav_sports: 'Sukan', nav_fish: 'Permainan Ikan',
+    nav_lobby: 'Lobi', nav_slots: 'Slot', nav_live: 'Kasino Langsung', nav_sports: 'Sukan', nav_fish: 'Permainan Ikan',
     nav_promos: 'Promosi', nav_referral: 'Rujukan', nav_giveaways: 'Hadiah', nav_tournaments: 'Kejohanan',
     ui_login: 'Log Masuk', ui_register: 'Daftar', ui_join_now: 'Sertai Sekarang', ui_logout: 'Log Keluar',
     ui_deposit: 'Deposit', ui_deposit_btn: '＋ Deposit', ui_withdraw: 'Pengeluaran', ui_balance: 'Baki', ui_bonus: 'Bonus',
@@ -51,7 +51,7 @@ export const DICT = {
     sec_all_slots: '🎲 Semua Permainan Slot', sec_live_jackpots: 'Jackpot Langsung',
   },
   th: {
-    nav_slots: 'สล็อต', nav_live: 'คาสิโนสด', nav_sports: 'กีฬา', nav_fish: 'เกมยิงปลา',
+    nav_lobby: 'ล็อบบี้', nav_slots: 'สล็อต', nav_live: 'คาสิโนสด', nav_sports: 'กีฬา', nav_fish: 'เกมยิงปลา',
     nav_promos: 'โปรโมชั่น', nav_referral: 'แนะนำเพื่อน', nav_giveaways: 'ของรางวัล', nav_tournaments: 'ทัวร์นาเมนต์',
     ui_login: 'เข้าสู่ระบบ', ui_register: 'สมัครสมาชิก', ui_join_now: 'เข้าร่วมเลย', ui_logout: 'ออกจากระบบ',
     ui_deposit: 'ฝากเงิน', ui_deposit_btn: '＋ ฝากเงิน', ui_withdraw: 'ถอนเงิน', ui_balance: 'ยอดเงิน', ui_bonus: 'โบนัส',
@@ -65,7 +65,7 @@ export const DICT = {
     sec_all_slots: '🎲 เกมสล็อตทั้งหมด', sec_live_jackpots: 'แจ็คพอตสด',
   },
   vi: {
-    nav_slots: 'Nổ Hũ', nav_live: 'Sòng Bài Trực Tiếp', nav_sports: 'Thể Thao', nav_fish: 'Bắn Cá',
+    nav_lobby: 'Sảnh Chính', nav_slots: 'Nổ Hũ', nav_live: 'Sòng Bài Trực Tiếp', nav_sports: 'Thể Thao', nav_fish: 'Bắn Cá',
     nav_promos: 'Khuyến Mãi', nav_referral: 'Giới Thiệu', nav_giveaways: 'Quà Tặng', nav_tournaments: 'Giải Đấu',
     ui_login: 'Đăng Nhập', ui_register: 'Đăng Ký', ui_join_now: 'Tham Gia Ngay', ui_logout: 'Đăng Xuất',
     ui_deposit: 'Nạp Tiền', ui_deposit_btn: '＋ Nạp Tiền', ui_withdraw: 'Rút Tiền', ui_balance: 'Số Dư', ui_bonus: 'Thưởng',
@@ -79,7 +79,7 @@ export const DICT = {
     sec_all_slots: '🎲 Tất Cả Game Nổ Hũ', sec_live_jackpots: 'Jackpot Trực Tiếp',
   },
   hi: {
-    nav_slots: 'स्लॉट्स', nav_live: 'लाइव कैसीनो', nav_sports: 'खेल', nav_fish: 'फिश गेम्स',
+    nav_lobby: 'लॉबी', nav_slots: 'स्लॉट्स', nav_live: 'लाइव कैसीनो', nav_sports: 'खेल', nav_fish: 'फिश गेम्स',
     nav_promos: 'प्रोमोशन', nav_referral: 'रेफरल', nav_giveaways: 'उपहार', nav_tournaments: 'टूर्नामेंट',
     ui_login: 'लॉग इन', ui_register: 'रजिस्टर', ui_join_now: 'अभी जुड़ें', ui_logout: 'लॉग आउट',
     ui_deposit: 'जमा', ui_deposit_btn: '＋ जमा', ui_withdraw: 'निकासी', ui_balance: 'बैलेंस', ui_bonus: 'बोनस',
@@ -93,7 +93,7 @@ export const DICT = {
     sec_all_slots: '🎲 सभी स्लॉट गेम्स', sec_live_jackpots: 'लाइव जैकपॉट',
   },
   ko: {
-    nav_slots: '슬롯', nav_live: '라이브 카지노', nav_sports: '스포츠', nav_fish: '피쉬 게임',
+    nav_lobby: '로비', nav_slots: '슬롯', nav_live: '라이브 카지노', nav_sports: '스포츠', nav_fish: '피쉬 게임',
     nav_promos: '프로모션', nav_referral: '추천', nav_giveaways: '경품', nav_tournaments: '토너먼트',
     ui_login: '로그인', ui_register: '회원가입', ui_join_now: '지금 가입', ui_logout: '로그아웃',
     ui_deposit: '입금', ui_deposit_btn: '＋ 입금', ui_withdraw: '출금', ui_balance: '잔액', ui_bonus: '보너스',
@@ -107,7 +107,7 @@ export const DICT = {
     sec_all_slots: '🎲 모든 슬롯 게임', sec_live_jackpots: '라이브 잭팟',
   },
   ja: {
-    nav_slots: 'スロット', nav_live: 'ライブカジノ', nav_sports: 'スポーツ', nav_fish: 'フィッシュゲーム',
+    nav_lobby: 'ロビー', nav_slots: 'スロット', nav_live: 'ライブカジノ', nav_sports: 'スポーツ', nav_fish: 'フィッシュゲーム',
     nav_promos: 'プロモーション', nav_referral: '紹介', nav_giveaways: 'プレゼント', nav_tournaments: 'トーナメント',
     ui_login: 'ログイン', ui_register: '登録', ui_join_now: '今すぐ参加', ui_logout: 'ログアウト',
     ui_deposit: '入金', ui_deposit_btn: '＋ 入金', ui_withdraw: '出金', ui_balance: '残高', ui_bonus: 'ボーナス',
@@ -121,7 +121,7 @@ export const DICT = {
     sec_all_slots: '🎲 すべてのスロットゲーム', sec_live_jackpots: 'ライブジャックポット',
   },
   es: {
-    nav_slots: 'Tragamonedas', nav_live: 'Casino en Vivo', nav_sports: 'Deportes', nav_fish: 'Juegos de Pesca',
+    nav_lobby: 'Lobby', nav_slots: 'Tragamonedas', nav_live: 'Casino en Vivo', nav_sports: 'Deportes', nav_fish: 'Juegos de Pesca',
     nav_promos: 'Promociones', nav_referral: 'Referidos', nav_giveaways: 'Sorteos', nav_tournaments: 'Torneos',
     ui_login: 'Iniciar Sesión', ui_register: 'Registrarse', ui_join_now: 'Únete Ahora', ui_logout: 'Cerrar Sesión',
     ui_deposit: 'Depositar', ui_deposit_btn: '＋ Depositar', ui_withdraw: 'Retirar', ui_balance: 'Saldo', ui_bonus: 'Bono',
@@ -135,7 +135,7 @@ export const DICT = {
     sec_all_slots: '🎲 Todas las Tragamonedas', sec_live_jackpots: 'Botes en Vivo',
   },
   pt: {
-    nav_slots: 'Caça-Níqueis', nav_live: 'Cassino ao Vivo', nav_sports: 'Esportes', nav_fish: 'Jogos de Pesca',
+    nav_lobby: 'Lobby', nav_slots: 'Caça-Níqueis', nav_live: 'Cassino ao Vivo', nav_sports: 'Esportes', nav_fish: 'Jogos de Pesca',
     nav_promos: 'Promoções', nav_referral: 'Indicação', nav_giveaways: 'Sorteios', nav_tournaments: 'Torneios',
     ui_login: 'Entrar', ui_register: 'Registrar', ui_join_now: 'Junte-se Agora', ui_logout: 'Sair',
     ui_deposit: 'Depositar', ui_deposit_btn: '＋ Depositar', ui_withdraw: 'Sacar', ui_balance: 'Saldo', ui_bonus: 'Bônus',
@@ -149,7 +149,7 @@ export const DICT = {
     sec_all_slots: '🎲 Todos os Caça-Níqueis', sec_live_jackpots: 'Jackpots ao Vivo',
   },
   ar: {
-    nav_slots: 'سلوتس', nav_live: 'كازينو مباشر', nav_sports: 'الرياضة', nav_fish: 'ألعاب الصيد',
+    nav_lobby: 'اللوبي', nav_slots: 'سلوتس', nav_live: 'كازينو مباشر', nav_sports: 'الرياضة', nav_fish: 'ألعاب الصيد',
     nav_promos: 'العروض', nav_referral: 'الإحالة', nav_giveaways: 'الهدايا', nav_tournaments: 'البطولات',
     ui_login: 'تسجيل الدخول', ui_register: 'تسجيل', ui_join_now: 'انضم الآن', ui_logout: 'تسجيل الخروج',
     ui_deposit: 'إيداع', ui_deposit_btn: '＋ إيداع', ui_withdraw: 'سحب', ui_balance: 'الرصيد', ui_bonus: 'المكافأة',

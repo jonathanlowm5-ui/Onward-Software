@@ -17,21 +17,25 @@ export function UIProvider({ children }) {
   const [lang, setLangState] = useState(getStoredLang);
   const langRef = useRef(lang);
 
-  // Persist + apply the chosen language to the live DOM.
+  // Persist the chosen language. The translation itself is applied by the
+  // effect below, which runs AFTER React commits the re-render — otherwise
+  // React would overwrite our translated text back to the English defaults.
   const setLang = useCallback((next) => {
     langRef.current = next;
     setLangState(next);
     storeLang(next);
-    applyTranslations(next);
   }, []);
 
-  // Apply the stored language on first load and keep newly mounted pages
-  // translated as the user navigates.
+  // Re-apply whenever the language changes (covers the post-render revert) and
+  // keep newly navigated pages translated via the observer.
   useEffect(() => {
+    langRef.current = lang;
     applyTranslations(lang);
+  }, [lang]);
+
+  useEffect(() => {
     const stop = startI18nObserver(() => langRef.current);
     return stop;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [currency, setCurrency] = useState({ code: 'PHP', symbol: '₱' });
   const [toasts, setToasts] = useState([]);
