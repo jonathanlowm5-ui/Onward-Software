@@ -456,6 +456,7 @@ function PersonalTab({ show, toast }) {
           <div className="prof-field"><label data-i18n="auth_last_name">Last Name</label><input type="text" value={profile?.lastName || ''} disabled style={ro} /></div>
           <div className="prof-field"><label data-i18n="auth_email">Email</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your@email.com" /></div>
           <div className="prof-field"><label data-i18n="auth_phone">Mobile Number</label><input type="tel" value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="+63 9XX XXX XXXX" /></div>
+          <div className="prof-field"><label>Date of Birth</label><input type="text" value={profile?.dob || '—'} disabled style={ro} /></div>
           <div className="prof-field"><label>Currency</label><input type="text" value={profile?.currency || ''} disabled style={ro} /></div>
           <div className="prof-field"><label>Registration Date</label><input type="text" value={regDate} disabled style={ro} /></div>
         </div>

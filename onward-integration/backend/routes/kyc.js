@@ -27,6 +27,25 @@ function setPlayerKyc(playerId, status) {
   if (store.get(PLAYERS, playerId)) store.update(PLAYERS, playerId, { kyc_status: status });
 }
 
+// Attach the player's real registration data so the admin review shows the
+// actual email / mobile / DOB / name (not placeholders) and verified flags.
+function withPlayer(k) {
+  const p = k.playerId ? store.get(PLAYERS, k.playerId) : null;
+  return {
+    ...k,
+    player: p ? {
+      username: p.username,
+      playerCode: p.playerCode,
+      fullName: p.fullName || `${p.firstName || ''} ${p.lastName || ''}`.trim(),
+      firstName: p.firstName, lastName: p.lastName,
+      email: p.email, phone: p.phone, dob: p.dob || '', country: p.country || '',
+      currency: p.currency, registrationDate: p.createdAt,
+      emailVerified: !!p.emailVerified, mobileVerified: !!p.mobileVerified,
+      kyc_status: p.kyc_status,
+    } : null,
+  };
+}
+
 // Credit the configured KYC approval bonus once per player.
 function giveKycBonus(player) {
   const bonus = Number(store.getSettings().kycBonus || 0);
@@ -65,7 +84,7 @@ router.get('/', requireAuth, (req, res) => {
   let rows = store.list(COLLECTION);
   if (req.query.status) rows = rows.filter((k) => k.status === req.query.status);
   rows.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-  res.json(rows);
+  res.json(rows.map(withPlayer));
 });
 
 // ---- KYC approval bonus config (must be before /:id) ----
@@ -81,7 +100,7 @@ router.put('/config', requireAuth, (req, res) => {
 router.get('/:id', requireAuth, (req, res) => {
   const k = store.get(COLLECTION, req.params.id);
   if (!k) return res.status(404).json({ error: 'KYC record not found' });
-  res.json(k);
+  res.json(withPlayer(k));
 });
 
 // ---- approve / reject ----

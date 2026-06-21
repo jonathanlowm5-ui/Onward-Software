@@ -17,19 +17,32 @@ const DOC_LABEL = { id: 'National ID', passport: 'Passport', license: "Driver's 
 const docLabel = (d) => DOC_LABEL[d] || d || 'Document';
 const fmtTime = (t) => { if (!t) return '—'; const d = new Date(t); return Number.isNaN(d.getTime()) ? String(t) : d.toLocaleString(); };
 
-// Map a KYC record from the API into the shape this view renders (username-first).
-const normalize = (k, i) => ({
-  id: k.id ?? i,
-  row: k.username || k.row || k.player || k.n || `#${k.id ?? i}`,
-  n: k.username || k.n || k.name || 'Player',
-  p: k.username || k.player || '—',
-  d: docLabel(k.docType || k.doc_type || k.d),
-  t: k.createdAt ? fmtTime(k.createdAt) : (k.t || k.submitted || '—'),
-  st: k.status || k.st || 'pending',
-  frontUrl: k.frontUrl || '',
-  backUrl: k.backUrl || '',
-  selfieUrl: k.selfieUrl || '',
-});
+// Map a KYC record from the API into the shape this view renders (username-first,
+// with the player's real registration data for the review sections).
+const normalize = (k, i) => {
+  const pl = k.player || {};
+  return {
+    id: k.id ?? i,
+    row: pl.username || k.username || k.row || `#${k.id ?? i}`,
+    n: pl.fullName || pl.username || k.username || 'Player',
+    p: pl.username || k.username || '—',
+    d: docLabel(k.docType || k.doc_type || k.d),
+    t: k.createdAt ? fmtTime(k.createdAt) : (k.t || k.submitted || '—'),
+    st: k.status || k.st || 'pending',
+    frontUrl: k.frontUrl || '',
+    backUrl: k.backUrl || '',
+    selfieUrl: k.selfieUrl || '',
+    // real player info
+    email: pl.email || '—',
+    phone: pl.phone || '—',
+    dob: pl.dob || '—',
+    country: pl.country || '',
+    playerCode: pl.playerCode || '',
+    emailVerified: !!pl.emailVerified,
+    mobileVerified: !!pl.mobileVerified,
+    registrationDate: pl.registrationDate ? fmtTime(pl.registrationDate) : '—',
+  };
+};
 
 function KycImg({ label, url }) {
   return (
@@ -171,10 +184,12 @@ export default function Kyc() {
             </div>
             <div className="kyc-body" id="kycBody">
               <div className="kyc-info">
+                <div className="cell"><div className="lb">Username</div><div className="vl">{review.p}</div></div>
+                <div className="cell"><div className="lb">Player ID</div><div className="vl">{review.playerCode || '—'}</div></div>
                 <div className="cell"><div className="lb">Document Type</div><div className="vl">{review.d}</div></div>
                 <div className="cell"><div className="lb">Submitted</div><div className="vl">{review.t}</div></div>
-                <div className="cell"><div className="lb">Username</div><div className="vl">{review.p}</div></div>
-                <div className="cell"><div className="lb">Country</div><div className="vl">🇵🇭 Philippines</div></div>
+                <div className="cell"><div className="lb">Country</div><div className="vl">{review.country || '—'}</div></div>
+                <div className="cell"><div className="lb">Registered</div><div className="vl">{review.registrationDate}</div></div>
               </div>
               <div className="kyc-status"><span className="os">Overall Status:</span><span className="pend">⏳ Pending Review</span></div>
               <div className="kyc-status"><button className="btn-appall" onClick={() => pickAll(1)}>✓ Approve All</button><button className="btn-rejall" onClick={() => pickAll(0)}>✗ Reject All</button></div>
@@ -198,23 +213,23 @@ export default function Kyc() {
                   )}
                   {si === 1 && (
                     <>
-                      <div className="kyc-box"><span className="ok">✓ OTP Verified</span><div className="lb">Registered Mobile</div><div className="vl">+63 9XX XXX 4821</div></div>
-                      <div className="kyc-note">OTP sent and confirmed at 2026-06-03 09:10</div>
+                      <div className="kyc-box"><span className={review.mobileVerified ? 'ok' : 'pend'}>{review.mobileVerified ? '✓ OTP Verified' : '⏳ Not verified'}</span><div className="lb">Registered Mobile</div><div className="vl">{review.phone}</div></div>
+                      <div className="kyc-note">{review.mobileVerified ? 'Mobile number confirmed by the player.' : 'Player has not verified their mobile yet.'}</div>
                     </>
                   )}
                   {si === 2 && (
                     <>
-                      <div className="kyc-box"><span className="ok">✓ Email Verified</span><div className="lb">Registered Email</div><div className="vl">use***@gmail.com</div></div>
-                      <div className="kyc-note">Verification link confirmed at 2026-06-03 09:08</div>
+                      <div className="kyc-box"><span className={review.emailVerified ? 'ok' : 'pend'}>{review.emailVerified ? '✓ Email Verified' : '⏳ Not verified'}</span><div className="lb">Registered Email</div><div className="vl">{review.email}</div></div>
+                      <div className="kyc-note">{review.emailVerified ? 'Email confirmed by the player.' : 'Player has not verified their email yet.'}</div>
                     </>
                   )}
                   {si === 3 && (
                     <>
                       <div className="kyc-info" style={{ marginBottom: '10px' }}>
-                        <div className="cell"><div className="lb">DOB on ID</div><div className="vl">1992-04-15</div></div>
-                        <div className="cell"><div className="lb">DOB on Account</div><div className="vl">1992-04-15</div></div>
+                        <div className="cell"><div className="lb">DOB on Account</div><div className="vl">{review.dob}</div></div>
+                        <div className="cell"><div className="lb">Document Type</div><div className="vl">{review.d}</div></div>
                       </div>
-                      <div className="kyc-note" style={{ color: 'var(--green)', fontWeight: 800 }}>✓ DOB Match</div>
+                      <div className="kyc-note">Confirm the date of birth on the uploaded document matches the account DOB above.</div>
                     </>
                   )}
                   <div className="kyc-acts">

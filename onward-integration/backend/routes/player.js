@@ -89,6 +89,7 @@ router.post('/register', (req, res) => {
     fullName: `${firstName} ${lastName}`.trim(),
     phone: mobile,
     currency,
+    dob: String(b.dob || b.dateOfBirth || '').trim(),
     country: b.country || '',
     referralCode: String(b.referral_code || b.referralCode || '').trim(),
     passwordHash: bcrypt.hashSync(password, 10),
