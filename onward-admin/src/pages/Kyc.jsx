@@ -55,7 +55,7 @@ function KycImg({ label, url }) {
 
 export default function Kyc() {
   const { toast } = useUI();
-  const [queue, setQueue] = useState(DEMO_KYCQ);
+  const [queue, setQueue] = useState([]);
   const [loading, setLoading] = useState(true);
   const [reviewIdx, setReviewIdx] = useState(-1);
   // per-section decisions in the modal: { [sectionIdx]: 1 | 0 }
@@ -80,10 +80,10 @@ export default function Kyc() {
     (async () => {
       try {
         const data = await listKYC();
-        const list = Array.isArray(data) ? data : data?.items || data?.data;
-        if (active && list && list.length) setQueue(list.map(normalize));
+        const list = Array.isArray(data) ? data : data?.items || data?.data || [];
+        if (active) setQueue(list.map(normalize)); // real data only (may be empty)
       } catch {
-        // fall back to demo rows (already set)
+        if (active) setQueue(DEMO_KYCQ); // offline-only fallback
       } finally {
         if (active) setLoading(false);
       }

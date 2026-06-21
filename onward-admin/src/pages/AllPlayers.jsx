@@ -69,7 +69,7 @@ const dupLabel = {
 
 export default function AllPlayers() {
   const { toast } = useUI();
-  const [players, setPlayers] = useState(DEMO_PLAYERS);
+  const [players, setPlayers] = useState([]);
   const [, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('filter');
   const [filterMin, setFilterMin] = useState(false);
@@ -92,10 +92,10 @@ export default function AllPlayers() {
     (async () => {
       try {
         const data = await listPlayers();
-        const list = Array.isArray(data) ? data : data?.items || data?.data;
-        if (active && list && list.length) setPlayers(list.map(toRow));
+        const list = Array.isArray(data) ? data : data?.items || data?.data || [];
+        if (active) setPlayers(list.map(toRow)); // real data only (may be empty)
       } catch {
-        // demo fallback already set
+        if (active) setPlayers(DEMO_PLAYERS); // offline-only fallback
       } finally {
         if (active) setLoading(false);
       }

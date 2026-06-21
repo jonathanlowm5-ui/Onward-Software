@@ -10,14 +10,15 @@ const DEMO_DEPS = [
 ];
 
 const depBadge = (st) =>
-  st === 'success' ? <BOk>Success</BOk>
-  : st === 'manual' ? <BPend>Manual</BPend>
+  st === 'approved' || st === 'success' ? <BOk>Approved</BOk>
+  : st === 'pending' || st === 'manual' ? <BPend>Pending</BPend>
   : st === 'admin' ? <BInfo>Admin Manual</BInfo>
-  : <BBad>Failed</BBad>;
+  : st === 'rejected' || st === 'failed' ? <BBad>Rejected</BBad>
+  : <BInfo>{st || '—'}</BInfo>;
 
 export default function Deposits() {
   const { toast } = useUI();
-  const [deps, setDeps] = useState(DEMO_DEPS);
+  const [deps, setDeps] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,17 +26,15 @@ export default function Deposits() {
     (async () => {
       try {
         const data = await listDeposits();
-        const rows = Array.isArray(data) ? data : data?.items;
-        if (alive && rows && rows.length) {
-          setDeps(rows.map((d) => ({
-            id: d.id ?? d.txnId,
-            pl: d.player ?? d.pl ?? d.playerId,
-            m: d.method ?? d.m,
-            amt: d.amount ?? d.amt,
-            t: d.time ?? d.t ?? d.createdAt,
-            st: d.status ?? d.st,
-          })));
-        }
+        const rows = Array.isArray(data) ? data : data?.items || [];
+        if (alive) setDeps(rows.map((d) => ({
+          id: d.id ?? d.txnId,
+          pl: d.username ?? d.player ?? d.pl ?? d.playerId,
+          m: d.method ?? d.m,
+          amt: typeof d.amount === 'number' ? '₱' + d.amount.toLocaleString() : (d.amount ?? d.amt),
+          t: d.time ?? d.t ?? d.createdAt,
+          st: d.status ?? d.st,
+        })));
       } catch {
         if (alive) setDeps(DEMO_DEPS);
       } finally {
@@ -59,7 +58,7 @@ export default function Deposits() {
   const cols = ['TXN ID', 'Player', 'Method', 'Amount', 'Time', 'Status', 'Action'];
   const rows = deps.map((d, i) => [
     d.id, d.pl, d.m, d.amt, d.t, depBadge(d.st),
-    d.st === 'manual'
+    (d.st === 'manual' || d.st === 'pending')
       ? <button className="mini-btn green" onClick={() => approve(i)}>Approve</button>
       : d.st === 'failed'
         ? <button className="mini-btn" onClick={() => toast('Retrying ' + d.id + '…')}>Retry</button>

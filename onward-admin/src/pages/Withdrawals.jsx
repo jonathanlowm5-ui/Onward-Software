@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Table, BOk, BPend, BBad } from '../components/ui.jsx';
+import { Table, BOk, BPend, BBad, BInfo } from '../components/ui.jsx';
 import { useUI } from '../context/UIContext';
 import { listWithdrawals, approveTransaction, rejectTransaction } from '../services/walletService';
 
@@ -16,14 +16,15 @@ const riskBadge = (r) =>
   r === 'low' ? <BOk>Low</BOk> : r === 'med' ? <BPend>Med</BPend> : <BBad>High</BBad>;
 
 const wdBadge = (st) =>
-  st === 'pending' ? <BPend>Pending</BPend>
+  st === 'paid' || st === 'approved' ? <BOk>Paid</BOk>
+  : st === 'pending' ? <BPend>Pending</BPend>
   : st === 'review' ? <BPend>Review</BPend>
-  : st === 'paid' ? <BOk>Paid</BOk>
-  : <BBad>Rejected</BBad>;
+  : st === 'rejected' ? <BBad>Rejected</BBad>
+  : <BInfo>{st || '—'}</BInfo>;
 
 export default function Withdrawals() {
   const { toast } = useUI();
-  const [wds, setWds] = useState(DEMO_WDS);
+  const [wds, setWds] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,17 +32,15 @@ export default function Withdrawals() {
     (async () => {
       try {
         const data = await listWithdrawals();
-        const list = Array.isArray(data) ? data : data?.items;
-        if (alive && list && list.length) {
-          setWds(list.map((w) => ({
-            id: w.id ?? w.reqId,
-            pl: w.player ?? w.pl ?? w.playerId,
-            m: w.method ?? w.m,
-            amt: w.amount ?? w.amt,
-            risk: w.risk ?? 'low',
-            st: w.status ?? w.st,
-          })));
-        }
+        const list = Array.isArray(data) ? data : data?.items || [];
+        if (alive) setWds(list.map((w) => ({
+          id: w.id ?? w.reqId,
+          pl: w.username ?? w.player ?? w.pl ?? w.playerId,
+          m: w.method ?? w.m,
+          amt: typeof w.amount === 'number' ? '₱' + w.amount.toLocaleString() : (w.amount ?? w.amt),
+          risk: w.risk ?? 'low',
+          st: w.status ?? w.st,
+        })));
       } catch {
         if (alive) setWds(DEMO_WDS);
       } finally {

@@ -4,13 +4,13 @@ const MENU=[
  {link:{id:"dashboard",ic:"📊",t:"Dashboard"}},
  {link:{id:"analytics",ic:"📈",t:"Analytics"}},
  {cat:"Players",ic:"👥",id:"players",sub:[
-   {id:"all-players",ic:"👥",t:"All Players",badge:[3]},
-   {id:"online-players",ic:"🟢",t:"Online Players",badge:[0,"green"]},
-   {id:"kyc",ic:"🪪",t:"KYC",badge:[7]},
+   {id:"all-players",ic:"👥",t:"All Players"},
+   {id:"online-players",ic:"🟢",t:"Online Players"},
+   {id:"kyc",ic:"🪪",t:"KYC"},
    {id:"vip",ic:"💎",t:"VIP Level"}]},
  {cat:"Finance",ic:"💰",id:"finance",sub:[
    {id:"deposits",ic:"💳",t:"Deposits"},
-   {id:"withdrawals",ic:"💸",t:"Withdrawals",badge:[12]},
+   {id:"withdrawals",ic:"💸",t:"Withdrawals"},
    {id:"transactions",ic:"📒",t:"Transactions"},
    {id:"bonuses",ic:"🎁",t:"Bonuses"},
    {id:"bank",ic:"🏦",t:"Bank"}]},
@@ -32,7 +32,7 @@ const MENU=[
    {id:"ads",ic:"📣",t:"Ads Marketing"}]},
  {cat:"Agent",ic:"🧑‍💼",id:"agent",sub:[
    {id:"agent-list",ic:"👥",t:"Agent List"},
-   {id:"agent-approval",ic:"✅",t:"Agent Approval",badge:[3]},
+   {id:"agent-approval",ic:"✅",t:"Agent Approval"},
    {id:"commission",ic:"💰",t:"Commission"},
    {id:"agent-players",ic:"🎮",t:"Agent Players"},
    {id:"agent-report",ic:"📊",t:"Agent Report"}]},
