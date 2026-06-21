@@ -419,6 +419,8 @@ tbody tr:hover{background:rgba(255,255,255,.025)}
 .ws-panel{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:14px;display:flex;flex-direction:column}
 .ws-hero{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:10px;margin-bottom:12px;border:1px solid rgba(46,204,113,.22);background:linear-gradient(135deg,rgba(46,204,113,.14),rgba(46,204,113,0))}
 .ws-hero.blue{border-color:rgba(58,160,255,.22);background:linear-gradient(135deg,rgba(58,160,255,.14),rgba(58,160,255,0))}
+.ws-hero.red{border-color:rgba(255,77,94,.22);background:linear-gradient(135deg,rgba(255,77,94,.14),rgba(255,77,94,0))}
+.ws-hero.gold{border-color:rgba(244,178,35,.24);background:linear-gradient(135deg,rgba(244,178,35,.14),rgba(244,178,35,0))}
 .ws-hero-ic{font-size:1.5rem;width:46px;height:46px;flex:0 0 46px;display:flex;align-items:center;justify-content:center;border-radius:11px;background:rgba(255,255,255,.06)}
 .ws-hero-v{font-family:'Roboto','Segoe UI',sans-serif;font-weight:900;font-size:1.75rem;line-height:1;color:var(--green)}
 .ws-hero-l{color:var(--muted);font-size:var(--fs-xs);font-weight:700;margin-top:5px;text-transform:uppercase;letter-spacing:.6px}
@@ -432,6 +434,21 @@ tbody tr:hover{background:rgba(255,255,255,.025)}
 .ws-stat.highlight{background:rgba(46,204,113,.1);border:1px solid rgba(46,204,113,.28)}
 .ws-chart-box{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:16px 16px 12px;display:flex;flex-direction:column;justify-content:center}
 .areachart{width:100%;height:210px;display:block}
+
+/* Total Net banner */
+.ws-net-banner{display:flex;align-items:center;gap:14px;margin-top:var(--pad);padding:14px 18px;border-radius:12px;border:1px solid rgba(46,204,113,.28);background:linear-gradient(135deg,rgba(46,204,113,.16),rgba(46,204,113,.02))}
+.ws-net-ic{font-size:1.5rem;width:46px;height:46px;display:flex;align-items:center;justify-content:center;border-radius:11px;background:rgba(46,204,113,.16)}
+.ws-net-v{font-family:'Roboto','Segoe UI',sans-serif;font-weight:900;font-size:1.6rem;line-height:1;color:var(--green)}
+.ws-net-l{font-weight:800;font-size:var(--fs-sm);margin-top:4px}
+.ws-net-l span{color:var(--muted);font-weight:600;font-size:var(--fs-xs);margin-left:4px}
+
+/* Toolbar */
+.ws-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:var(--pad);font-size:var(--fs-sm);font-weight:700;color:var(--muted)}
+.ws-toolbar input[type=date]{background:var(--panel-3);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:7px 10px;font-size:var(--fs-sm);color-scheme:dark}
+
+/* Pie tiles */
+.ws-pie-card{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:14px}
+.ws-pie-title{font-weight:800;font-size:var(--fs-sm);margin-bottom:12px;color:var(--text)}
 @media (max-width:1100px){
  .ocs-tiers{grid-template-columns:1fr}
  .pk-grid{grid-template-columns:repeat(3,1fr)}

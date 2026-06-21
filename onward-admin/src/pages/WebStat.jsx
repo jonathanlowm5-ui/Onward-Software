@@ -1,15 +1,6 @@
 import { useUI } from '../context/UIContext';
 
 // --- ported helpers (from original admin js) ---
-function detailTbl(rows) {
-  return (
-    <table className="dt-tbl">
-      <thead><tr><th>Detail</th><th>Total</th></tr></thead>
-      <tbody>{rows.map((r, i) => <tr key={i}><td>{r[0]}</td><td>{r[1]}</td></tr>)}</tbody>
-    </table>
-  );
-}
-
 function pie(center, slices) {
   let acc = 0;
   const stops = slices
@@ -115,6 +106,24 @@ function groupedBars(groups, colors) {
   );
 }
 
+// A coloured metric panel: hero stat + zebra stat rows.
+const ACCENT = { green: 'var(--green)', red: 'var(--red)', gold: 'var(--gold)', blue: 'var(--blue)' };
+function StatPanel({ accent = 'green', icon, big, label, rows }) {
+  return (
+    <div className="ws-panel">
+      <div className={`ws-hero ${accent}`}>
+        <div className="ws-hero-ic">{icon}</div>
+        <div><div className="ws-hero-v" style={{ color: ACCENT[accent] }}>{big}</div><div className="ws-hero-l">{label}</div></div>
+      </div>
+      <div className="ws-stat-list">
+        {rows.map((r, i) => (
+          <div className={`ws-stat${r[2] ? ' highlight' : ''}`} key={i}><span className="k">{r[0]}</span><span className="v">{r[1]}</span></div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function WebStat() {
   const { toast } = useUI();
   return (
@@ -124,39 +133,45 @@ export default function WebStat() {
         <button className="mini-btn gold" onClick={() => toast('Searching range… ✔')}>Search</button>
         <button className="mini-btn" onClick={() => toast('Exported! ⬇ web-statistic.csv')}>⬇ Export</button>
       </div>
-      <div className="card"><div className="card-title">Transaction</div>
+      <div className="card"><div className="card-title">💳 Transaction</div>
         <div className="tx3">
-          <div><div className="tx-big"><div className="v v-green">100.00</div><div className="l">Total Deposit</div></div>
-            {detailTbl([["Total Trans.", "1"], ["Average", "100.00"], ["Daily Average", "100.00"], ["Daily Average Trans.", "1.00"], ["No. of Player", "1"]])}</div>
-          <div><div className="tx-big"><div className="v v-red">0.00</div><div className="l">Total Withdrawal</div></div>
-            {detailTbl([["Total Trans.", "0"], ["Average", "0.00"], ["Daily Average", "0.00"], ["Daily Average Trans.", "0.00"], ["No. of Player", "0"]])}</div>
-          <div><div className="tx-big"><div className="v v-gold">6.00</div><div className="l">Total Promotion</div></div>
-            {detailTbl([["Total Trans.", "1"], ["Average", "6.00"], ["Daily Average", "6.00"], ["Daily Average Trans.", "1.00"], ["No. of Player", "0"]])}</div>
+          <StatPanel accent="green" icon="⬇️" big="100.00" label="Total Deposit"
+            rows={[["Total Trans.", "1"], ["Average", "100.00"], ["Daily Average", "100.00"], ["Daily Average Trans.", "1.00"], ["No. of Player", "1"]]} />
+          <StatPanel accent="red" icon="⬆️" big="0.00" label="Total Withdrawal"
+            rows={[["Total Trans.", "0"], ["Average", "0.00"], ["Daily Average", "0.00"], ["Daily Average Trans.", "0.00"], ["No. of Player", "0"]]} />
+          <StatPanel accent="gold" icon="🎁" big="6.00" label="Total Promotion"
+            rows={[["Total Trans.", "1"], ["Average", "6.00"], ["Daily Average", "6.00"], ["Daily Average Trans.", "1.00"], ["No. of Player", "0"]]} />
         </div>
-        <div className="ws-net"><div className="v">100.00</div><div className="l">Total Net</div><div className="s">(Deposit − Withdraw)</div></div>
-        {lineChart([8, 5, 9, 12, 8, 3, 7, 8, 8, 17, 13, 12, 5, 8, 9, 11, 10, 10, 9, 2, 9, 8, 4, 12, 13, 11, 8, 6, 6, 6, 1], '#3aa0ff')}
-        <div className="chart-legend">
-          <span className="li"><span className="ln" style={{ background: 'var(--green)' }}></span>Deposit</span>
-          <span className="li"><span className="ln" style={{ background: 'var(--red)' }}></span>Withdraw</span>
-          <span className="li"><span className="ln" style={{ background: 'var(--gold)' }}></span>Promotion</span>
-          <span className="li"><span className="ln" style={{ background: 'var(--blue)' }}></span>Adj. In</span>
-          <span className="li"><span className="ln" style={{ background: '#8b97b1' }}></span>Adj. Out</span>
+        <div className="ws-net-banner">
+          <div className="ws-net-ic">📈</div>
+          <div className="ws-net-txt"><div className="ws-net-v">+100.00</div><div className="ws-net-l">Total Net <span>(Deposit − Withdraw)</span></div></div>
+        </div>
+        <div className="ws-chart-box" style={{ marginTop: 'var(--pad)' }}>
+          {areaChart([8, 5, 9, 12, 8, 3, 7, 8, 8, 17, 13, 12, 5, 8, 9, 11, 10, 10, 9, 2, 9, 8, 4, 12, 13, 11, 8, 6, 6, 6, 1], '#3aa0ff', 'tx')}
+          <div className="chart-legend">
+            <span className="li"><span className="ln" style={{ background: 'var(--green)' }}></span>Deposit</span>
+            <span className="li"><span className="ln" style={{ background: 'var(--red)' }}></span>Withdraw</span>
+            <span className="li"><span className="ln" style={{ background: 'var(--gold)' }}></span>Promotion</span>
+            <span className="li"><span className="ln" style={{ background: 'var(--blue)' }}></span>Adj. In</span>
+            <span className="li"><span className="ln" style={{ background: '#8b97b1' }}></span>Adj. Out</span>
+          </div>
         </div>
       </div>
       <div className="card" style={{ marginTop: 'var(--pad)' }}><div className="card-title">📊 Pie Statistics</div>
         <div className="pie-grid">
-          <div><div className="card-title" style={{ fontSize: 'var(--fs-sm)' }}>Deposit by Method</div>
-            {pie('Deposits', [["GCash", "#3aa0ff", 46], ["Bank", "#2ecc71", 24], ["USDT", "#f4b223", 18], ["Maya", "#9b6dff", 12]])}</div>
-          <div><div className="card-title" style={{ fontSize: 'var(--fs-sm)' }}>Traffic Source</div>
-            {pie('Traffic', [["Organic", "#2ecc71", 38], ["Ads", "#f4b223", 30], ["Referral", "#3aa0ff", 20], ["Direct", "#8b97b1", 12]])}</div>
-          <div><div className="card-title" style={{ fontSize: 'var(--fs-sm)' }}>Device Split</div>
-            {pie('Devices', [["Android", "#2ecc71", 58], ["iOS", "#3aa0ff", 26], ["Desktop", "#f4b223", 16]])}</div>
-          <div><div className="card-title" style={{ fontSize: 'var(--fs-sm)' }}>Wager by Category</div>
-            {pie('Wager', [["Slots", "#f4b223", 59], ["Live", "#3aa0ff", 25], ["Sports", "#ff4d5e", 16]])}</div>
-          <div><div className="card-title" style={{ fontSize: 'var(--fs-sm)' }}>Player Market</div>
-            {pie('Markets', [["PHP", "#2ecc71", 52], ["VND", "#3aa0ff", 22], ["CNY", "#f4b223", 16], ["Other", "#8b97b1", 10]])}</div>
-          <div><div className="card-title" style={{ fontSize: 'var(--fs-sm)' }}>Session Time</div>
-            {pie('Session', [["<5 min", "#8b97b1", 22], ["5–20 min", "#3aa0ff", 41], ["20+ min", "#2ecc71", 37]])}</div>
+          {[
+            ['Deposit by Method', 'Deposits', [["GCash", "#3aa0ff", 46], ["Bank", "#2ecc71", 24], ["USDT", "#f4b223", 18], ["Maya", "#9b6dff", 12]]],
+            ['Traffic Source', 'Traffic', [["Organic", "#2ecc71", 38], ["Ads", "#f4b223", 30], ["Referral", "#3aa0ff", 20], ["Direct", "#8b97b1", 12]]],
+            ['Device Split', 'Devices', [["Android", "#2ecc71", 58], ["iOS", "#3aa0ff", 26], ["Desktop", "#f4b223", 16]]],
+            ['Wager by Category', 'Wager', [["Slots", "#f4b223", 59], ["Live", "#3aa0ff", 25], ["Sports", "#ff4d5e", 16]]],
+            ['Player Market', 'Markets', [["PHP", "#2ecc71", 52], ["VND", "#3aa0ff", 22], ["CNY", "#f4b223", 16], ["Other", "#8b97b1", 10]]],
+            ['Session Time', 'Session', [["<5 min", "#8b97b1", 22], ["5–20 min", "#3aa0ff", 41], ["20+ min", "#2ecc71", 37]]],
+          ].map((p, i) => (
+            <div className="ws-pie-card" key={i}>
+              <div className="ws-pie-title">{p[0]}</div>
+              {pie(p[1], p[2])}
+            </div>
+          ))}
         </div>
       </div>
       <div className="card" style={{ marginTop: 'var(--pad)' }}><div className="card-title">👥 Member</div>
@@ -198,8 +213,8 @@ export default function WebStat() {
           </div>
         </div>
       </div>
-      <div className="card" style={{ marginTop: 'var(--pad)' }}><div className="card-title">Product</div>
-        <div className="gbar-wrap">{groupedBars(
+      <div className="card" style={{ marginTop: 'var(--pad)' }}><div className="card-title">🎮 Product</div>
+        <div className="ws-chart-box gbar-wrap">{groupedBars(
           [["PRAGMATIC", [75, 25, 25, 18, 4]], ["PGSOFT", [140, 300, 300, 95, 215]], ["JILI", [530, 340, 350, 360, -32]], ["FACHAI", [8, 5, 5, 4, 1]]],
           ['#454c5c', '#3aa0ff', '#f4b223', '#ff4d5e', '#2ecc71'])}</div>
         <div className="chart-legend">
