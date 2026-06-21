@@ -41,6 +41,54 @@ function lineChart(data, color) {
   );
 }
 
+// Smooth (Catmull-Rom -> Bézier) path through a set of points.
+function smoothPath(pts) {
+  if (pts.length < 2) return '';
+  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i += 1) {
+    const p0 = pts[i - 1] || pts[i];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2] || p2;
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6;
+    const c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6;
+    const c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+  }
+  return d;
+}
+
+// Gradient-filled smooth area chart. `key` makes the gradient id unique.
+function areaChart(data, color, key) {
+  const W = 720, H = 190, padY = 16;
+  const max = Math.max(...data, 1) * 1.18;
+  const min = Math.min(0, ...data);
+  const range = (max - min) || 1;
+  const pts = data.map((v, i) => [
+    (i / (data.length - 1)) * W,
+    padY + (1 - (v - min) / range) * (H - padY * 2),
+  ]);
+  const line = smoothPath(pts);
+  const area = `${line} L${W.toFixed(1)},${H} L0,${H} Z`;
+  const gid = `ws-grad-${key}`;
+  return (
+    <svg className="areachart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
+      <defs>
+        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.34" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill={`url(#${gid})`} />
+      <path d={line} fill="none" stroke={color} strokeWidth="2.6" strokeLinejoin="round" strokeLinecap="round" />
+      {pts.map((p, i) => (i % 2 === 0 ? (
+        <circle key={i} cx={p[0].toFixed(1)} cy={p[1].toFixed(1)} r="3" fill="var(--panel)" stroke={color} strokeWidth="2" />
+      ) : null))}
+    </svg>
+  );
+}
+
 function groupedBars(groups, colors) {
   const W = 760, H = 230, padB = 22;
   const all = groups.flatMap((g) => g[1]);
@@ -111,20 +159,43 @@ export default function WebStat() {
             {pie('Session', [["<5 min", "#8b97b1", 22], ["5–20 min", "#3aa0ff", 41], ["20+ min", "#2ecc71", 37]])}</div>
         </div>
       </div>
-      <div className="card" style={{ marginTop: 'var(--pad)' }}><div className="card-title">Member</div>
+      <div className="card" style={{ marginTop: 'var(--pad)' }}><div className="card-title">👥 Member</div>
         <div className="member-flex">
-          <div><div className="tx-big"><div className="v v-green">0</div><div className="l">Total Register</div></div>
-            {detailTbl([["Total Conversion", "0"], ["Conversion Rate (%)", "0.00"]])}</div>
-          <div>{lineChart([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0], '#8b97b1')}
-            <div className="chart-legend"><span className="li"><span className="ln" style={{ background: '#8b97b1' }}></span>Member</span><span className="li"><span className="ln" style={{ background: 'var(--green)' }}></span>First Deposit</span></div></div>
+          <div className="ws-panel">
+            <div className="ws-hero blue">
+              <div className="ws-hero-ic">🧑‍💼</div>
+              <div><div className="ws-hero-v" style={{ color: 'var(--blue)' }}>0</div><div className="ws-hero-l">Total Register</div></div>
+            </div>
+            <div className="ws-stat-list">
+              <div className="ws-stat"><span className="k">Total Conversion</span><span className="v">0</span></div>
+              <div className="ws-stat highlight"><span className="k">Conversion Rate</span><span className="v" style={{ color: 'var(--blue)' }}>0.00%</span></div>
+            </div>
+          </div>
+          <div className="ws-chart-box">
+            {areaChart([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0], '#3aa0ff', 'mem')}
+            <div className="chart-legend"><span className="li"><span className="ln" style={{ background: 'var(--blue)' }}></span>Member</span><span className="li"><span className="ln" style={{ background: 'var(--green)' }}></span>First Deposit</span></div>
+          </div>
         </div>
       </div>
-      <div className="card" style={{ marginTop: 'var(--pad)' }}><div className="card-title">Wager</div>
+      <div className="card" style={{ marginTop: 'var(--pad)' }}><div className="card-title">🎲 Wager</div>
         <div className="member-flex">
-          <div><div className="tx-big"><div className="v v-green">676</div><div className="l">No. of Record</div></div>
-            {detailTbl([["Total T/O", "668.06"], ["Total Bet", "668.06"], ["Total Payout", "469.71"], ["Total W/L", <span style={{ color: 'var(--red)', fontWeight: 800 }}>-198.34</span>], ["Total Profit", <span style={{ color: 'var(--green)', fontWeight: 800 }}>198.34</span>]])}</div>
-          <div>{lineChart([120, 340, 80, 510, 420, 660, 580, 690, 610, 640, 520, 676], '#2ecc71')}
-            <div className="chart-legend"><span className="li"><span className="ln" style={{ background: 'var(--green)' }}></span>Turnover</span><span className="li"><span className="ln" style={{ background: 'var(--red)' }}></span>Payout</span></div></div>
+          <div className="ws-panel">
+            <div className="ws-hero green">
+              <div className="ws-hero-ic">🎰</div>
+              <div><div className="ws-hero-v">676</div><div className="ws-hero-l">No. of Record</div></div>
+            </div>
+            <div className="ws-stat-list">
+              <div className="ws-stat"><span className="k">Total T/O</span><span className="v">668.06</span></div>
+              <div className="ws-stat"><span className="k">Total Bet</span><span className="v">668.06</span></div>
+              <div className="ws-stat"><span className="k">Total Payout</span><span className="v">469.71</span></div>
+              <div className="ws-stat"><span className="k">Total W/L</span><span className="v neg">-198.34</span></div>
+              <div className="ws-stat highlight"><span className="k">Total Profit</span><span className="v pos">198.34</span></div>
+            </div>
+          </div>
+          <div className="ws-chart-box">
+            {areaChart([120, 340, 80, 510, 420, 660, 580, 690, 610, 640, 520, 676], '#2ecc71', 'wager')}
+            <div className="chart-legend"><span className="li"><span className="ln" style={{ background: 'var(--green)' }}></span>Turnover</span><span className="li"><span className="ln" style={{ background: 'var(--red)' }}></span>Payout</span></div>
+          </div>
         </div>
       </div>
       <div className="card" style={{ marginTop: 'var(--pad)' }}><div className="card-title">Product</div>

@@ -413,7 +413,25 @@ tbody tr:hover{background:rgba(255,255,255,.025)}
 .pie-wrap{display:flex;align-items:center;gap:14px}
 .pie{width:110px;height:110px;border-radius:50%;flex:0 0 110px;display:flex;align-items:center;justify-content:center}
 .pie::after{content:attr(data-c);background:var(--panel);width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.72rem;text-align:center}
-.member-flex{display:grid;grid-template-columns:280px 1fr;gap:var(--pad);align-items:start}
+.member-flex{display:grid;grid-template-columns:300px 1fr;gap:var(--pad);align-items:stretch}
+
+/* WebStat — refined Member / Wager panels */
+.ws-panel{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:14px;display:flex;flex-direction:column}
+.ws-hero{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:10px;margin-bottom:12px;border:1px solid rgba(46,204,113,.22);background:linear-gradient(135deg,rgba(46,204,113,.14),rgba(46,204,113,0))}
+.ws-hero.blue{border-color:rgba(58,160,255,.22);background:linear-gradient(135deg,rgba(58,160,255,.14),rgba(58,160,255,0))}
+.ws-hero-ic{font-size:1.5rem;width:46px;height:46px;flex:0 0 46px;display:flex;align-items:center;justify-content:center;border-radius:11px;background:rgba(255,255,255,.06)}
+.ws-hero-v{font-family:'Roboto','Segoe UI',sans-serif;font-weight:900;font-size:1.75rem;line-height:1;color:var(--green)}
+.ws-hero-l{color:var(--muted);font-size:var(--fs-xs);font-weight:700;margin-top:5px;text-transform:uppercase;letter-spacing:.6px}
+.ws-stat-list{display:flex;flex-direction:column;gap:3px}
+.ws-stat{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:10px 12px;border-radius:8px;font-size:var(--fs-sm)}
+.ws-stat:nth-child(odd){background:var(--panel-3)}
+.ws-stat .k{color:var(--muted);font-weight:600}
+.ws-stat .v{font-weight:800;color:var(--text);font-variant-numeric:tabular-nums}
+.ws-stat .v.pos{color:var(--green)}
+.ws-stat .v.neg{color:var(--red)}
+.ws-stat.highlight{background:rgba(46,204,113,.1);border:1px solid rgba(46,204,113,.28)}
+.ws-chart-box{background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:16px 16px 12px;display:flex;flex-direction:column;justify-content:center}
+.areachart{width:100%;height:210px;display:block}
 @media (max-width:1100px){
  .ocs-tiers{grid-template-columns:1fr}
  .pk-grid{grid-template-columns:repeat(3,1fr)}
