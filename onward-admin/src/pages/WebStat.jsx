@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useUI } from '../context/UIContext';
 
 // --- ported helpers (from original admin js) ---
@@ -15,20 +16,6 @@ function pie(center, slices) {
         ))}
       </div>
     </div>
-  );
-}
-
-function lineChart(data, color) {
-  const W = 720, H = 180, max = Math.max(...data) * 1.15;
-  const pts = data.map((v, i) => [(i / (data.length - 1)) * W, H - (v / max) * H]);
-  const path = pts.map((p) => p.map((n) => n.toFixed(1)).join(',')).join(' ');
-  return (
-    <svg className="linechart" viewBox={`0 0 ${W} ${H + 14}`} preserveAspectRatio="none">
-      <polyline points={path} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" />
-      {pts.filter((_, i) => i % 2 === 0).map((p, i) => (
-        <circle key={i} cx={p[0].toFixed(1)} cy={p[1].toFixed(1)} r="3.2" fill={color} />
-      ))}
-    </svg>
   );
 }
 
@@ -50,33 +37,83 @@ function smoothPath(pts) {
   return d;
 }
 
-// Gradient-filled smooth area chart. `key` makes the gradient id unique.
-function areaChart(data, color, key) {
-  const W = 720, H = 190, padY = 16;
-  const max = Math.max(...data, 1) * 1.18;
+// X-axis label sets per view granularity.
+const HOUR_LABELS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, '0')}:00`);
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const dateLabels = (n) => Array.from({ length: n }, (_, i) => `05-${String(i + 1).padStart(2, '0')}`);
+
+// Deterministic sample series so switching view keeps a natural-looking shape.
+const synth = (n, peak, seed) => Array.from({ length: n }, (_, i) =>
+  Math.max(0, Math.round(peak * ((Math.sin(i * 1.3 + seed) * 0.5 + 0.5) * 0.7 + 0.15))));
+
+// Resolve {data,labels} for the active view. `dateData` is the real "by date"
+// series; Day shows 24 hours, Month shows 12 months (illustrative).
+function viewSeries(view, dateData, seed) {
+  const peak = Math.max(...dateData, 1);
+  if (view === 'day') return { data: synth(24, peak, seed), labels: HOUR_LABELS };
+  if (view === 'month') return { data: synth(12, peak, seed), labels: MONTH_LABELS };
+  return { data: dateData, labels: dateLabels(dateData.length) };
+}
+
+// Line/area chart with a labelled Y-axis grid, crisp HTML X-axis labels and
+// per-point value labels (text stays sharp because it's HTML, not stretched SVG).
+function Chart({ data, labels, color, gid }) {
+  const n = data.length;
+  const W = 1000, H = 240, padY = 20;
+  const dataMax = Math.max(...data, 1);
   const min = Math.min(0, ...data);
+  const max = dataMax * 1.12 || 1;
   const range = (max - min) || 1;
-  const pts = data.map((v, i) => [
-    (i / (data.length - 1)) * W,
-    padY + (1 - (v - min) / range) * (H - padY * 2),
-  ]);
+  const xAt = (i) => (n === 1 ? W / 2 : (i / (n - 1)) * W);
+  const yAt = (v) => padY + (1 - (v - min) / range) * (H - padY * 2);
+  const pts = data.map((v, i) => [xAt(i), yAt(v)]);
   const line = smoothPath(pts);
-  const area = `${line} L${W.toFixed(1)},${H} L0,${H} Z`;
-  const gid = `ws-grad-${key}`;
+  const areaD = `${line} L${W},${H} L0,${H} Z`;
+  const steps = 4;
+  const grid = Array.from({ length: steps + 1 }, (_, i) => {
+    const val = min + range * (i / steps);
+    return { y: yAt(val), val: Math.round(val) };
+  });
+  const rotate = n > 14;
+  const showVals = n <= 31;
   return (
-    <svg className="areachart" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
-      <defs>
-        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.34" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={area} fill={`url(#${gid})`} />
-      <path d={line} fill="none" stroke={color} strokeWidth="2.6" strokeLinejoin="round" strokeLinecap="round" />
-      {pts.map((p, i) => (i % 2 === 0 ? (
-        <circle key={i} cx={p[0].toFixed(1)} cy={p[1].toFixed(1)} r="3" fill="var(--panel)" stroke={color} strokeWidth="2" />
-      ) : null))}
-    </svg>
+    <div className="ws-chart">
+      <div className="ws-yaxis">
+        {[...grid].reverse().map((g, i) => <span key={i}>{g.val}</span>)}
+      </div>
+      <div className="ws-chart-main">
+        <div className="ws-plot">
+          <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="ws-plot-svg">
+            <defs>
+              <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={color} stopOpacity="0.30" />
+                <stop offset="100%" stopColor={color} stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            {grid.map((g, i) => (
+              <line key={i} x1="0" x2={W} y1={g.y.toFixed(1)} y2={g.y.toFixed(1)} stroke="var(--border)" strokeWidth="1" opacity="0.55" />
+            ))}
+            <path d={areaD} fill={`url(#${gid})`} />
+            <path d={line} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+          </svg>
+          {pts.map((p, i) => {
+            const left = `${(p[0] / W) * 100}%`;
+            const top = `${(p[1] / H) * 100}%`;
+            return (
+              <span key={i}>
+                {showVals && <span className="ws-pt-val" style={{ left, top }}>{data[i]}</span>}
+                <span className="ws-dot" style={{ left, top, color }} />
+              </span>
+            );
+          })}
+        </div>
+        <div className={'ws-xaxis' + (rotate ? ' rot' : '')}>
+          {labels.map((l, i) => (
+            <span key={i} className="ws-xlab" style={{ left: `${(xAt(i) / W) * 100}%` }}>{l}</span>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -124,14 +161,33 @@ function StatPanel({ accent = 'green', icon, big, label, rows }) {
   );
 }
 
+// Real "by date" series (the values stay the same; the view only re-buckets
+// the x-axis between hours / dates / months).
+const TX_DATE = [8, 5, 9, 12, 8, 3, 7, 8, 8, 17, 13, 12, 5, 8, 9, 11, 10, 10, 9, 2, 9, 8, 4, 12, 13, 11, 8, 6, 6, 6, 1];
+const MEM_DATE = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0];
+const WAG_DATE = [120, 340, 80, 510, 420, 660, 580, 690, 610, 640, 520, 676];
+
+const VIEWS = [['day', 'Day'], ['date', 'Date'], ['month', 'Month']];
+
 export default function WebStat() {
   const { toast } = useUI();
+  const [view, setView] = useState('date');
+  const tx = viewSeries(view, TX_DATE, 1);
+  const mem = viewSeries(view, MEM_DATE, 4);
+  const wag = viewSeries(view, WAG_DATE, 7);
   return (
     <>
       <div className="ws-toolbar">Date Range:
         <input type="date" defaultValue="2026-05-01" /> — <input type="date" defaultValue="2026-05-31" />
         <button className="mini-btn gold" onClick={() => toast('Searching range… ✔')}>Search</button>
         <button className="mini-btn" onClick={() => toast('Exported! ⬇ web-statistic.csv')}>⬇ Export</button>
+        <span className="ws-viewby">View by:
+          <span className="ws-seg">
+            {VIEWS.map((v) => (
+              <button key={v[0]} className={'ws-seg-btn' + (view === v[0] ? ' on' : '')} onClick={() => setView(v[0])}>{v[1]}</button>
+            ))}
+          </span>
+        </span>
       </div>
       <div className="card"><div className="card-title">💳 Transaction</div>
         <div className="tx3">
@@ -147,7 +203,7 @@ export default function WebStat() {
           <div className="ws-net-txt"><div className="ws-net-v">+100.00</div><div className="ws-net-l">Total Net <span>(Deposit − Withdraw)</span></div></div>
         </div>
         <div className="ws-chart-box" style={{ marginTop: 'var(--pad)' }}>
-          {areaChart([8, 5, 9, 12, 8, 3, 7, 8, 8, 17, 13, 12, 5, 8, 9, 11, 10, 10, 9, 2, 9, 8, 4, 12, 13, 11, 8, 6, 6, 6, 1], '#3aa0ff', 'tx')}
+          <Chart data={tx.data} labels={tx.labels} color="#3aa0ff" gid="ws-grad-tx" />
           <div className="chart-legend">
             <span className="li"><span className="ln" style={{ background: 'var(--green)' }}></span>Deposit</span>
             <span className="li"><span className="ln" style={{ background: 'var(--red)' }}></span>Withdraw</span>
@@ -187,7 +243,7 @@ export default function WebStat() {
             </div>
           </div>
           <div className="ws-chart-box">
-            {areaChart([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0], '#3aa0ff', 'mem')}
+            <Chart data={mem.data} labels={mem.labels} color="#3aa0ff" gid="ws-grad-mem" />
             <div className="chart-legend"><span className="li"><span className="ln" style={{ background: 'var(--blue)' }}></span>Member</span><span className="li"><span className="ln" style={{ background: 'var(--green)' }}></span>First Deposit</span></div>
           </div>
         </div>
@@ -208,7 +264,7 @@ export default function WebStat() {
             </div>
           </div>
           <div className="ws-chart-box">
-            {areaChart([120, 340, 80, 510, 420, 660, 580, 690, 610, 640, 520, 676], '#2ecc71', 'wager')}
+            <Chart data={wag.data} labels={wag.labels} color="#2ecc71" gid="ws-grad-wager" />
             <div className="chart-legend"><span className="li"><span className="ln" style={{ background: 'var(--green)' }}></span>Turnover</span><span className="li"><span className="ln" style={{ background: 'var(--red)' }}></span>Payout</span></div>
           </div>
         </div>
