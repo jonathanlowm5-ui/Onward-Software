@@ -89,7 +89,7 @@ export default function Transactions() {
   const cols = ['TXN ID', 'Player', 'Type', 'Amount', 'Source / Method', 'Status', 'Note', 'Time'];
   const rows = filtered.map((t) => [
     <span className="idchip">{String(t.id || '').slice(0, 10) || '—'}</span>,
-    t.username || t.playerId || '—',
+    <div><div style={{ fontWeight: 700 }}>{t.username || '—'}</div>{t.playerCode ? <div style={{ fontSize: 11, color: 'var(--muted,#8898b8)' }}>{t.playerCode}</div> : null}</div>,
     typeBadge(t.type),
     fmtAmount(t),
     t.source || t.method || '—',

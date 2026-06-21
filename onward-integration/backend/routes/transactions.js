@@ -35,7 +35,18 @@ router.get('/', requireAuth, (req, res) => {
   if (req.query.status) rows = rows.filter((t) => t.status === req.query.status);
   if (req.query.player) rows = rows.filter((t) => String(t.playerId) === String(req.query.player));
   rows.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-  res.json(rows);
+  // Always resolve the player's username + Player ID so the admin shows the
+  // username as the indicator (even for admin/legacy records).
+  const seen = {};
+  const lookup = (id) => {
+    if (!id) return null;
+    if (!(id in seen)) seen[id] = store.get(PLAYERS, id);
+    return seen[id];
+  };
+  res.json(rows.map((t) => {
+    const p = lookup(t.playerId);
+    return { ...t, username: t.username || (p && p.username) || '', playerCode: (p && p.playerCode) || '' };
+  }));
 });
 
 // ---- create ----
