@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useUI } from '../context/UIContext';
-import { listPlayers, blockPlayer, updatePlayer, deletePlayer } from '../services/playerService';
+import { listPlayers, blockPlayer, updatePlayer, deletePlayer, resetPlayerPassword } from '../services/playerService';
 import { credit as creditWallet, debit as debitWallet } from '../services/walletService';
 
 /* ---- Players dataset (demo fallback) ----
@@ -425,7 +425,15 @@ export default function AllPlayers() {
             </div></>}
           <div className="pm-sect">Actions</div>
           <div className="sec-acts">
-            <button className="mini-btn" onClick={() => toast('Password reset link sent ✉️')}>🔑 Reset Password</button>
+            <button className="mini-btn" onClick={async () => {
+              const id = players[pmIdx] && players[pmIdx][15];
+              if (!id) { toast('No backend account for this row'); return; }
+              const pw = window.prompt('Set a new password for ' + players[pmIdx][0] + ' (min 6 chars):');
+              if (!pw) return;
+              if (pw.length < 6) { toast('Password must be at least 6 characters'); return; }
+              try { await resetPlayerPassword(id, pw); toast('Password reset ✔ for ' + players[pmIdx][0]); }
+              catch (e) { toast('Could not reset: ' + (e?.response?.data?.error || e.message || 'error')); }
+            }}>🔑 Reset Password</button>
             <button className="mini-btn" onClick={() => toast('2FA disabled 🔓')}>🔓 Disable 2FA</button>
             <button className="act-suspend" onClick={() => toast('Player suspended ⛔')}>⛔ Suspend</button>
             <button className="mini-btn red" onClick={() => toast('Account banned 🚫')}>🚫 Ban Account</button>

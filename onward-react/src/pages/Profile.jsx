@@ -114,7 +114,24 @@ const curSym = (c) => CUR_SYM[c] || c || '₱';
 
 export default function Profile() {
   const { openModal, toast } = useUI();
-  const { profile, isLoggedIn, loading, logout } = useAuth();
+  const { profile, isLoggedIn, loading, logout, updateProfile } = useAuth();
+  const avatarRef = useRef(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const onAvatarPick = async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setAvatarBusy(true);
+    try {
+      const { url } = await playersService.uploadFile(f, 'avatar');
+      await updateProfile({ avatar: url });
+      toast('Profile photo updated', 'success');
+    } catch (err) {
+      toast(err.message || 'Could not upload photo', 'error');
+    } finally {
+      setAvatarBusy(false);
+      if (e.target) e.target.value = '';
+    }
+  };
   const go = useSectionNav();
   const sym = curSym(profile?.currency);
   const bal = Number(profile?.balance || 0);
@@ -158,8 +175,11 @@ export default function Profile() {
           {/* User card */}
           <div className="prof-user-card">
             <div className="prof-user-top">
-              <div className="prof-avatar-lg" id="prof-avatar">🎮
-                <div className="prof-avatar-edit">✏</div>
+              <div className="prof-avatar-lg" id="prof-avatar" onClick={() => !avatarBusy && avatarRef.current?.click()}
+                style={profile?.avatar ? { backgroundImage: `url(${profile.avatar})`, backgroundSize: 'cover', backgroundPosition: 'center', color: 'transparent', cursor: 'pointer' } : { cursor: 'pointer' }}>
+                {profile?.avatar ? '' : '🎮'}
+                <div className="prof-avatar-edit">{avatarBusy ? '…' : '✏'}</div>
+                <input ref={avatarRef} type="file" accept="image/*" onChange={onAvatarPick} style={{ display: 'none' }} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="prof-username" id="prof-username">{profile?.username || 'Player'}</div>

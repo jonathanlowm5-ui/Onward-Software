@@ -10,6 +10,9 @@ export async function login(username, password) {
 
 export const me = () => api.get('/auth/me').then((r) => r.data);
 
+export const changeAdminPassword = (currentPassword, newPassword) =>
+  api.post('/auth/change-password', { currentPassword, newPassword }).then((r) => r.data);
+
 export function logout() {
   setToken('');
 }

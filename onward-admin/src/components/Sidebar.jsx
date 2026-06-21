@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { listPlayers, onlinePlayers } from '../services/playerService';
 import { listKYC } from '../services/kycService';
 import { listWithdrawals } from '../services/walletService';
+import { changeAdminPassword } from '../services/authService';
 import { IMG0 as LOGO } from '../assets/images';
 
 const nbadge = (b) => (b ? <span className={`nbadge ${b[1] || ''}`}>{b[0]}</span> : null);
@@ -102,7 +103,14 @@ export default function Sidebar() {
           <div><div className="nm">Super Admin</div><div className="rl">Administrator</div></div>
           <span style={{ marginLeft: 'auto', color: 'var(--muted)' }}>⋮</span>
           <div className={`profile-menu${profileOpen ? ' show' : ''}`} id="profileMenu">
-            <button onClick={() => toast('Profile coming soon')}>👤 My Profile</button>
+            <button onClick={async () => {
+              const cur = window.prompt('Current admin password:');
+              if (!cur) return;
+              const nw = window.prompt('New password (min 8 characters):');
+              if (!nw) return;
+              try { await changeAdminPassword(cur, nw); toast('Admin password changed ✔'); }
+              catch (e) { toast('Could not change: ' + (e?.response?.data?.error || e.message || 'error')); }
+            }}>🔑 Change Password</button>
             <button className="signout" onClick={(e) => { e.stopPropagation(); logout(); }}>⏻ Sign Out</button>
           </div>
         </div>
