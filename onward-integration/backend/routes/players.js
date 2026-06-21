@@ -15,6 +15,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const store = require('../store');
 const { requireAuth } = require('../auth');
+const { requirePerm } = require('../permissions');
 const { publicView, holderMatchesPlayer, registeredFullName } = require('../playerUtils');
 
 const router = express.Router();
@@ -73,7 +74,7 @@ router.get('/', requireAuth, (req, res) => {
 });
 
 // ---- ADMIN: suspend / reactivate ----
-router.patch('/:id/toggle', requireAuth, (req, res) => {
+router.patch('/:id/toggle', requireAuth, requirePerm('players.status'), (req, res) => {
   const p = store.get(COLLECTION, req.params.id);
   if (!p) return res.status(404).json({ error: 'Player not found' });
   const status = p.status === 'active' ? 'suspended' : 'active';
@@ -81,7 +82,7 @@ router.patch('/:id/toggle', requireAuth, (req, res) => {
 });
 
 // ---- ADMIN: block / unblock ----
-router.patch('/:id/block', requireAuth, (req, res) => {
+router.patch('/:id/block', requireAuth, requirePerm('players.status'), (req, res) => {
   const p = store.get(COLLECTION, req.params.id);
   if (!p) return res.status(404).json({ error: 'Player not found' });
   const blocked = req.body?.blocked === undefined ? true : !!req.body.blocked;
@@ -91,7 +92,7 @@ router.patch('/:id/block', requireAuth, (req, res) => {
 // ---- ADMIN: kick (end the player's current session without blocking) ----
 // Invalidates every token issued before now; the player is logged out on their
 // next request but can sign back in. Also drops them from the online list.
-router.post('/:id/kick', requireAuth, (req, res) => {
+router.post('/:id/kick', requireAuth, requirePerm('players.kick'), (req, res) => {
   const p = store.get(COLLECTION, req.params.id);
   if (!p) return res.status(404).json({ error: 'Player not found' });
   store.update(COLLECTION, req.params.id, {
@@ -123,8 +124,8 @@ function move(req, res, sign) {
   });
   res.json({ playerId: p.id, balance: updated.balance });
 }
-router.post('/:id/wallet/credit', requireAuth, (req, res) => move(req, res, 1));
-router.post('/:id/wallet/debit', requireAuth, (req, res) => move(req, res, -1));
+router.post('/:id/wallet/credit', requireAuth, requirePerm('players.adjust'), (req, res) => move(req, res, 1));
+router.post('/:id/wallet/debit', requireAuth, requirePerm('players.adjust'), (req, res) => move(req, res, -1));
 
 // ---- ADMIN: full player detail (incl. bank + recent login history) ----
 router.get('/:id', requireAuth, (req, res) => {
@@ -139,7 +140,7 @@ router.get('/:id', requireAuth, (req, res) => {
 });
 
 // ---- ADMIN: reset a player's password ----
-router.post('/:id/reset-password', requireAuth, (req, res) => {
+router.post('/:id/reset-password', requireAuth, requirePerm('players.resetpw'), (req, res) => {
   const p = store.get(COLLECTION, req.params.id);
   if (!p) return res.status(404).json({ error: 'Player not found' });
   const newPassword = String(req.body?.newPassword || '');
@@ -162,7 +163,7 @@ router.get('/:id/bank', requireAuth, (req, res) => {
   res.json(store.list('bank_accounts').filter((a) => String(a.playerId) === String(req.params.id)));
 });
 
-router.put('/:id/bank', requireAuth, (req, res) => {
+router.put('/:id/bank', requireAuth, requirePerm('players.edit'), (req, res) => {
   const p = store.get(COLLECTION, req.params.id);
   if (!p) return res.status(404).json({ error: 'Player not found' });
   const b = req.body || {};
@@ -192,7 +193,7 @@ router.put('/:id/bank', requireAuth, (req, res) => {
 });
 
 // ---- ADMIN: manually verify email / mobile, or set KYC status ----
-router.patch('/:id/verify', requireAuth, (req, res) => {
+router.patch('/:id/verify', requireAuth, requirePerm('players.edit'), (req, res) => {
   const p = store.get(COLLECTION, req.params.id);
   if (!p) return res.status(404).json({ error: 'Player not found' });
   const patch = {};
@@ -203,7 +204,7 @@ router.patch('/:id/verify', requireAuth, (req, res) => {
 });
 
 // ---- ADMIN: edit player profile (admin may change anything, incl. username) ----
-router.put('/:id', requireAuth, (req, res) => {
+router.put('/:id', requireAuth, requirePerm('players.edit'), (req, res) => {
   const p = store.get(COLLECTION, req.params.id);
   if (!p) return res.status(404).json({ error: 'Player not found' });
   const b = req.body || {};
@@ -249,7 +250,7 @@ router.put('/:id', requireAuth, (req, res) => {
 });
 
 // ---- ADMIN: delete (cascades — removes the player AND all their data) ----
-router.delete('/:id', requireAuth, (req, res) => {
+router.delete('/:id', requireAuth, requirePerm('players.delete'), (req, res) => {
   const p = store.get(COLLECTION, req.params.id);
   if (!p) return res.status(404).json({ error: 'Player not found' });
   let removed = 0;

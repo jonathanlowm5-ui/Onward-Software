@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useUI } from '../context/UIContext';
+import { useAuth } from '../context/AuthContext';
 import { Table, BOk, BPend, BBad } from '../components/ui.jsx';
 import { listKYC, approveKYC, rejectKYC, getKycConfig, saveKycConfig } from '../services/kycService';
 
@@ -55,6 +56,8 @@ function KycImg({ label, url }) {
 
 export default function Kyc() {
   const { toast } = useUI();
+  const { can } = useAuth();
+  const mayApprove = can('kyc.approve');
   const [queue, setQueue] = useState([]);
   const [loading, setLoading] = useState(true);
   const [reviewIdx, setReviewIdx] = useState(-1);
@@ -148,7 +151,7 @@ export default function Kyc() {
     kycBadge(k.st),
     <>
       <button className={`mini-btn ${k.st === 'pending' ? 'gold' : ''}`} onClick={() => openReview(i)}>👁 View Doc</button>
-      {k.st === 'pending' && <> <button className="mini-btn green" onClick={() => quickApprove(i)}>✓ Approve</button></>}
+      {mayApprove && k.st === 'pending' && <> <button className="mini-btn green" onClick={() => quickApprove(i)}>✓ Approve</button></>}
     </>,
   ]);
 
@@ -240,7 +243,7 @@ export default function Kyc() {
               ))}
             </div>
             <div className="kyc-foot">
-              <button className="btn-save" onClick={save}>💾 Save Decision</button>
+              {mayApprove ? <button className="btn-save" onClick={save}>💾 Save Decision</button> : <span style={{ fontSize: 12, color: 'var(--muted)' }}>🔒 No KYC approval permission</span>}
               <button className="btn-cancel" onClick={closeReview}>Cancel</button>
             </div>
           </div>

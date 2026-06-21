@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useUI } from '../context/UIContext';
+import { useAuth } from '../context/AuthContext';
 import { listPlayers, blockPlayer, updatePlayer, deletePlayer, resetPlayerPassword } from '../services/playerService';
 import { credit as creditWallet, debit as debitWallet } from '../services/walletService';
 
@@ -70,6 +71,7 @@ const dupLabel = {
 
 export default function AllPlayers() {
   const { toast } = useUI();
+  const { can } = useAuth();
   const [players, setPlayers] = useState([]);
   const [, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('filter');
@@ -296,9 +298,11 @@ export default function AllPlayers() {
         <td><span className={`vipchip vip-${vc}`}>{vip}</span></td>
         <td><span className={act ? 'st-on' : 'st-off'}>{act ? 'Active' : 'Suspended'}</span></td>
         <td className="ipmono">{ip}</td><td>{joined}</td>
-        <td><button className="mini-btn" onClick={() => openPlayer(i)}>View</button> {act
-          ? <button className="act-suspend" onClick={() => togglePlayer(i)}>Suspend</button>
-          : <button className="act-activate" onClick={() => togglePlayer(i)}>Activate</button>} <button className="act-suspend" onClick={() => delPlayer(i)}>Delete</button></td>
+        <td><button className="mini-btn" onClick={() => openPlayer(i)}>View</button>
+          {can('players.status') && (act
+            ? <> <button className="act-suspend" onClick={() => togglePlayer(i)}>Suspend</button></>
+            : <> <button className="act-activate" onClick={() => togglePlayer(i)}>Activate</button></>)}
+          {can('players.delete') && <> <button className="act-suspend" onClick={() => delPlayer(i)}>Delete</button></>}</td>
       </tr>
     );
   };
@@ -325,10 +329,10 @@ export default function AllPlayers() {
         </div>
         <div className="pcard-foot">
           <button className="pc-view" onClick={(e) => { e.stopPropagation(); openPlayer(i); }}>View</button>
-          {act
+          {can('players.status') && (act
             ? <button className="act-suspend" onClick={(e) => { e.stopPropagation(); togglePlayer(i); }}>Suspend</button>
-            : <button className="act-activate" onClick={(e) => { e.stopPropagation(); togglePlayer(i); }}>Activate</button>}
-          <button className="act-suspend" onClick={(e) => { e.stopPropagation(); delPlayer(i); }}>Delete</button>
+            : <button className="act-activate" onClick={(e) => { e.stopPropagation(); togglePlayer(i); }}>Activate</button>)}
+          {can('players.delete') && <button className="act-suspend" onClick={(e) => { e.stopPropagation(); delPlayer(i); }}>Delete</button>}
         </div>
       </div>
     );
@@ -383,7 +387,9 @@ export default function AllPlayers() {
               <div className="pm-fld"><label>Amount (₱)</label><input id="adjAmt" placeholder="₱ 0.00" inputMode="decimal" value={adjForm.amt} onChange={(e) => setAdjForm((f) => ({ ...f, amt: e.target.value }))} /></div>
             </div>
             <div className="pm-fld" style={{ marginTop: '12px' }}><label>Remark</label><textarea id="adjRemark" placeholder="Reason for adjustment…" value={adjForm.remark} onChange={(e) => setAdjForm((f) => ({ ...f, remark: e.target.value }))}></textarea></div>
-            <button className="btn-adj" onClick={applyAdjustment}>👑 Apply Adjustment</button>
+            {can('players.adjust')
+              ? <button className="btn-adj" onClick={applyAdjustment}>👑 Apply Adjustment</button>
+              : <div style={{ fontSize: 12, color: 'var(--muted)' }}>🔒 You don’t have permission to adjust balances.</div>}
           </div>
           <div className="pm-card">
             <div className="ct">🔄 Reset Turnover</div>
@@ -425,7 +431,7 @@ export default function AllPlayers() {
             </div></>}
           <div className="pm-sect">Actions</div>
           <div className="sec-acts">
-            <button className="mini-btn" onClick={async () => {
+            {can('players.resetpw') && <button className="mini-btn" onClick={async () => {
               const id = players[pmIdx] && players[pmIdx][15];
               if (!id) { toast('No backend account for this row'); return; }
               const pw = window.prompt('Set a new password for ' + players[pmIdx][0] + ' (min 6 chars):');
@@ -433,7 +439,7 @@ export default function AllPlayers() {
               if (pw.length < 6) { toast('Password must be at least 6 characters'); return; }
               try { await resetPlayerPassword(id, pw); toast('Password reset ✔ for ' + players[pmIdx][0]); }
               catch (e) { toast('Could not reset: ' + (e?.response?.data?.error || e.message || 'error')); }
-            }}>🔑 Reset Password</button>
+            }}>🔑 Reset Password</button>}
             <button className="mini-btn" onClick={() => toast('2FA disabled 🔓')}>🔓 Disable 2FA</button>
             <button className="act-suspend" onClick={() => toast('Player suspended ⛔')}>⛔ Suspend</button>
             <button className="mini-btn red" onClick={() => toast('Account banned 🚫')}>🚫 Ban Account</button>
@@ -598,7 +604,9 @@ export default function AllPlayers() {
             <div className="pm-foot">
               <button className="btn-cancel" onClick={closePlayer}>Close</button>
               {PM[11] ? <button className="btn-pm-suspend" id="pmSuspend" onClick={pmSuspend}>⛔ Suspend</button> : null}
-              <button className="btn-pm-save" onClick={pmSaveChanges}>💾 Save Changes</button>
+              {can('players.edit')
+                ? <button className="btn-pm-save" onClick={pmSaveChanges}>💾 Save Changes</button>
+                : <span style={{ fontSize: 12, color: 'var(--muted)' }}>🔒 Read-only (no edit permission)</span>}
             </div>
           </div>
         </div>

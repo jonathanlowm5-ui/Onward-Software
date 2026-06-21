@@ -18,12 +18,23 @@ module.exports = function seed() {
     store.insertUser({
       username: ADMIN_USER,
       passwordHash: bcrypt.hashSync(ADMIN_PASS, 10),
-      role: 'admin',
+      role: 'superadmin',
+      permissions: [],
     });
     const usingDefaults = !process.env.ADMIN_PASSWORD;
     console.log(
       `Seeded admin user (${ADMIN_USER}${usingDefaults ? ' / admin123 — CHANGE THIS' : ''})`
     );
+  }
+  // One-time: make the primary admin a superadmin so RBAC doesn't lock out the
+  // owner (older installs seeded role "admin", which is now a limited role).
+  {
+    const s = store.getSettings();
+    if (!s.adminSuperUpgradedV1) {
+      const u = store.findUser(ADMIN_USER);
+      if (u && u.id && u.role !== 'superadmin') store.update('users', u.id, { role: 'superadmin' });
+      store.saveSettings({ adminSuperUpgradedV1: true });
+    }
   }
 
   // ---- game catalogue (full set extracted from the original site; real data,

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useUI } from '../context/UIContext';
+import { useAuth } from '../context/AuthContext';
 import { onlinePlayers, kickPlayer, getPlayer } from '../services/playerService';
 
 const opSecFmt = (s) => { const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return h ? `${h}h ${String(m).padStart(2, '0')}m` : `0h ${m}m`; };
@@ -31,6 +32,7 @@ function toRow(p) {
 
 export default function OnlinePlayers() {
   const { toast } = useUI();
+  const { can } = useAuth();
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hidden, setHidden] = useState(() => new Set()); // locally "kicked" from view
@@ -115,7 +117,7 @@ export default function OnlinePlayers() {
                 <td><span className="op-wager">₱{p.balance.toLocaleString()}</span></td>
                 <td className={opLong(p.sec) ? 'op-time-long' : ''} style={{ whiteSpace: 'nowrap' }}>{opSecFmt(p.sec)}</td>
                 <td>{opStatChip()}</td>
-                <td><div className="op-rowacts"><button className="op-view" onClick={() => view(p)}>View</button><button className="op-kick" onClick={() => kick(p)}>⚡ Kick</button></div></td>
+                <td><div className="op-rowacts"><button className="op-view" onClick={() => view(p)}>View</button>{can('players.kick') && <button className="op-kick" onClick={() => kick(p)}>⚡ Kick</button>}</div></td>
               </tr>
             )) : (
               <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--muted)', padding: '24px' }}>No players are online right now.</td></tr>

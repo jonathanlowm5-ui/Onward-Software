@@ -17,6 +17,7 @@
 const express = require('express');
 const store = require('../store');
 const { requireAuth } = require('../auth');
+const { requirePerm } = require('../permissions');
 
 const router = express.Router();
 const COLLECTION = 'kyc';
@@ -91,7 +92,7 @@ router.get('/', requireAuth, (req, res) => {
 router.get('/config', requireAuth, (req, res) => {
   res.json({ kycBonus: Number(store.getSettings().kycBonus || 0) });
 });
-router.put('/config', requireAuth, (req, res) => {
+router.put('/config', requireAuth, requirePerm('settings.manage'), (req, res) => {
   const kycBonus = Math.max(0, Number(req.body?.kycBonus || 0));
   store.saveSettings({ kycBonus });
   res.json({ kycBonus });
@@ -104,7 +105,7 @@ router.get('/:id', requireAuth, (req, res) => {
 });
 
 // ---- approve / reject ----
-router.patch('/:id/approve', requireAuth, (req, res) => {
+router.patch('/:id/approve', requireAuth, requirePerm('kyc.approve'), (req, res) => {
   const k = store.get(COLLECTION, req.params.id);
   if (!k) return res.status(404).json({ error: 'KYC record not found' });
   setPlayerKyc(k.playerId, 'approved');
@@ -117,7 +118,7 @@ router.patch('/:id/approve', requireAuth, (req, res) => {
   res.json({ ...updated, bonusCredited: bonus });
 });
 
-router.patch('/:id/reject', requireAuth, (req, res) => {
+router.patch('/:id/reject', requireAuth, requirePerm('kyc.approve'), (req, res) => {
   const k = store.get(COLLECTION, req.params.id);
   if (!k) return res.status(404).json({ error: 'KYC record not found' });
   setPlayerKyc(k.playerId, 'rejected');

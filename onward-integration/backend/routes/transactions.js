@@ -16,6 +16,7 @@
 const express = require('express');
 const store = require('../store');
 const { requireAuth } = require('../auth');
+const { requirePerm } = require('../permissions');
 
 const router = express.Router();
 const COLLECTION = 'transactions';
@@ -64,7 +65,7 @@ router.post('/', requireAuth, (req, res) => {
 });
 
 // ---- approve: deposits/bonuses credit, withdrawals debit ----
-router.patch('/:id/approve', requireAuth, (req, res) => {
+router.patch('/:id/approve', requireAuth, requirePerm('transactions.approve'), (req, res) => {
   const tx = store.get(COLLECTION, req.params.id);
   if (!tx) return res.status(404).json({ error: 'Transaction not found' });
   if (tx.status === 'approved') return res.json(tx);
@@ -74,7 +75,7 @@ router.patch('/:id/approve', requireAuth, (req, res) => {
 });
 
 // ---- reject ----
-router.patch('/:id/reject', requireAuth, (req, res) => {
+router.patch('/:id/reject', requireAuth, requirePerm('transactions.approve'), (req, res) => {
   const tx = store.get(COLLECTION, req.params.id);
   if (!tx) return res.status(404).json({ error: 'Transaction not found' });
   res.json(store.update(COLLECTION, req.params.id, { status: 'rejected', reason: req.body?.reason || '' }));

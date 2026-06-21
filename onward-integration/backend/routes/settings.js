@@ -10,6 +10,7 @@
 const express = require('express');
 const store = require('../store');
 const { requireAuth } = require('../auth');
+const { requirePerm } = require('../permissions');
 
 const router = express.Router();
 const ENVIRONMENTS = ['development', 'production'];
@@ -28,7 +29,7 @@ router.get('/', requireAuth, (req, res) => {
   res.json(publicView(store.getSettings()));
 });
 
-router.put('/', requireAuth, (req, res) => {
+router.put('/', requireAuth, requirePerm('settings.manage'), (req, res) => {
   const patch = {};
   if (req.body.baseUrl !== undefined) patch.baseUrl = String(req.body.baseUrl).trim();
   if (req.body.apiKey !== undefined) patch.apiKey = String(req.body.apiKey).trim();

@@ -1,26 +1,37 @@
-import { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react';
 import * as authService from '../services/authService';
 
 const AuthContext = createContext(null);
 
 /**
- * Admin session. Tries the shared backend JWT login; if the API is unreachable
- * it falls back to the original client-side gate so the panel still opens
- * (matching the original Onward_Admin.html behaviour).
+ * Admin session with role-based permissions. The backend returns the admin's
+ * role + effective permissions on login and at /auth/me; `can(perm)` gates UI.
  */
 export function AuthProvider({ children }) {
   const [authed, setAuthed] = useState(authService.isAuthenticated());
   const [admin, setAdmin] = useState(null);
 
+  const loadMe = useCallback(async () => {
+    if (!authService.isAuthenticated()) return;
+    try {
+      const { user } = await authService.me();
+      setAdmin(user);
+      setAuthed(true);
+    } catch { /* token invalid/expired — leave as is */ }
+  }, []);
+  useEffect(() => { loadMe(); }, [loadMe]);
+
   const login = useCallback(async (username, password) => {
     try {
       const res = await authService.login(username, password);
-      setAdmin(res?.admin || { username });
+      setAdmin(res?.user || { username, role: 'admin', permissions: [] });
       setAuthed(true);
       return true;
-    } catch {
-      // Offline-safe fallback: open the panel locally (no token).
-      setAdmin({ username });
+    } catch (e) {
+      // Wrong credentials -> fail. Only fall back to an offline panel if the API
+      // is unreachable (no HTTP response at all).
+      if (e?.response) throw e;
+      setAdmin({ username, role: 'superadmin', permissions: ['*'] });
       setAuthed(true);
       return true;
     }
@@ -32,7 +43,18 @@ export function AuthProvider({ children }) {
     setAuthed(false);
   }, []);
 
-  const value = useMemo(() => ({ authed, admin, login, logout }), [authed, admin, login, logout]);
+  const can = useCallback(
+    (perm) => {
+      const perms = admin?.permissions || [];
+      return perms.includes('*') || perms.includes(perm);
+    },
+    [admin]
+  );
+
+  const value = useMemo(
+    () => ({ authed, admin, role: admin?.role, can, login, logout, refreshMe: loadMe }),
+    [authed, admin, can, login, logout, loadMe]
+  );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
