@@ -216,11 +216,18 @@ router.put('/:id', requireAuth, (req, res) => {
   res.json(publicView(store.update(COLLECTION, p.id, patch)));
 });
 
-// ---- ADMIN: delete ----
+// ---- ADMIN: delete (cascades — removes the player AND all their data) ----
 router.delete('/:id', requireAuth, (req, res) => {
-  if (!store.remove(COLLECTION, req.params.id))
-    return res.status(404).json({ error: 'Player not found' });
-  res.json({ ok: true });
+  const p = store.get(COLLECTION, req.params.id);
+  if (!p) return res.status(404).json({ error: 'Player not found' });
+  let removed = 0;
+  ['transactions', 'kyc', 'bank_accounts', 'login_history', 'game_history'].forEach((c) => {
+    store.list(c)
+      .filter((r) => String(r.playerId) === String(p.id))
+      .forEach((r) => { if (store.remove(c, r.id)) removed += 1; });
+  });
+  store.remove(COLLECTION, p.id);
+  res.json({ ok: true, deletedRelated: removed });
 });
 
 module.exports = router;
