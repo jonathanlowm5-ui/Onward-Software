@@ -199,8 +199,28 @@ export default function AllPlayers() {
   };
   const closePlayer = () => setPmIdx(-1);
 
+  const VIP_LEVEL = { bronze: 0, silver: 1, gold: 2, platinum: 3, diamond: 4 };
+  const STATUS_MAP = { active: 'active', suspended: 'suspended', blocked: 'blocked', 'kyc pending': 'active' };
+
   const pmSaveChanges = async () => {
     if (pmTab === 'info' && pmForm) {
+      const id = players[pmIdx][15];
+      // Persist to the backend FIRST so we can surface conflicts (username/email taken).
+      if (id) {
+        try {
+          await updatePlayer(id, {
+            username: pmForm.user.trim(),
+            fullName: pmForm.name.trim(),
+            email: pmForm.email.trim(),
+            phone: pmForm.phone.trim(),
+            status: STATUS_MAP[pmForm.status] || 'active',
+            vipLevel: VIP_LEVEL[pmForm.vip] ?? 0,
+          });
+        } catch (e) {
+          toast('Could not save: ' + (e?.response?.data?.error || e.message || 'error'));
+          return; // keep the modal open so the admin can fix it
+        }
+      }
       const v = pmForm.vip;
       setPlayers((prev) => prev.map((p, j) => {
         if (j !== pmIdx) return p;
@@ -209,12 +229,11 @@ export default function AllPlayers() {
         np[0] = pmForm.user.trim() || np[0];
         np[5] = pmForm.email.trim() || np[5];
         np[6] = pmForm.phone.trim() || np[6];
-        np[11] = pmForm.status === 'active' ? 1 : 0;
+        np[11] = (pmForm.status === 'active' || pmForm.status === 'kyc pending') ? 1 : 0;
         np[9] = v[0].toUpperCase() + v.slice(1);
         np[10] = { gold: 'g', silver: 's', diamond: 'd', bronze: 'b', platinum: 'p' }[v] || np[10];
         return np;
       }));
-      try { await updatePlayer(players[pmIdx][15], { username: pmForm.user, realName: pmForm.name, email: pmForm.email, phone: pmForm.phone, active: pmForm.status === 'active', vip: v }); } catch { /* offline demo */ }
     }
     closePlayer();
     toast('Player saved! ✔');

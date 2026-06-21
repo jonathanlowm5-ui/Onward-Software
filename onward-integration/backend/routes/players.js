@@ -202,17 +202,49 @@ router.patch('/:id/verify', requireAuth, (req, res) => {
   res.json(publicView(store.update(COLLECTION, p.id, patch)));
 });
 
-// ---- ADMIN: edit allowed profile fields (admin may change name/currency) ----
+// ---- ADMIN: edit player profile (admin may change anything, incl. username) ----
 router.put('/:id', requireAuth, (req, res) => {
   const p = store.get(COLLECTION, req.params.id);
   if (!p) return res.status(404).json({ error: 'Player not found' });
   const b = req.body || {};
-  const allowed = ['firstName', 'lastName', 'fullName', 'email', 'phone', 'country', 'currency', 'vipLevel', 'status'];
   const patch = {};
-  allowed.forEach((k) => { if (b[k] !== undefined) patch[k] = b[k]; });
-  if (patch.firstName !== undefined || patch.lastName !== undefined) {
-    patch.fullName = `${patch.firstName ?? p.firstName ?? ''} ${patch.lastName ?? p.lastName ?? ''}`.trim();
+
+  // Username — must stay unique.
+  if (b.username !== undefined) {
+    const u = String(b.username).trim();
+    if (u && u.toLowerCase() !== (p.username || '').toLowerCase()) {
+      const taken = store.list(COLLECTION).some((x) => x.id !== p.id && (x.username || '').toLowerCase() === u.toLowerCase());
+      if (taken) return res.status(409).json({ error: 'That username is already taken' });
+      patch.username = u;
+    }
   }
+  // Email — must stay unique.
+  if (b.email !== undefined) {
+    const e = String(b.email).trim().toLowerCase();
+    if (e && e !== (p.email || '').toLowerCase()) {
+      const taken = store.list(COLLECTION).some((x) => x.id !== p.id && (x.email || '').toLowerCase() === e);
+      if (taken) return res.status(409).json({ error: 'That email is already in use' });
+      patch.email = e;
+    }
+  }
+  // Full name (also keep firstName/lastName in sync).
+  const fullName = b.fullName ?? b.realName ?? b.name;
+  if (fullName !== undefined) {
+    patch.fullName = String(fullName).trim();
+    const parts = patch.fullName.split(/\s+/);
+    patch.firstName = parts[0] || '';
+    patch.lastName = parts.slice(1).join(' ') || '';
+  }
+  if (b.firstName !== undefined) patch.firstName = String(b.firstName).trim();
+  if (b.lastName !== undefined) patch.lastName = String(b.lastName).trim();
+  if (b.phone !== undefined || b.mobile !== undefined) patch.phone = String(b.phone ?? b.mobile).trim();
+  if (b.dob !== undefined) patch.dob = String(b.dob).trim();
+  if (b.country !== undefined) patch.country = b.country;
+  if (b.currency !== undefined) patch.currency = String(b.currency).toUpperCase();
+  if (b.vipLevel !== undefined) patch.vipLevel = Math.max(0, Number(b.vipLevel) || 0);
+  if (b.status !== undefined && ['active', 'suspended', 'blocked'].includes(b.status)) patch.status = b.status;
+  else if (b.active !== undefined) patch.status = b.active ? 'active' : 'suspended';
+
   res.json(publicView(store.update(COLLECTION, p.id, patch)));
 });
 
