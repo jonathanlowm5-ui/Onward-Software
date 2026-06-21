@@ -3,6 +3,21 @@ import api, { setToken, getToken } from '../services/api';
 
 const AuthContext = createContext(null);
 
+// Friendly label for the player's current section (reported to the admin
+// "Live Sessions" view so staff can see where each player is — Lobby or a game).
+const SECTION_LABELS = {
+  '': 'Lobby', lobby: 'Lobby', slots: 'Slots', sports: 'Sports', lottery: 'Lottery',
+  live: 'Live Casino', fish: 'Fish', poker: 'Poker', promotions: 'Promotions',
+  tournaments: 'Tournaments', jackpots: 'Jackpots', vip: 'VIP', referral: 'Referral',
+  profile: 'Profile', missions: 'Missions', giveaways: 'Giveaways',
+};
+function currentLocation() {
+  try {
+    const seg = (window.location.pathname || '/').split('/').filter(Boolean)[0] || '';
+    return SECTION_LABELS[seg] || (seg ? seg.charAt(0).toUpperCase() + seg.slice(1) : 'Lobby');
+  } catch { return 'Lobby'; }
+}
+
 /**
  * Customer session via the shared backend (JWT). Login/register/profile all hit
  * /api/player/*; the bearer token is kept in the Axios layer so every request is
@@ -16,7 +31,7 @@ export function AuthProvider({ children }) {
   const loadProfile = useCallback(async () => {
     if (!getToken()) { setProfile(null); setLoading(false); return null; }
     try {
-      const { data } = await api.get('/player/me');
+      const { data } = await api.get('/player/me', { params: { loc: currentLocation() } });
       setProfile(data);
       return data;
     } catch {

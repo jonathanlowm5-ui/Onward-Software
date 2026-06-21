@@ -27,12 +27,40 @@ function toRow(p) {
     balance: Number(p.balance || 0),
     sec,
     status: 'online',
+    location: p.currentPage || '',
     ip: p.lastIp || p.registrationIp || '',
     country: p.lastCountry || p.registrationCountry || '',
     proxy: !!(p.lastProxy || p.registrationProxy),
     sharedIpFlag: !!p.sharedIpFlag,
     sharedIpCount: p.sharedIpCount || 0,
   };
+}
+
+// Where the player currently is. Game sections get a controller icon.
+const GAME_SECTIONS = new Set(['Slots', 'Sports', 'Lottery', 'Live Casino', 'Fish', 'Poker', 'Tournaments', 'Jackpots']);
+function LocationCell({ loc }) {
+  if (!loc) return <span style={{ color: 'var(--muted)' }}>—</span>;
+  const isGame = GAME_SECTIONS.has(loc);
+  const icon = isGame ? '🎮' : loc === 'Lobby' ? '🏠' : '📄';
+  return (
+    <span className="op-loc" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700 }}>
+      <span>{icon}</span>
+      <span style={{ color: isGame ? 'var(--gold, #f4b223)' : 'var(--text, #fff)' }}>{loc}</span>
+    </span>
+  );
+}
+function IpCell({ p }) {
+  if (!p.ip) return <span style={{ color: 'var(--muted)' }}>—</span>;
+  return (
+    <div style={{ lineHeight: 1.35 }}>
+      <div style={{ fontFamily: "'Roboto Mono','Courier New',ui-monospace,monospace", fontSize: '.74rem', color: '#c4cde0' }}>{p.ip}</div>
+      <div style={{ fontSize: '.7rem', color: 'var(--muted)' }}>
+        {p.country || '—'}
+        {p.proxy && <span title="VPN/Proxy" style={{ color: '#ff6675', fontWeight: 800 }}> · ⚠ VPN</span>}
+        {p.sharedIpFlag && <span title={`Shares IP with ${p.sharedIpCount} account(s)`} style={{ color: '#ffb02e', fontWeight: 800 }}> · 👥 {p.sharedIpCount}</span>}
+      </div>
+    </div>
+  );
 }
 
 export default function OnlinePlayers() {
@@ -109,14 +137,16 @@ export default function OnlinePlayers() {
         <div className="op-tbar"><span className="ttl">Live Sessions</span><span className="sp">
           <input id="opSearch" placeholder="Search username…" value={q} onChange={(e) => setQ(e.target.value)} /></span></div>
         <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}><table id="opTbl" style={{ minWidth: '1080px' }}>
-          <thead><tr><th>#</th><th>Player</th><th>VIP</th><th>Player ID</th><th>Balance</th><th>Session Time</th><th>Status</th><th>Actions</th></tr></thead>
+          <thead><tr><th>#</th><th>Player</th><th>Location</th><th>IP</th><th>VIP</th><th>Player ID</th><th>Balance</th><th>Session Time</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--muted)', padding: '24px' }}>Loading online players…</td></tr>
+              <tr><td colSpan="10" style={{ textAlign: 'center', color: 'var(--muted)', padding: '24px' }}>Loading online players…</td></tr>
             ) : visibleRows.length ? visibleRows.map((p, i) => (
               <tr key={p.id || i}>
                 <td style={{ color: 'var(--muted)', fontWeight: 800 }}>{i + 1}</td>
-                <td><div className="op-player"><div className="op-av">{opInit(p.name)}</div><div><div className="op-pname" onClick={() => view(p)}>{p.name} {p.proxy && <span title="VPN/Proxy" style={{ color: '#ff6675' }}>⚠</span>} {p.sharedIpFlag && <span title={`Shares IP with ${p.sharedIpCount} account(s)`} style={{ color: '#ffb02e' }}>👥</span>}</div><div className="op-puser">{p.sub || '—'}{p.ip ? ` · ${p.ip}${p.country ? ' · ' + p.country : ''}` : ''}</div></div></div></td>
+                <td><div className="op-player"><div className="op-av">{opInit(p.name)}</div><div><div className="op-pname" onClick={() => view(p)}>{p.name} {p.proxy && <span title="VPN/Proxy" style={{ color: '#ff6675' }}>⚠</span>} {p.sharedIpFlag && <span title={`Shares IP with ${p.sharedIpCount} account(s)`} style={{ color: '#ffb02e' }}>👥</span>}</div><div className="op-puser">{p.sub || '—'}</div></div></div></td>
+                <td><LocationCell loc={p.location} /></td>
+                <td><IpCell p={p} /></td>
                 <td><span className={`op-vip vip-${p.vip}`}>{vipLabel(p.vipLevel)}</span></td>
                 <td style={{ color: '#c4cde0' }}>{p.user}</td>
                 <td><span className="op-wager">₱{p.balance.toLocaleString()}</span></td>
@@ -125,7 +155,7 @@ export default function OnlinePlayers() {
                 <td><div className="op-rowacts"><button className="op-view" onClick={() => view(p)}>View</button>{can('players.kick') && <button className="op-kick" onClick={() => kick(p)}>⚡ Kick</button>}</div></td>
               </tr>
             )) : (
-              <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--muted)', padding: '24px' }}>No players are online right now.</td></tr>
+              <tr><td colSpan="10" style={{ textAlign: 'center', color: 'var(--muted)', padding: '24px' }}>No players are online right now.</td></tr>
             )}
           </tbody>
         </table></div>
@@ -176,6 +206,7 @@ function PlayerInfoModal({ detail, onClose }) {
               <Row k="Balance" v={'₱' + Number(p.balance || 0).toLocaleString()} />
               <Row k="Bonus" v={'₱' + Number(p.bonus || 0).toLocaleString()} />
               <Row k="VIP level" v={p.vipLevel} />
+              <Row k="Currently on" v={p.currentPage || '—'} />
               <Row k="KYC status" v={p.kyc_status} />
               <Row k="Account status" v={p.status} />
               <Row k="2FA" v={yn(p.twoFactorEnabled)} />

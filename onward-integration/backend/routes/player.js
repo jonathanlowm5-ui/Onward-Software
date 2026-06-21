@@ -166,11 +166,17 @@ router.get('/me', requirePlayer, (req, res) => {
   let p = currentPlayer(req);
   if (!p) return res.status(404).json({ error: 'Player not found' });
   p = ensurePlayerCode(store, p) || p;
-  // Heartbeat for "online" tracking (the frontend polls /me ~every 30s).
-  // Throttled so we don't write on every single poll.
+  // Heartbeat for "online" tracking (the frontend polls /me ~every 30s) and
+  // reports the player's current section via ?loc=. Throttled so we don't write
+  // on every poll, but we also write immediately when the section changes.
+  const loc = String(req.query.loc || '').trim().slice(0, 32);
   const last = p.lastSeenAt ? new Date(p.lastSeenAt).getTime() : 0;
-  if (Date.now() - last > 20000) {
-    p = store.update(PLAYERS, p.id, { lastSeenAt: new Date().toISOString() }) || p;
+  const stale = Date.now() - last > 20000;
+  if (stale || (loc && loc !== p.currentPage)) {
+    p = store.update(PLAYERS, p.id, {
+      lastSeenAt: new Date().toISOString(),
+      ...(loc ? { currentPage: loc } : {}),
+    }) || p;
   }
   res.json(view(p));
 });
