@@ -18,27 +18,32 @@ const normalizeCurrency = (c) => {
   return CURRENCIES.includes(up) ? up : 'PHP';
 };
 
-// Monotonic counter kept in settings. Single-threaded per function instance, so
-// this is safe for our volume; bump to a Firestore transaction if you ever need
-// strict cross-instance guarantees.
-function nextPlayerSequence(store) {
-  const s = store.getSettings() || {};
-  const next = Number(s.playerSeq || 0) + 1;
-  store.saveSettings({ playerSeq: next });
-  return next;
+// A run of `n` random digits.
+function randomDigits(n) {
+  let s = '';
+  for (let i = 0; i < n; i += 1) s += Math.floor(Math.random() * 10);
+  return s;
 }
 
-const makePlayerCode = (seq, currency) =>
-  `${PLATFORM_CODE}${String(seq).padStart(7, '0')}${normalizeCurrency(currency)}`;
+// Permanent Player ID: ONW + random 7-digit number + currency (e.g. ONW4829173MYR).
+// The number is random (not sequential) and checked unique against existing codes.
+function generatePlayerCode(store, currency) {
+  const cur = normalizeCurrency(currency);
+  const used = new Set(store.list('players').map((p) => p.playerCode).filter(Boolean));
+  let code;
+  let tries = 0;
+  do {
+    code = `${PLATFORM_CODE}${randomDigits(7)}${cur}`;
+    tries += 1;
+  } while (used.has(code) && tries < 100);
+  return code;
+}
 
-// Assign a permanent Player ID the first time we see a player without one
-// (covers the seeded demo player and any pre-existing records). Idempotent.
+// Assign a permanent Player ID the first time we see a player without one. Idempotent.
 function ensurePlayerCode(store, player) {
   if (!player || player.playerCode) return player;
-  const seq = nextPlayerSequence(store);
   return store.update('players', player.id, {
-    seq,
-    playerCode: makePlayerCode(seq, player.currency || 'PHP'),
+    playerCode: generatePlayerCode(store, player.currency || 'PHP'),
   });
 }
 
@@ -116,8 +121,7 @@ module.exports = {
   PLATFORM_CODE,
   CURRENCIES,
   normalizeCurrency,
-  nextPlayerSequence,
-  makePlayerCode,
+  generatePlayerCode,
   ensurePlayerCode,
   publicView,
   registeredFullName,

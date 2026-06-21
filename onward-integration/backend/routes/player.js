@@ -23,7 +23,7 @@ const bcrypt = require('bcryptjs');
 const store = require('../store');
 const { signPlayer, requirePlayer } = require('../auth');
 const {
-  CURRENCIES, normalizeCurrency, nextPlayerSequence, makePlayerCode, ensurePlayerCode,
+  CURRENCIES, normalizeCurrency, generatePlayerCode, ensurePlayerCode,
   publicView, registeredFullName, holderMatchesPlayer, clientIp, deviceFrom, recordLogin, gen6,
 } = require('../playerUtils');
 
@@ -75,12 +75,10 @@ router.post('/register', (req, res) => {
   if (players.some((p) => (p.email || '').toLowerCase() === email))
     return res.status(409).json({ error: 'That email is already registered' });
 
-  // Permanent Player ID: ONW + 7-digit sequence + currency.
-  const seq = nextPlayerSequence(store);
-  const playerCode = makePlayerCode(seq, currency);
+  // Permanent Player ID: ONW + random unique 7-digit number + currency.
+  const playerCode = generatePlayerCode(store, currency);
 
   const player = store.insert(PLAYERS, {
-    seq,
     playerCode,
     username,
     email,
