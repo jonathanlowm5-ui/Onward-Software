@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useCallback, useMemo, useRef } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { applyTranslations, startI18nObserver, getStoredLang, storeLang } from '../i18n';
 
 const UIContext = createContext(null);
 
@@ -13,7 +14,25 @@ export function UIProvider({ children }) {
   // activeModal: null | 'login' | 'register' | 'deposit' | 'withdraw' | 'game' | 'bank' | 'download' | 'promo'
   const [activeModal, setActiveModal] = useState(null);
   const [modalData, setModalData] = useState(null);
-  const [lang, setLang] = useState('en');
+  const [lang, setLangState] = useState(getStoredLang);
+  const langRef = useRef(lang);
+
+  // Persist + apply the chosen language to the live DOM.
+  const setLang = useCallback((next) => {
+    langRef.current = next;
+    setLangState(next);
+    storeLang(next);
+    applyTranslations(next);
+  }, []);
+
+  // Apply the stored language on first load and keep newly mounted pages
+  // translated as the user navigates.
+  useEffect(() => {
+    applyTranslations(lang);
+    const stop = startI18nObserver(() => langRef.current);
+    return stop;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [currency, setCurrency] = useState({ code: 'PHP', symbol: '₱' });
   const [toasts, setToasts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');

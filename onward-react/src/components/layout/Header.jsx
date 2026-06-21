@@ -6,6 +6,12 @@ import { useAuth } from '../../context/AuthContext';
 import useSectionNav from '../../hooks/useSectionNav';
 import { IMG0 as LOGO } from '../../assets/images';
 
+// Flag shown on the header language button for the active language.
+const LANG_FLAGS = {
+  en: '🇬🇧', zh: '🇨🇳', id: '🇮🇩', ms: '🇲🇾', th: '🇹🇭', vi: '🇻🇳',
+  hi: '🇮🇳', ko: '🇰🇷', ja: '🇯🇵', es: '🇪🇸', pt: '🇵🇹', ar: '🇸🇦',
+};
+
 // Top navigation pills used by both header variants.
 const NAV = [
   { id: 'lobby', label: '🎰 Lobby' },
@@ -17,7 +23,7 @@ const NAV = [
 ];
 
 export default function Header() {
-  const { toggleSidebar, openModal, setSearchQuery, searchQuery, toggleDropdown, currency } = useUI();
+  const { toggleSidebar, openModal, setSearchQuery, searchQuery, toggleDropdown, currency, lang } = useUI();
   const { isLoggedIn, profile, logout } = useAuth();
   const go = useSectionNav();
   const navigate = useNavigate();
@@ -127,7 +133,7 @@ export default function Header() {
               <span style={{ fontSize: '12px', fontWeight: 700 }} id="selected-currency-symbol">{currency.symbol}</span>
             </button>
             <button className="hdr-icon-btn" id="lang-btn" title="Language" onClick={(e) => { e.stopPropagation(); toggleDropdown('lang'); }}>
-              <span id="selected-lang-flag" className="hdr-flag">🌐</span>
+              <span id="selected-lang-flag" className="hdr-flag">{LANG_FLAGS[lang] || '🌐'}</span>
             </button>
             <button className="hdr-icon-btn" title="Notifications">
               🔔
