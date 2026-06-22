@@ -3,15 +3,9 @@ import { Table } from '../components/ui.jsx';
 import { useUI } from '../context/UIContext';
 
 // ---- Bank & Payment Gateway (BANKQ) ----
-const INITIAL_BANKQ = [
-  { n: 'BDO Unibank', ic: '🏦', type: 'bank', acct: '004270012345', cur: 'PHP', dep: 1, wd: 1, minD: 'PHP 100', minW: 'PHP 500', fee: 'Free', on: 1 },
-  { n: 'BPI Family Savings', ic: '🏦', type: 'bank', acct: '1234-5678-90', cur: 'PHP', dep: 1, wd: 1, minD: 'PHP 100', minW: 'PHP 500', fee: 'Free', on: 1 },
-  { n: 'GCash', ic: '📱', type: 'ewallet', key: 'pk_1••••••••••', acct: '09171234567', cur: 'PHP', dep: 1, wd: 1, minD: 'PHP 50', minW: 'PHP 100', fee: 'Free', on: 1 },
-  { n: 'Maya (Paymaya)', ic: '📱', type: 'ewallet', key: 'pk_1••••••••••', acct: '09189876543', cur: 'PHP', dep: 1, wd: 0, minD: 'PHP 50', minW: '—', fee: 'Free', on: 1 },
-  { n: 'USDT TRC20', ic: '🔵', type: 'crypto', acct: 'TLmBxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', cur: 'USDT', dep: 1, wd: 1, minD: 'USDT 10', minW: 'USDT 10', fee: '1%', on: 1 },
-  { n: 'Dragonpay', ic: '⚙️', type: 'gateway', key: 'dp_1••••••••••', acct: 'dragonpay', cur: 'PHP', dep: 1, wd: 0, minD: 'PHP 100', minW: '—', fee: '2.5%', on: 1 },
-  { n: 'Paymongo', ic: '⚙️', type: 'gateway', key: 'pk_1••••••••••', acct: 'paymongo', cur: 'PHP', dep: 1, wd: 0, minD: 'PHP 100', minW: '—', fee: '2.9%', on: 0 },
-];
+// Cleared for testing — add your own channels via "＋ Add Bank / Gateway".
+const INITIAL_BANKQ = [];
+const TYPE_ICON = { bank: '🏦', ewallet: '📱', crypto: '🔵', gateway: '⚙️' };
 
 const AW_ROUTES = [
   { b: 'GCash', g: 'GCash', max: '₱50,000', on: 1, rate: '94%' },
@@ -50,6 +44,15 @@ export default function Bank() {
   const [routes, setRoutes] = useState(AW_ROUTES);
   const [awActive, setAwActive] = useState(true);
   const [evFilter, setEvFilter] = useState('');
+  const [showAdd, setShowAdd] = useState(false);
+
+  const addChannel = (c) => { setBanks((prev) => [...prev, c]); toast('Payment channel added ✔ ' + c.n); };
+  const deleteChannel = (gi) => {
+    const b = banks[gi];
+    if (!window.confirm(`Remove payment channel "${b.n}"?`)) return;
+    setBanks((prev) => prev.filter((_, i) => i !== gi));
+    toast('Removed: ' + b.n);
+  };
 
   const bankToggle = (gi, on) => {
     setBanks((prev) => prev.map((b, i) => (i === gi ? { ...b, on: on ? 1 : 0 } : b)));
@@ -96,7 +99,7 @@ export default function Bank() {
           <div className="hero-sub" style={{ marginBottom: 0 }}>Manage deposit/withdrawal banks, e-wallets and payment gateway API credentials</div>
         </div>
         <span className="pr">
-          <button className="btn-search" onClick={() => toast('Add Bank / Gateway — demo')}>＋ Add Bank / Gateway</button>
+          <button className="btn-search" onClick={() => setShowAdd(true)}>＋ Add Bank / Gateway</button>
         </span>
       </div>
       <div className="grid kpi-grid">
@@ -146,6 +149,9 @@ export default function Bank() {
               </tr>
             </thead>
             <tbody>
+              {visible.length === 0 && (
+                <tr><td colSpan="11" style={{ textAlign: 'center', color: 'var(--muted)', padding: '26px' }}>No payment channels. Click <b>＋ Add Bank / Gateway</b> to add one.</td></tr>
+              )}
               {visible.map((b) => {
                 const gi = banks.indexOf(b);
                 return (
@@ -168,7 +174,10 @@ export default function Bank() {
                         <span className="slider" />
                       </label>
                     </td>
-                    <td><button className="mini-btn" onClick={() => toast('Edit channel: ' + b.n + ' — demo')}>✏️</button></td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      <button className="mini-btn" onClick={() => toast('Edit channel: ' + b.n + ' — demo')}>✏️</button>{' '}
+                      <button className="del-btn" onClick={() => deleteChannel(gi)}>🗑</button>
+                    </td>
                   </tr>
                 );
               })}
@@ -261,6 +270,56 @@ export default function Bank() {
           </table>
         </div>
       </div>
+      {showAdd && <AddChannelModal onClose={() => setShowAdd(false)} onAdd={addChannel} />}
     </>
+  );
+}
+
+function AddChannelModal({ onClose, onAdd }) {
+  const { toast } = useUI();
+  const [f, setF] = useState({ n: '', type: 'bank', acct: '', cur: 'PHP', dep: 1, wd: 1, minD: '', minW: '', fee: 'Free', key: '', on: 1 });
+  const set = (k, v) => setF((s) => ({ ...s, [k]: v }));
+  const submit = () => {
+    if (!f.n.trim()) { toast('Enter a channel name', 'error'); return; }
+    onAdd({ ...f, n: f.n.trim(), ic: TYPE_ICON[f.type] || '🏦', acct: f.acct.trim(), minD: f.minD.trim() || '—', minW: f.minW.trim() || '—', fee: f.fee.trim() || 'Free' });
+    onClose();
+  };
+  const inp = { width: '100%', padding: '10px 12px', borderRadius: 9, background: 'var(--panel-3,#1b2541)', color: 'var(--text,#fff)', border: '1px solid var(--border,#243049)' };
+  return (
+    <div className="modal-ov show" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 16px', zIndex: 4000, overflowY: 'auto' }}>
+      <div style={{ width: 'min(500px,100%)', background: 'var(--card,#131a2c)', border: '1px solid var(--border,#243049)', borderRadius: 14, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '15px 18px', borderBottom: '1px solid var(--border,#243049)' }}>
+          <span style={{ fontSize: '1.2rem' }}>🏦</span>
+          <div style={{ flex: 1, fontWeight: 800, color: 'var(--text,#fff)' }}>Add Bank / Gateway</div>
+          <button onClick={onClose} style={{ background: 'rgba(255,255,255,.08)', border: 'none', color: '#fff', width: 30, height: 30, borderRadius: 8, cursor: 'pointer' }}>✕</button>
+        </div>
+        <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 13 }}>
+          <div><label className="fld-lbl">Name <span style={{ color: 'var(--red,#ff4d5e)' }}>*</span></label><input style={inp} value={f.n} onChange={(e) => set('n', e.target.value)} placeholder="e.g. GCash / BDO Unibank" /></div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div><label className="fld-lbl">Type</label>
+              <select style={inp} value={f.type} onChange={(e) => set('type', e.target.value)}>
+                <option value="bank">Bank</option><option value="ewallet">E-Wallet</option><option value="crypto">Crypto</option><option value="gateway">Gateway</option>
+              </select>
+            </div>
+            <div><label className="fld-lbl">Currency</label><input style={inp} value={f.cur} onChange={(e) => set('cur', e.target.value)} placeholder="PHP / USDT…" /></div>
+          </div>
+          <div><label className="fld-lbl">Account / Address</label><input style={inp} value={f.acct} onChange={(e) => set('acct', e.target.value)} placeholder="account no. / wallet address" /></div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            <div><label className="fld-lbl">Min Dep</label><input style={inp} value={f.minD} onChange={(e) => set('minD', e.target.value)} placeholder="PHP 100" /></div>
+            <div><label className="fld-lbl">Min WD</label><input style={inp} value={f.minW} onChange={(e) => set('minW', e.target.value)} placeholder="PHP 500" /></div>
+            <div><label className="fld-lbl">Fee</label><input style={inp} value={f.fee} onChange={(e) => set('fee', e.target.value)} placeholder="Free / 2.5%" /></div>
+          </div>
+          <div style={{ display: 'flex', gap: 18 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text,#fff)', fontSize: 14 }}><input type="checkbox" checked={!!f.dep} onChange={(e) => set('dep', e.target.checked ? 1 : 0)} /> Deposit</label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text,#fff)', fontSize: 14 }}><input type="checkbox" checked={!!f.wd} onChange={(e) => set('wd', e.target.checked ? 1 : 0)} /> Withdrawal</label>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', padding: '14px 18px', borderTop: '1px solid var(--border,#243049)' }}>
+          <button className="btn-cancel" onClick={onClose}>Cancel</button>
+          <button className="btn-search" onClick={submit}>＋ Add Channel</button>
+        </div>
+      </div>
+    </div>
   );
 }
