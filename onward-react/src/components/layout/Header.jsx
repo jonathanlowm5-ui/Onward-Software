@@ -15,6 +15,71 @@ const LANG_SHORT = {
   en: 'EN', zh: '中文', id: 'ID', ms: 'MS', th: 'TH', vi: 'VI',
   hi: 'HI', ko: '한국어', ja: '日本語', es: 'ES', pt: 'PT', ar: 'AR',
 };
+const LANGS = [
+  { code: 'en', flag: '🇬🇧', name: 'English' },
+  { code: 'zh', flag: '🇨🇳', name: '中文' },
+  { code: 'id', flag: '🇮🇩', name: 'Bahasa Indonesia' },
+  { code: 'ms', flag: '🇲🇾', name: 'Bahasa Melayu' },
+  { code: 'th', flag: '🇹🇭', name: 'ไทย' },
+  { code: 'vi', flag: '🇻🇳', name: 'Tiếng Việt' },
+  { code: 'hi', flag: '🇮🇳', name: 'हिन्दी' },
+  { code: 'ko', flag: '🇰🇷', name: '한국어' },
+  { code: 'ja', flag: '🇯🇵', name: '日本語' },
+  { code: 'es', flag: '🇪🇸', name: 'Español' },
+  { code: 'pt', flag: '🇵🇹', name: 'Português' },
+  { code: 'ar', flag: '🇸🇦', name: 'العربية' },
+];
+
+// Self-contained language switcher: own local open state + own portal, so it
+// never depends on the shared dropdown/backdrop wiring.
+function LangSwitcher() {
+  const { lang, setLang } = useUI();
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        className="hdr-icon-btn hdr-lang-btn"
+        id="lang-btn"
+        title="Language"
+        onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
+      >
+        <span id="selected-lang-flag" className="hdr-flag">{LANG_FLAGS[lang] || '🌐'}</span>
+        <span className="hdr-lang-name">{LANG_SHORT[lang] || 'EN'}</span>
+        <span className="hdr-lang-caret">▾</span>
+      </button>
+      {open && createPortal(
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 99998 }} />
+          <div role="menu" style={{
+            position: 'fixed', top: 64, right: 14, zIndex: 99999,
+            background: 'var(--surface, #131a2c)', border: '1px solid var(--border, #243049)',
+            borderRadius: 12, padding: 8, minWidth: 230, maxHeight: '72vh', overflowY: 'auto',
+            boxShadow: '0 20px 60px rgba(0,0,0,.6)',
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.09em', color: 'var(--text-muted, #8898b8)', padding: '6px 10px' }}>Language</div>
+            {LANGS.map((l) => (
+              <button
+                key={l.code}
+                onClick={() => { setLang(l.code); setOpen(false); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left',
+                  background: lang === l.code ? 'rgba(240,192,64,.12)' : 'none', border: 'none',
+                  color: lang === l.code ? 'var(--gold, #f0c040)' : 'var(--text, #fff)',
+                  padding: '11px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600,
+                }}
+              >
+                <span style={{ width: 26, fontSize: 18 }}>{l.flag}</span>
+                <span>{l.name}</span>
+                {lang === l.code && <span style={{ marginLeft: 'auto', color: 'var(--gold,#f0c040)' }}>✓</span>}
+              </button>
+            ))}
+          </div>
+        </>,
+        document.body,
+      )}
+    </>
+  );
+}
 
 // Top navigation pills used by both header variants. Emoji is kept separate
 // from the translatable text so switching language never wipes the icon.
@@ -28,7 +93,7 @@ const NAV = [
 ];
 
 export default function Header() {
-  const { toggleSidebar, openModal, setSearchQuery, searchQuery, toggleDropdown, currency, lang } = useUI();
+  const { toggleSidebar, openModal, setSearchQuery, searchQuery, toggleDropdown, currency } = useUI();
   const { isLoggedIn, profile, logout } = useAuth();
   const go = useSectionNav();
   const navigate = useNavigate();
@@ -137,11 +202,7 @@ export default function Header() {
             <button className="hdr-icon-btn" id="currency-btn" title="Currency" onClick={(e) => { e.stopPropagation(); toggleDropdown('currency'); }}>
               <span style={{ fontSize: '12px', fontWeight: 700 }} id="selected-currency-symbol">{currency.symbol}</span>
             </button>
-            <button className="hdr-icon-btn hdr-lang-btn" id="lang-btn" title="Language" onClick={(e) => { e.stopPropagation(); toggleDropdown('lang'); }}>
-              <span id="selected-lang-flag" className="hdr-flag">{LANG_FLAGS[lang] || '🌐'}</span>
-              <span className="hdr-lang-name">{LANG_SHORT[lang] || 'EN'}</span>
-              <span className="hdr-lang-caret">▾</span>
-            </button>
+            <LangSwitcher />
             <button className="hdr-icon-btn" title="Notifications">
               🔔
               <span className="notif-dot"></span>
