@@ -873,6 +873,20 @@ body::before{
   margin-bottom:10px;
 }
 .pb-status.awaits{background:rgba(34,197,94,.2);color:var(--green)}
+/* Region badge on a targeted promo card */
+.pb-region{
+  position:absolute;top:10px;right:10px;z-index:2;
+  font-size:10px;font-weight:800;letter-spacing:.03em;
+  padding:3px 8px;border-radius:999px;
+  background:rgba(59,130,246,.18);color:#8fc0ff;border:1px solid rgba(59,130,246,.35);
+}
+/* Player's current region shown next to the Promotions title */
+.promo-region-chip{
+  display:inline-block;margin-left:10px;vertical-align:middle;
+  font-size:12px;font-weight:700;letter-spacing:.02em;
+  padding:3px 10px;border-radius:999px;
+  background:rgba(240,192,64,.14);color:var(--gold,#f0c040);border:1px solid rgba(240,192,64,.3);
+}
 .pb-title{
   font-size:17px;font-weight:800;color:#fff;
   text-transform:uppercase;line-height:1.2;

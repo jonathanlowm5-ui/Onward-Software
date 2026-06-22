@@ -95,11 +95,14 @@ function normalizePromo(p) {
 
 /* a blank promotion form */
 const EMPTY_PROMO = {
-  title: '', type: 'welcome', currency: '', bonus: '', maxBonus: '', minDeposit: '', wager: '', turnover: '',
+  title: '', type: 'welcome', currency: '', country: '', bonus: '', maxBonus: '', minDeposit: '', wager: '', turnover: '',
   description: '', image: '', startDate: '', endDate: '', status: 'active', buttonText: '', buttonLink: '',
 };
 
 const PROMO_CURRENCIES = ['PHP', 'USD', 'EUR', 'INR', 'THB', 'VND', 'IDR', 'MYR', 'CNY', 'JPY'];
+const PROMO_COUNTRIES = ['Philippines', 'Malaysia', 'Singapore', 'Thailand', 'Indonesia', 'Vietnam'];
+// Suggested currency per country (the editor offers it when a country is picked).
+const COUNTRY_CURRENCY = { Philippines: 'PHP', Malaysia: 'MYR', Singapore: 'USD', Thailand: 'THB', Indonesia: 'IDR', Vietnam: 'VND' };
 
 /* ===================== create / edit modal ===================== */
 function PromoEditModal({ initial, onClose, onSaved }) {
@@ -108,6 +111,12 @@ function PromoEditModal({ initial, onClose, onSaved }) {
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
+  // Picking a country auto-fills the matching currency (only when currency is
+  // still on Auto) so country + currency promos stay consistent.
+  const onCountry = (e) => {
+    const country = e.target.value;
+    setF((p) => ({ ...p, country, currency: (!p.currency && COUNTRY_CURRENCY[country]) ? COUNTRY_CURRENCY[country] : p.currency }));
+  };
   const isEdit = !!(initial && initial.id);
 
   const pickImage = async (e) => {
@@ -131,7 +140,7 @@ function PromoEditModal({ initial, onClose, onSaved }) {
     if (!f.title.trim()) { toast('Promotion title is required', 'error'); return; }
     setBusy(true);
     const payload = {
-      title: f.title.trim(), type: f.type, currency: f.currency, bonus: f.bonus, maxBonus: f.maxBonus,
+      title: f.title.trim(), type: f.type, currency: f.currency, country: f.country, bonus: f.bonus, maxBonus: f.maxBonus,
       minDeposit: f.minDeposit, wager: f.wager, turnover: f.turnover,
       description: f.description, image: f.image, startDate: f.startDate, endDate: f.endDate,
       status: f.status, buttonText: f.buttonText, buttonLink: f.buttonLink,
@@ -159,6 +168,7 @@ function PromoEditModal({ initial, onClose, onSaved }) {
           <div className="pm-grid">
             <div className="pm-fld" style={{ gridColumn: '1 / -1' }}><label>Title <span style={{ color: 'var(--red)' }}>*</span></label><input value={f.title} onChange={set('title')} placeholder="200% Welcome Bonus" /></div>
             <div className="pm-fld"><label>Type</label><select value={f.type} onChange={set('type')}><option value="welcome">welcome</option><option value="deposit">deposit</option><option value="referral">referral</option><option value="cashback">cashback</option><option value="freespin">freespin</option></select></div>
+            <div className="pm-fld"><label>Country</label><select value={f.country} onChange={onCountry}><option value="">All countries</option>{PROMO_COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
             <div className="pm-fld"><label>Currency</label><select value={f.currency} onChange={set('currency')}><option value="">Auto (player's currency)</option>{PROMO_CURRENCIES.map((c) => <option key={c} value={c}>{c} only</option>)}</select></div>
             <div className="pm-fld"><label>Bonus</label><input value={f.bonus} onChange={set('bonus')} placeholder="200% / ₱500 / 100 spins" /></div>
             <div className="pm-fld"><label>Max Bonus</label><input value={f.maxBonus} onChange={set('maxBonus')} placeholder="₱10,000" /></div>

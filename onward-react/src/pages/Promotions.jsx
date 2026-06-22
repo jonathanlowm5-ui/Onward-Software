@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useUI } from '../context/UIContext';
+import { useAuth } from '../context/AuthContext';
 import useSectionNav from '../hooks/useSectionNav';
 import api from '../services/api';
 
@@ -52,6 +53,7 @@ const SHOW_MAP = {
 
 export default function Promotions() {
   const { openModal, toast } = useUI();
+  const { profile } = useAuth();
   const go = useSectionNav();
   const [promoCode, setPromoCode] = useState('');
   const [activeTab, setActiveTab] = useState('all');
@@ -67,6 +69,16 @@ export default function Promotions() {
       .catch(() => { /* keep the built-in showcase if the API is unreachable */ });
     return () => { alive = false; };
   }, []);
+
+  // Region targeting: a promo pinned to a currency/country only shows to players
+  // whose account matches. Guests (no profile) see everything. This re-evaluates
+  // whenever the player's currency or country changes (profile refreshes).
+  const viewerCur = profile?.currency;
+  const viewerCountry = profile?.country;
+  const matchesViewer = (p) =>
+    (!p.currency || !viewerCur || p.currency === viewerCur) &&
+    (!p.country || !viewerCountry || p.country === viewerCountry);
+  const visiblePromos = apiPromos.filter(matchesViewer);
 
   const visible = SHOW_MAP[activeTab] || SHOW_MAP.all;
   const show = (id) => (visible.includes(id) ? {} : { display: 'none' });
@@ -115,7 +127,12 @@ export default function Promotions() {
       {/* FILTER TABS */}
       <div className="promo-page-wrap">
         <div className="promo-filter-row">
-          <div className="promo-filter-title">Promotions</div>
+          <div className="promo-filter-title">
+            Promotions
+            {profile && (viewerCountry || viewerCur) && (
+              <span className="promo-region-chip">🌏 {[viewerCountry, viewerCur].filter(Boolean).join(' · ')}</span>
+            )}
+          </div>
           <div className="promo-filter-tabs">
             <button
               className={`promo-ftab${activeTab === 'all' ? ' active' : ''}`}
@@ -208,13 +225,16 @@ export default function Promotions() {
           <div className="promo-sub-title" data-i18n="promo_bonuses">BONUSES</div>
           <div className="promo-bonus-grid" id="promo-bonus-grid">
 
-            {/* Live promotions configured in the admin panel */}
-            {apiPromos.map((p, i) => (
+            {/* Live promotions configured in the admin panel (region-targeted) */}
+            {visiblePromos.map((p, i) => (
               <div
                 className={'pb-card' + (i === 0 ? ' highlighted' : '')}
                 key={p.id ?? 'api-' + i}
                 onClick={() => openPromoDetail(p)}
               >
+                {(p.country || p.currency) && (
+                  <span className="pb-region">🌏 {[p.country, p.currency].filter(Boolean).join(' · ')}</span>
+                )}
                 {p.image && <img src={p.image} alt="" className="pb-banner" />}
                 {p.bonus && <div className="pb-deco">{p.bonus}</div>}
                 <div className="pb-title">{p.title}</div>

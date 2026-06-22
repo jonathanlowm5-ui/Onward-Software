@@ -31,6 +31,9 @@ function clean(body) {
     // Optional currency restriction. Empty = auto (follows the viewing
     // player's currency in the terms & conditions).
     currency: CURRENCIES.includes(cur) ? cur : '',
+    // Optional country targeting. Empty = all countries. When set, the promo
+    // only shows to players registered in that country.
+    country: String(body.country || '').trim(),
     bonus: String(body.bonus || '').trim(),
     maxBonus: String(body.maxBonus ?? body.max ?? '').trim(),
     minDeposit: String(body.minDeposit ?? body.md ?? '').trim(),
