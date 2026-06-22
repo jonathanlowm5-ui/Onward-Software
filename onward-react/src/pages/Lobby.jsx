@@ -7,6 +7,7 @@ import GameCard from '../components/casino/GameCard.jsx';
 import LiveCard from '../components/casino/LiveCard.jsx';
 import TopMatchCard from '../components/casino/TopMatchCard.jsx';
 import PromoCard from '../components/promotions/PromoCard.jsx';
+import BannerCarousel from '../components/promotions/BannerCarousel.jsx';
 import BigWinsStrip from '../components/casino/BigWinsStrip.jsx';
 import LiveJackpots from '../components/casino/LiveJackpots.jsx';
 import {
@@ -58,6 +59,9 @@ export default function Lobby() {
 
   return (
     <div id="view-lobby">
+      {/* HERO BANNER — admin-uploaded promo banners (one image fits every page) */}
+      <BannerCarousel promos={promos} />
+
       {/* HERO BANNER GRID */}
       <section id="hero">
         <div id="hero-bonus-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '12px' }}>

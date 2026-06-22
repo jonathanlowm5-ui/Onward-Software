@@ -918,6 +918,32 @@ body::before{
   border-radius:12px;
   display:block;
 }
+
+/* ===== Reusable hero banner (front page, promo page, …) =====
+   One 16:7 frame so a single uploaded banner fits every placement. */
+.onward-banner{
+  position:relative;width:100%;
+  aspect-ratio:16 / 7;max-height:360px;
+  border-radius:16px;overflow:hidden;margin-bottom:20px;
+  background:#0c1626;border:1px solid var(--border);
+}
+.onward-banner-track{display:flex;height:100%;transition:transform .5s ease}
+.onward-banner-img{
+  flex:0 0 100%;width:100%;height:100%;
+  object-fit:cover;display:block;cursor:pointer;
+}
+.onward-banner-dots{
+  position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
+  display:flex;gap:6px;z-index:2;
+}
+.onward-banner-dot{
+  width:8px;height:8px;border-radius:50%;border:none;padding:0;cursor:pointer;
+  background:rgba(255,255,255,.45);transition:width .2s,background .2s;
+}
+.onward-banner-dot.active{background:#fff;width:18px;border-radius:4px}
+@media(max-width:600px){
+  .onward-banner{border-radius:12px;margin-bottom:14px}
+}
 .promo-detail-banner--gradient{
   position:relative;
   display:flex;align-items:center;justify-content:center;
