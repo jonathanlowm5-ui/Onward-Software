@@ -52,21 +52,67 @@ const ANA_COUNTRIES = [
 const ANA_REV = [2.1, 2.4, 2.2, 2.8, 3.1, 2.9, 3.4, 3.0, 3.6, 3.9, 3.5, 4.0, 4.3, 4.1];
 const ANA_DEVICE = [['Android', '#2ecc71', 58], ['iOS', '#3aa0ff', 26], ['Desktop', '#f4b223', 16]];
 
-// self-contained area chart (gradient fill under line)
+// Smooth (Catmull-Rom -> Bézier) path through points.
+function smoothPath(pts) {
+  if (pts.length < 2) return '';
+  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i += 1) {
+    const p0 = pts[i - 1] || pts[i]; const p1 = pts[i]; const p2 = pts[i + 1]; const p3 = pts[i + 2] || p2;
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6; const c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6; const c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+  }
+  return d;
+}
+const last14Labels = () => {
+  const out = []; const now = new Date();
+  for (let i = 13; i >= 0; i -= 1) { const d = new Date(now); d.setDate(now.getDate() - i); out.push(`${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`); }
+  return out;
+};
+
+// Professional area chart: Y-axis grid + ₱ labels, date axis, value markers,
+// peak highlight. Text is crisp HTML overlaid on a stretched SVG.
 function AnaArea({ data, color, id }) {
-  const W = 720, H = 200, pad = 8, max = Math.max(...data) * 1.15 || 1;
-  const pts = data.map((v, i) => [pad + (i / (data.length - 1)) * (W - pad * 2), H - pad - (v / max) * (H - pad * 2)]);
-  const line = pts.map((p) => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
-  const area = pad + ',' + (H - pad) + ' ' + line + ' ' + (W - pad) + ',' + (H - pad);
+  const n = data.length; const W = 1000; const H = 240; const padY = 22;
+  const peak = Math.max(...data);
+  const max = peak * 1.12 || 1; const min = 0; const range = max - min || 1;
+  const xAt = (i) => (i / (n - 1)) * W;
+  const yAt = (v) => padY + (1 - (v - min) / range) * (H - padY * 2);
+  const pts = data.map((v, i) => [xAt(i), yAt(v)]);
+  const line = smoothPath(pts);
+  const area = `${line} L${W},${H} L0,${H} Z`;
+  const steps = 4;
+  const grid = Array.from({ length: steps + 1 }, (_, i) => ({ y: yAt(min + range * (i / steps)), val: min + range * (i / steps) }));
+  const labels = last14Labels();
   return (
-    <svg className="ana-area" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
-      <defs><linearGradient id={id} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity="0.35" /><stop offset="100%" stopColor={color} stopOpacity="0" /></linearGradient></defs>
-      <polygon points={area} fill={`url(#${id})`} />
-      <polyline points={line} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" />
-      {pts.filter((_, i) => i % 2 === 0).map((p, i) => (
-        <circle cx={p[0].toFixed(1)} cy={p[1].toFixed(1)} r="3" fill={color} key={i} />
-      ))}
-    </svg>
+    <div className="ana-chart">
+      <div className="ana-yaxis">{[...grid].reverse().map((g, i) => <span key={i}>₱{g.val.toFixed(1)}M</span>)}</div>
+      <div className="ana-chart-main">
+        <div className="ana-plot">
+          <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="ana-plot-svg">
+            <defs>
+              <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={color} stopOpacity="0.34" />
+                <stop offset="100%" stopColor={color} stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            {grid.map((g, i) => <line key={i} x1="0" x2={W} y1={g.y.toFixed(1)} y2={g.y.toFixed(1)} stroke="var(--border, #22304f)" strokeWidth="1" opacity="0.5" />)}
+            <path d={area} fill={`url(#${id})`} />
+            <path d={line} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" style={{ filter: `drop-shadow(0 3px 6px ${color}55)` }} />
+          </svg>
+          {pts.map((p, i) => {
+            const left = `${(p[0] / W) * 100}%`; const top = `${(p[1] / H) * 100}%`; const isPeak = data[i] === peak;
+            return (
+              <span key={i}>
+                <span className={'ana-dot' + (isPeak ? ' peak' : '')} style={{ left, top, color }} />
+                {(i % 2 === 0 || isPeak) && <span className="ana-pt-val" style={{ left, top }}>₱{data[i].toFixed(1)}M</span>}
+              </span>
+            );
+          })}
+        </div>
+        <div className="ana-xaxis">{labels.map((l, i) => (i % 2 === 0 ? <span key={i} className="ana-xlab" style={{ left: `${(xAt(i) / W) * 100}%` }}>{l}</span> : null))}</div>
+      </div>
+    </div>
   );
 }
 
