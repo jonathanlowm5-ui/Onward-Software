@@ -1,7 +1,11 @@
 import { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { applyTranslations, startI18nObserver, getStoredLang, storeLang } from '../i18n';
+import { useAuth } from './AuthContext';
 
 const UIContext = createContext(null);
+
+// Modals that require a logged-in player. Guests are sent to the login screen.
+const AUTH_REQUIRED_MODALS = new Set(['deposit', 'withdraw']);
 
 /**
  * Global UI state that used to live in DOM-manipulating helpers
@@ -44,10 +48,27 @@ export function UIProvider({ children }) {
   const [dropdown, setDropdown] = useState(null);
   const toastId = useRef(0);
 
+  // Read login state so deposit/withdraw can be gated behind registration.
+  // AuthProvider wraps UIProvider, so this is always available.
+  const { isLoggedIn } = useAuth();
+
+  const toast = useCallback((message, type = 'info') => {
+    const id = ++toastId.current;
+    setToasts((t) => [...t, { id, message, type }]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 2600);
+  }, []);
+
   const openModal = useCallback((name, data = null) => {
+    // Guests can't deposit or withdraw — send them to login/register instead.
+    if (AUTH_REQUIRED_MODALS.has(name) && !isLoggedIn) {
+      setModalData(null);
+      setActiveModal('login');
+      toast('Please log in or register first', 'info');
+      return;
+    }
     setModalData(data);
     setActiveModal(name);
-  }, []);
+  }, [isLoggedIn, toast]);
   const closeModal = useCallback(() => {
     setActiveModal(null);
     setModalData(null);
@@ -55,12 +76,6 @@ export function UIProvider({ children }) {
 
   const toggleSidebar = useCallback(() => setSidebarOpen((v) => !v), []);
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
-
-  const toast = useCallback((message, type = 'info') => {
-    const id = ++toastId.current;
-    setToasts((t) => [...t, { id, message, type }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 2600);
-  }, []);
 
   const toggleDropdown = useCallback((name) => setDropdown((d) => (d === name ? null : name)), []);
   const closeDropdown = useCallback(() => setDropdown(null), []);
