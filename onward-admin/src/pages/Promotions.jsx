@@ -3,6 +3,7 @@ import { useUI } from '../context/UIContext';
 import { Table } from '../components/ui.jsx';
 import { listPromotions, togglePromotion, removePromotion, createPromotion, updatePromotion } from '../services/promotionService';
 import { uploadImage } from '../services/uploadService';
+import { getMiniGames, saveMiniGames } from '../services/minigameService';
 
 /* ---------- demo data (fallbacks) ---------- */
 const DEMO_PROMOS = [
@@ -25,6 +26,9 @@ const INITIAL_SLICES = [
   { l: 'Try Again', p: 0, w: 7, c: '#14182a', on: 1 },
   { l: '₱5,000 JACKPOT', p: 5000, w: 3, c: '#f7e08b', on: 1 },
 ];
+
+const INITIAL_WHEEL_CFG = { enabled: true, freeSpinsPerDay: 1, spinCost: 50, maxPerDay: 5 };
+const INITIAL_TICKET_CFG = { enabled: true, drawDate: '', totalTickets: 10000, winnersCount: 50, earnBy: 'Every ₱100 deposited', minDeposit: 100, maxPerPlayer: 50 };
 
 const INITIAL_BIGWINS = [
   { g: 'Coin Splash Dice', ic: '🎲', pl: 'Use***', m: 16, pz: '₱ 2,772.64', cat: 'Slots', on: 1 },
@@ -253,7 +257,7 @@ function wheelGrad(slices) {
   }).join(',') + ')';
 }
 
-function MgWheel({ slices, setSlices }) {
+function MgWheel({ slices, setSlices, onSave, saving }) {
   const { toast } = useUI();
   const [rot, setRot] = useState(0);
   const tot = slices.filter((x) => x.on).reduce((a, x) => a + x.w, 0);
@@ -275,7 +279,10 @@ function MgWheel({ slices, setSlices }) {
     <div className="wheel-grid">
       <div className="card">
         <div className="page-head" style={{ marginBottom: 12 }}><div className="card-title" style={{ marginBottom: 0 }}>🎡 Wheel Slices</div>
-          <span className="pr"><button className="mini-btn" style={{ background: 'rgba(58,160,255,.18)', borderColor: 'var(--blue)', color: 'var(--blue)' }} onClick={addSlice}>＋ Add Slice</button></span>
+          <span className="pr" style={{ display: 'flex', gap: 8 }}>
+            <button className="mini-btn" style={{ background: 'rgba(58,160,255,.18)', borderColor: 'var(--blue)', color: 'var(--blue)' }} onClick={addSlice}>＋ Add Slice</button>
+            <button className="btn-search" onClick={onSave} disabled={saving}>{saving ? 'Saving…' : '💾 Save Wheel'}</button>
+          </span>
         </div>
         <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}><table style={{ minWidth: 520 }}>
           <thead><tr><th>Label</th><th>Prize</th><th>Weight %</th><th>Colour</th><th>Active</th><th>Del</th></tr></thead>
@@ -354,39 +361,35 @@ function MgTicket() {
   );
 }
 
-function MgSettings() {
-  const { toast } = useUI();
+function MgSettings({ wheelCfg, setWheelCfg, ticketCfg, setTicketCfg, onSave, saving }) {
+  const w = (k, v) => setWheelCfg((s) => ({ ...s, [k]: v }));
+  const t = (k, v) => setTicketCfg((s) => ({ ...s, [k]: v }));
+  const numv = (v) => Math.max(0, parseInt(String(v).replace(/[^0-9]/g, ''), 10) || 0);
   return (
     <div className="mgs-grid">
       <div className="card"><div className="card-title">🎡 Fortune Wheel Settings</div>
-        <div className="kb-tgl"><label className="switch"><input type="checkbox" defaultChecked /><span className="slider"></span></label>Wheel Enabled</div>
+        <div className="kb-tgl"><label className="switch"><input type="checkbox" checked={!!wheelCfg.enabled} onChange={(e) => w('enabled', e.target.checked)} /><span className="slider"></span></label>Wheel Enabled</div>
         <div className="kb-tgl"><label className="switch"><input type="checkbox" defaultChecked /><span className="slider"></span></label>Show on Login</div>
-        <div className="kb-tgl"><label className="switch"><input type="checkbox" /><span className="slider"></span></label>Require Deposit to Spin</div>
         <div className="kb-tgl" style={{ marginBottom: 8 }}><label className="switch"><input type="checkbox" defaultChecked /><span className="slider"></span></label>Sound Effects</div>
-        <div className="fld" style={{ marginBottom: 12 }}><label>Free Spins per Day</label><input defaultValue="1" /></div>
-        <div className="fld" style={{ marginBottom: 12 }}><label>Paid Spin Cost (₱)</label><input defaultValue="50" /></div>
-        <div className="fld" style={{ marginBottom: 12 }}><label>Max Spins per Day (per player)</label><input defaultValue="5" /></div>
-        <div className="fld"><label>Reset Time</label><select><option>00:00 (Midnight)</option><option>06:00</option><option>12:00 (Noon)</option><option>18:00</option></select></div>
+        <div className="fld" style={{ marginBottom: 12 }}><label>Free Spins per Day</label><input value={wheelCfg.freeSpinsPerDay} onChange={(e) => w('freeSpinsPerDay', numv(e.target.value))} /></div>
+        <div className="fld" style={{ marginBottom: 12 }}><label>Paid Spin Cost (₱)</label><input value={wheelCfg.spinCost} onChange={(e) => w('spinCost', numv(e.target.value))} /></div>
+        <div className="fld"><label>Max Spins per Day (per player)</label><input value={wheelCfg.maxPerDay} onChange={(e) => w('maxPerDay', numv(e.target.value))} /></div>
       </div>
       <div>
         <div className="card"><div className="card-title">🎟️ Lucky Ticket Settings</div>
-          <div className="kb-tgl"><label className="switch"><input type="checkbox" defaultChecked /><span className="slider"></span></label>Lucky Ticket Enabled</div>
-          <div className="kb-tgl"><label className="switch"><input type="checkbox" defaultChecked /><span className="slider"></span></label>Auto-assign on Deposit</div>
-          <div className="kb-tgl"><label className="switch"><input type="checkbox" /><span className="slider"></span></label>Allow Ticket Transfer</div>
-          <div className="kb-tgl"><label className="switch"><input type="checkbox" defaultChecked /><span className="slider"></span></label>Email Notification on Win</div>
-          <div className="kb-tgl" style={{ marginBottom: 8 }}><label className="switch"><input type="checkbox" defaultChecked /><span className="slider"></span></label>SMS Notification on Win</div>
-          <div className="fld" style={{ marginBottom: 12 }}><label>Max Tickets per Player</label><input defaultValue="50" /></div>
-          <div className="fld" style={{ marginBottom: 12 }}><label>Prize Claim Period (days)</label><input defaultValue="7" /></div>
-          <div className="fld"><label>Draw Frequency</label><select><option>Daily</option><option>Weekly</option><option>Monthly</option></select></div>
+          <div className="kb-tgl"><label className="switch"><input type="checkbox" checked={!!ticketCfg.enabled} onChange={(e) => t('enabled', e.target.checked)} /><span className="slider"></span></label>Lucky Ticket Enabled</div>
+          <div className="kb-tgl" style={{ marginBottom: 8 }}><label className="switch"><input type="checkbox" defaultChecked /><span className="slider"></span></label>Email Notification on Win</div>
+          <div className="fld" style={{ marginBottom: 12 }}><label>Draw Date &amp; Time</label><input value={ticketCfg.drawDate} onChange={(e) => t('drawDate', e.target.value)} placeholder="07/01/2026 08:00 PM" /></div>
+          <div className="fld" style={{ marginBottom: 12 }}><label>Total Tickets</label><input value={ticketCfg.totalTickets} onChange={(e) => t('totalTickets', numv(e.target.value))} /></div>
+          <div className="fld"><label>Max Tickets per Player</label><input value={ticketCfg.maxPerPlayer} onChange={(e) => t('maxPerPlayer', numv(e.target.value))} /></div>
         </div>
-        <div style={{ marginTop: 'var(--pad)', textAlign: 'right' }}><button className="btn-search" onClick={() => toast('Mini game settings saved! ✔')}>💾 Save Settings</button></div>
+        <div style={{ marginTop: 'var(--pad)', textAlign: 'right' }}><button className="btn-search" onClick={onSave} disabled={saving}>{saving ? 'Saving…' : '💾 Save Settings'}</button></div>
       </div>
     </div>
   );
 }
 
-function MiniTab({ slices, setSlices }) {
-  const { toast } = useUI();
+function MiniTab({ slices, setSlices, wheelCfg, setWheelCfg, ticketCfg, setTicketCfg, onSave, saving }) {
   const [mgTab, setMgTab] = useState('wheel');
   return (
     <>
@@ -395,7 +398,9 @@ function MiniTab({ slices, setSlices }) {
         <button className={`mg-pill ${mgTab === 'ticket' ? 'active' : ''}`} onClick={() => setMgTab('ticket')}>🎟️ Lucky Ticket</button>
         <button className={`mg-pill ${mgTab === 'set' ? 'active' : ''}`} onClick={() => setMgTab('set')}>⚙️ Settings</button>
       </div>
-      {mgTab === 'wheel' ? <MgWheel slices={slices} setSlices={setSlices} /> : mgTab === 'ticket' ? <MgTicket /> : <MgSettings />}
+      {mgTab === 'wheel' ? <MgWheel slices={slices} setSlices={setSlices} onSave={onSave} saving={saving} />
+        : mgTab === 'ticket' ? <MgTicket />
+          : <MgSettings wheelCfg={wheelCfg} setWheelCfg={setWheelCfg} ticketCfg={ticketCfg} setTicketCfg={setTicketCfg} onSave={onSave} saving={saving} />}
     </>
   );
 }
@@ -574,6 +579,33 @@ export default function Promotions() {
   const [slices, setSlices] = useState(INITIAL_SLICES);
   const [bigwins, setBigwins] = useState(INITIAL_BIGWINS);
   const [tiers, setTiers] = useState(TIER_RC_INIT);
+  const [wheelCfg, setWheelCfg] = useState(INITIAL_WHEEL_CFG);
+  const [ticketCfg, setTicketCfg] = useState(INITIAL_TICKET_CFG);
+  const [savingMg, setSavingMg] = useState(false);
+
+  // Load the persisted Fortune Wheel + Lucky Ticket config so the editor shows
+  // the same data the player site plays against.
+  useEffect(() => {
+    let alive = true;
+    getMiniGames().then((cfg) => {
+      if (!alive || !cfg) return;
+      if (Array.isArray(cfg.wheel?.slices) && cfg.wheel.slices.length) setSlices(cfg.wheel.slices);
+      if (cfg.wheel) setWheelCfg((s) => ({ ...s, enabled: cfg.wheel.enabled, freeSpinsPerDay: cfg.wheel.freeSpinsPerDay, spinCost: cfg.wheel.spinCost, maxPerDay: cfg.wheel.maxPerDay }));
+      if (cfg.ticket) setTicketCfg((s) => ({ ...s, ...cfg.ticket }));
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  const saveMiniGamesCfg = async () => {
+    setSavingMg(true);
+    try {
+      const saved = await saveMiniGames({ wheel: { ...wheelCfg, slices }, ticket: ticketCfg });
+      if (saved?.wheel?.slices) setSlices(saved.wheel.slices);
+      toast('Mini games saved ✔ — live on the player site');
+    } catch (e) {
+      toast('⚠ ' + (e.message || 'Save failed'));
+    } finally { setSavingMg(false); }
+  };
 
   const reload = async () => {
     try {
@@ -606,7 +638,7 @@ export default function Promotions() {
         <button key={t[0]} className={`ptab ${tab === t[0] ? 'active' : ''}`} onClick={() => setTab(t[0])}>{t[1]}</button>
       ))}</div>
       {tab === 'promos' ? <PromosTab promos={promos} setPromos={setPromos} loading={loading} onEdit={onEdit} />
-        : tab === 'mini' ? <MiniTab slices={slices} setSlices={setSlices} />
+        : tab === 'mini' ? <MiniTab slices={slices} setSlices={setSlices} wheelCfg={wheelCfg} setWheelCfg={setWheelCfg} ticketCfg={ticketCfg} setTicketCfg={setTicketCfg} onSave={saveMiniGamesCfg} saving={savingMg} />
           : tab === 'bigwins' ? <BigwinsTab bigwins={bigwins} setBigwins={setBigwins} />
             : tab === 'tier' ? <TierTab tiers={tiers} setTiers={setTiers} />
               : tab === 'kyc' ? <KycTab />
