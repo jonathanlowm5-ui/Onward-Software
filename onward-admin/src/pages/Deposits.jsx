@@ -3,18 +3,14 @@ import { Table, BOk, BPend, BBad, BInfo, ToolbarSearch } from '../components/ui.
 import { useUI } from '../context/UIContext';
 import { listDeposits, approveTransaction, manualDeposit } from '../services/walletService';
 import { listPlayers } from '../services/playerService';
+import { listBankChannels } from '../services/bankService';
 
 // Original static demo rows (DEPQ) — used as offline fallback.
 const DEMO_DEPS = [
   { id: 'DP-99810', pl: 'LGX09112VND', m: 'Bank Transfer', amt: '₫2.0M', t: '26m ago', st: 'manual' },
   { id: 'DP-99809', pl: 'LGX08841CNY', m: 'Alipay', amt: '¥1,200', t: '40m ago', st: 'failed' },
 ];
-
-// Banks / e-wallets a manual deposit can be received into.
-const BANK_OPTIONS = [
-  ['── E-Wallets ──', ['GCash', 'Maya', 'GrabPay', 'Touch \'n Go', 'Boost', 'ShopeePay', 'USDT (TRC20)']],
-  ['── Banks ──', ['BDO', 'BPI', 'Metrobank', 'UnionBank', 'Maybank', 'CIMB', 'Public Bank', 'RHB', 'Hong Leong', 'Bank Transfer']],
-];
+const TYPE_GROUP = { ewallet: '── E-Wallets ──', bank: '── Banks ──', crypto: '── Crypto ──', gateway: '── Gateways ──' };
 
 const depBadge = (st) =>
   st === 'approved' || st === 'success' ? <BOk>Approved</BOk>
@@ -33,12 +29,17 @@ function ManualDepositModal({ onClose, onDone }) {
   const [reference, setReference] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const [channels, setChannels] = useState([]);
 
   useEffect(() => {
     let alive = true;
     listPlayers().then((d) => { if (alive) setPlayers(Array.isArray(d) ? d : (d?.items || [])); }).catch(() => {});
+    listBankChannels().then((d) => { if (alive) setChannels((Array.isArray(d) ? d : []).filter((c) => c.dep && c.on)); }).catch(() => {});
     return () => { alive = false; };
   }, []);
+
+  // Group deposit-enabled channels by type for the dropdown.
+  const grouped = channels.reduce((acc, c) => { (acc[c.type] = acc[c.type] || []).push(c); return acc; }, {});
 
   const matches = !q.trim() ? [] : players.filter((p) => {
     const s = `${p.username || ''} ${p.playerCode || ''} ${p.fullName || ''}`.toLowerCase();
@@ -108,9 +109,11 @@ function ManualDepositModal({ onClose, onDone }) {
             <label className="fld-lbl">Bank of Deposit <span style={{ color: 'var(--red,#ff4d5e)' }}>*</span></label>
             <select value={bank} onChange={(e) => setBank(e.target.value)}
               style={{ width: '100%', padding: '10px 12px', borderRadius: 9, background: 'var(--panel-3,#1b2541)', color: 'var(--text,#fff)', border: '1px solid var(--border,#243049)' }}>
-              <option value="">Select bank / e-wallet…</option>
-              {BANK_OPTIONS.map(([grp, list]) => (
-                <optgroup label={grp} key={grp}>{list.map((b) => <option key={b} value={b}>{b}</option>)}</optgroup>
+              <option value="">{channels.length ? 'Select bank / e-wallet…' : 'No banks configured — add them on the Bank page'}</option>
+              {Object.keys(grouped).map((type) => (
+                <optgroup label={TYPE_GROUP[type] || type} key={type}>
+                  {grouped[type].map((c) => <option key={c.id} value={c.n}>{c.n}{c.acct ? ` · ${c.acct}` : ''}</option>)}
+                </optgroup>
               ))}
             </select>
           </div>

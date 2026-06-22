@@ -1,10 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Table } from '../components/ui.jsx';
 import { useUI } from '../context/UIContext';
+import { listBankChannels, createBankChannel, toggleBankChannel, removeBankChannel } from '../services/bankService';
 
-// ---- Bank & Payment Gateway (BANKQ) ----
-// Cleared for testing — add your own channels via "＋ Add Bank / Gateway".
-const INITIAL_BANKQ = [];
+// ---- Bank & Payment Gateway — persisted via /api/bank-channels ----
 const TYPE_ICON = { bank: '🏦', ewallet: '📱', crypto: '🔵', gateway: '⚙️' };
 
 const AW_ROUTES = [
@@ -37,7 +36,7 @@ const TABS = [['all', 'All'], ['bank', '🏦 Banks'], ['ewallet', '📱 E-Wallet
 
 export default function Bank() {
   const { toast } = useUI();
-  const [banks, setBanks] = useState(INITIAL_BANKQ);
+  const [banks, setBanks] = useState([]);
   const [tab, setTab] = useState('all');
   const [statusF, setStatusF] = useState('');
   const [search, setSearch] = useState('');
@@ -46,17 +45,25 @@ export default function Bank() {
   const [evFilter, setEvFilter] = useState('');
   const [showAdd, setShowAdd] = useState(false);
 
-  const addChannel = (c) => { setBanks((prev) => [...prev, c]); toast('Payment channel added ✔ ' + c.n); };
-  const deleteChannel = (gi) => {
+  const load = () => { listBankChannels().then((d) => setBanks(Array.isArray(d) ? d : [])).catch(() => {}); };
+  useEffect(() => { load(); }, []);
+
+  const addChannel = async (c) => {
+    try { await createBankChannel(c); toast('Payment channel added ✔ ' + c.n); load(); }
+    catch (e) { toast('⚠ ' + (e.message || 'Add failed')); }
+  };
+  const deleteChannel = async (gi) => {
     const b = banks[gi];
     if (!window.confirm(`Remove payment channel "${b.n}"?`)) return;
-    setBanks((prev) => prev.filter((_, i) => i !== gi));
-    toast('Removed: ' + b.n);
+    try { await removeBankChannel(b.id); setBanks((prev) => prev.filter((_, i) => i !== gi)); toast('Removed: ' + b.n); }
+    catch (e) { toast('⚠ ' + (e.message || 'Delete failed')); }
   };
 
-  const bankToggle = (gi, on) => {
-    setBanks((prev) => prev.map((b, i) => (i === gi ? { ...b, on: on ? 1 : 0 } : b)));
-    toast('Payment channel updated! ' + banks[gi].n + ' ' + (on ? 'enabled ✔' : 'disabled'));
+  const bankToggle = async (gi, on) => {
+    const b = banks[gi];
+    setBanks((prev) => prev.map((x, i) => (i === gi ? { ...x, on: on ? 1 : 0 } : x)));
+    try { await toggleBankChannel(b.id); } catch { load(); }
+    toast('Payment channel updated! ' + b.n + ' ' + (on ? 'enabled ✔' : 'disabled'));
   };
 
   const items = tab === 'all' ? banks : banks.filter((b) => b.type === tab);

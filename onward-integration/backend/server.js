@@ -55,6 +55,7 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/player', require('./routes/player'));
 app.use('/api/agents', require('./routes/agents'));
 app.use('/api/vip', require('./routes/vip'));
+app.use('/api/bank-channels', require('./routes/bankchannels'));
 
 app.get('/api/health', (req, res) => res.json({ ok: true, service: 'onward-api' }));
 
