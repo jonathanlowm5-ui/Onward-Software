@@ -43,9 +43,9 @@ export default function Topbar() {
           <span className="ic">{light ? '☀️' : '🌙'}</span>
         </button>
         <button className="tb-btn hide-m" onClick={() => toast('Opening player site…')}>View Site</button>
-        <button className="tb-btn hide-m">🇵🇭 PHP ▾</button>
+        <button className="tb-btn hide-m">🇵🇭 ▾</button>
         <div className="lang-wrap" id="langWrap" ref={langWrapRef} style={{ position: 'relative' }}>
-          <button className="tb-btn" onClick={() => setLangOpen((v) => !v)} id="langBtn">{cur.flag} {cur.short} ▾</button>
+          <button className="tb-btn" onClick={() => setLangOpen((v) => !v)} id="langBtn">{cur.flag} ▾</button>
           {langOpen && (
             <div className="lang-menu show" id="langMenu" style={{
               position: 'absolute', top: '110%', right: 0, zIndex: 9999, minWidth: 180,
