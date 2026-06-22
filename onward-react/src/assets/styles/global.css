@@ -1587,6 +1587,10 @@ footer{
   border:1.5px solid var(--bg2);
 }
 .hdr-flag{font-size:17px;line-height:1}
+/* Language button — labelled so it's obviously a language switcher */
+.hdr-lang-btn{width:auto;gap:5px;padding:0 9px}
+.hdr-lang-name{font-size:12px;font-weight:800;color:var(--text);line-height:1}
+.hdr-lang-caret{font-size:9px;color:var(--text-muted);line-height:1}
 
 /* ── ROW 2: hamburger + logo + wifi + search + right wallet ── */
 .hdr-row2{
@@ -1819,6 +1823,7 @@ footer{
 }
 @media(max-width:560px){
   .hdr-row1-right .hdr-icon-btn:not(:last-child):not(:nth-last-child(2)){display:none}
+  .hdr-lang-btn{display:flex !important}
   .hdr-online{display:none}
   .hdr-search{display:none}
 }

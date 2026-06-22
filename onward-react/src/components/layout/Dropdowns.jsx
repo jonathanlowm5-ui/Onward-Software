@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
@@ -35,10 +36,12 @@ export default function Dropdowns() {
   // Open the profile page already drilled into a specific section.
   const goSection = (section) => { navigate('/profile', { state: { section } }); closeDropdown(); };
 
-  return (
+  if (!dropdown) return null;
+
+  return createPortal(
     <>
       {/* Shared backdrop */}
-      {dropdown && <div onClick={closeDropdown} style={{ position: 'fixed', inset: 0, zIndex: 1190 }} />}
+      <div onClick={closeDropdown} style={{ position: 'fixed', inset: 0, zIndex: 12000 }} />
 
       {/* CURRENCY */}
       {dropdown === 'currency' && (
@@ -93,12 +96,13 @@ export default function Dropdowns() {
           </div>
         </div>
       )}
-    </>
+    </>,
+    document.body,
   );
 }
 
 const panel = {
-  position: 'fixed', top: 96, right: 16, zIndex: 1200,
+  position: 'fixed', top: 96, right: 16, zIndex: 12001,
   background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)',
   padding: 8, minWidth: 240, boxShadow: '0 20px 60px rgba(0,0,0,.6)', maxHeight: '70vh', overflowY: 'auto',
 };

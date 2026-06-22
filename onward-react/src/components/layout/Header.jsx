@@ -6,10 +6,14 @@ import { useAuth } from '../../context/AuthContext';
 import useSectionNav from '../../hooks/useSectionNav';
 import { IMG0 as LOGO } from '../../assets/images';
 
-// Flag shown on the header language button for the active language.
+// Flag + short name shown on the header language button for the active language.
 const LANG_FLAGS = {
   en: '🇬🇧', zh: '🇨🇳', id: '🇮🇩', ms: '🇲🇾', th: '🇹🇭', vi: '🇻🇳',
   hi: '🇮🇳', ko: '🇰🇷', ja: '🇯🇵', es: '🇪🇸', pt: '🇵🇹', ar: '🇸🇦',
+};
+const LANG_SHORT = {
+  en: 'EN', zh: '中文', id: 'ID', ms: 'MS', th: 'TH', vi: 'VI',
+  hi: 'HI', ko: '한국어', ja: '日本語', es: 'ES', pt: 'PT', ar: 'AR',
 };
 
 // Top navigation pills used by both header variants. Emoji is kept separate
@@ -133,8 +137,10 @@ export default function Header() {
             <button className="hdr-icon-btn" id="currency-btn" title="Currency" onClick={(e) => { e.stopPropagation(); toggleDropdown('currency'); }}>
               <span style={{ fontSize: '12px', fontWeight: 700 }} id="selected-currency-symbol">{currency.symbol}</span>
             </button>
-            <button className="hdr-icon-btn" id="lang-btn" title="Language" onClick={(e) => { e.stopPropagation(); toggleDropdown('lang'); }}>
+            <button className="hdr-icon-btn hdr-lang-btn" id="lang-btn" title="Language" onClick={(e) => { e.stopPropagation(); toggleDropdown('lang'); }}>
               <span id="selected-lang-flag" className="hdr-flag">{LANG_FLAGS[lang] || '🌐'}</span>
+              <span className="hdr-lang-name">{LANG_SHORT[lang] || 'EN'}</span>
+              <span className="hdr-lang-caret">▾</span>
             </button>
             <button className="hdr-icon-btn" title="Notifications">
               🔔
