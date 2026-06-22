@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useUI } from '../context/UIContext';
 import MENU from '../services/menu';
+import { ADMIN_LANGS } from '../i18n/dict';
 
 // Resolve the page title for the current route from the MENU hierarchy.
 function titleFor(id) {
@@ -13,10 +14,22 @@ function titleFor(id) {
 }
 
 export default function Topbar() {
-  const { openSidebar, toggleTheme, light, toast } = useUI();
+  const { openSidebar, toggleTheme, light, toast, lang, setLang } = useUI();
   const location = useLocation();
   const [langOpen, setLangOpen] = useState(false);
+  const langWrapRef = useRef(null);
   const id = location.pathname === '/' ? 'dashboard' : location.pathname.slice(1);
+
+  // Close the language menu on a genuine outside click (attached next tick so
+  // the opening click can't immediately close it).
+  useEffect(() => {
+    if (!langOpen) return undefined;
+    const onDown = (e) => { if (langWrapRef.current && !langWrapRef.current.contains(e.target)) setLangOpen(false); };
+    const t = setTimeout(() => document.addEventListener('pointerdown', onDown), 0);
+    return () => { clearTimeout(t); document.removeEventListener('pointerdown', onDown); };
+  }, [langOpen]);
+
+  const cur = ADMIN_LANGS.find((l) => l.code === lang) || ADMIN_LANGS[0];
 
   return (
     <header className="topbar">
@@ -31,9 +44,32 @@ export default function Topbar() {
         </button>
         <button className="tb-btn hide-m" onClick={() => toast('Opening player site…')}>View Site</button>
         <button className="tb-btn hide-m">🇵🇭 PHP ▾</button>
-        <div className="lang-wrap" id="langWrap">
-          <button className="tb-btn" onClick={() => setLangOpen((v) => !v)} id="langBtn">🇺🇸 EN ▾</button>
-          <div className={`lang-menu${langOpen ? ' show' : ''}`} id="langMenu" onClick={(e) => e.stopPropagation()} />
+        <div className="lang-wrap" id="langWrap" ref={langWrapRef} style={{ position: 'relative' }}>
+          <button className="tb-btn" onClick={() => setLangOpen((v) => !v)} id="langBtn">{cur.flag} {cur.short} ▾</button>
+          {langOpen && (
+            <div className="lang-menu show" id="langMenu" style={{
+              position: 'absolute', top: '110%', right: 0, zIndex: 9999, minWidth: 180,
+              background: 'var(--card, #131a2c)', border: '1px solid var(--border, #243049)',
+              borderRadius: 10, padding: 6, boxShadow: '0 16px 44px rgba(0,0,0,.5)',
+            }}>
+              {ADMIN_LANGS.map((l) => (
+                <button
+                  key={l.code}
+                  onClick={() => { setLang(l.code); setLangOpen(false); }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 9, width: '100%', textAlign: 'left',
+                    background: lang === l.code ? 'rgba(244,178,35,.14)' : 'transparent', border: 'none',
+                    color: lang === l.code ? 'var(--gold, #f4b223)' : 'var(--text, #e8edf7)',
+                    padding: '9px 10px', borderRadius: 7, cursor: 'pointer', fontSize: 13.5, fontWeight: 700,
+                  }}
+                >
+                  <span style={{ fontSize: 16 }}>{l.flag}</span>
+                  <span>{l.name}</span>
+                  {lang === l.code && <span style={{ marginLeft: 'auto' }}>✓</span>}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </header>

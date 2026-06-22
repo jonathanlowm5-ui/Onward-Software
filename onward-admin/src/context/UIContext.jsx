@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { applyTranslations, startI18nObserver, getStoredLang, storeLang } from '../i18n';
 
 const UIContext = createContext(null);
 
@@ -11,8 +12,20 @@ export function UIProvider({ children }) {
   const [toastMsg, setToastMsg] = useState('');
   const [light, setLight] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [lang, setLang] = useState('en');
+  const [lang, setLangState] = useState(getStoredLang);
+  const langRef = useRef(lang);
   const tRef = useRef(null);
+
+  // Persist the choice; the effect below applies it after React commits so the
+  // re-render doesn't overwrite our translated text.
+  const setLang = useCallback((next) => {
+    langRef.current = next;
+    setLangState(next);
+    storeLang(next);
+  }, []);
+
+  useEffect(() => { langRef.current = lang; applyTranslations(lang); }, [lang]);
+  useEffect(() => { const stop = startI18nObserver(() => langRef.current); return stop; }, []);
 
   const toast = useCallback((m) => {
     setToastMsg(m);
