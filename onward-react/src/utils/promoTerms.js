@@ -45,4 +45,18 @@ export function buildPromoTerms(promo = {}, viewerCurrency) {
   ];
 }
 
+// Pick the banner image to show a viewer: the per-currency banner for their own
+// currency wins, then the promo's pinned-currency banner, then the default
+// image. Lets one promotion carry MYR / PHP / … artwork with localized amounts.
+export function resolvePromoBanner(promo = {}, viewerCurrency) {
+  const p = promo || {};
+  const map = p.banners && typeof p.banners === 'object' ? p.banners : null;
+  const cur = String(viewerCurrency || '').toUpperCase();
+  if (map) {
+    if (cur && map[cur]) return map[cur];
+    if (p.currency && map[p.currency]) return map[p.currency];
+  }
+  return p.image || '';
+}
+
 export default buildPromoTerms;

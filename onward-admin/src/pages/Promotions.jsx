@@ -96,7 +96,7 @@ function normalizePromo(p) {
 /* a blank promotion form */
 const EMPTY_PROMO = {
   title: '', type: 'welcome', currency: '', country: '', bonus: '', maxBonus: '', minDeposit: '', wager: '', turnover: '',
-  description: '', image: '', startDate: '', endDate: '', status: 'active', buttonText: '', buttonLink: '',
+  description: '', image: '', banners: {}, startDate: '', endDate: '', status: 'active', buttonText: '', buttonLink: '',
 };
 
 const PROMO_CURRENCIES = ['PHP', 'USD', 'EUR', 'INR', 'THB', 'VND', 'IDR', 'MYR', 'CNY', 'JPY'];
@@ -110,6 +110,8 @@ function PromoEditModal({ initial, onClose, onSaved }) {
   const [f, setF] = useState(() => ({ ...EMPTY_PROMO, ...(initial || {}) }));
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [bannerCur, setBannerCur] = useState('PHP');
+  const [bannerUploading, setBannerUploading] = useState(false);
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
   // Picking a country auto-fills the matching currency (only when currency is
   // still on Auto) so country + currency promos stay consistent.
@@ -136,13 +138,36 @@ function PromoEditModal({ initial, onClose, onSaved }) {
     }
   };
 
+  // Upload a banner for one currency and store it under f.banners[currency].
+  const pickCurrencyBanner = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) { toast('⚠ Image too large — keep it under 4 MB'); return; }
+    setBannerUploading(true);
+    try {
+      const { url } = await uploadImage(file);
+      setF((p) => ({ ...p, banners: { ...(p.banners || {}), [bannerCur]: url } }));
+      toast(`${bannerCur} banner uploaded ✔`);
+    } catch (err) {
+      toast('⚠ Upload failed: ' + (err.message || 'error'));
+    } finally {
+      setBannerUploading(false);
+    }
+  };
+  const removeCurrencyBanner = (cur) => setF((p) => {
+    const b = { ...(p.banners || {}) };
+    delete b[cur];
+    return { ...p, banners: b };
+  });
+
   const submit = async () => {
     if (!f.title.trim()) { toast('Promotion title is required', 'error'); return; }
     setBusy(true);
     const payload = {
       title: f.title.trim(), type: f.type, currency: f.currency, country: f.country, bonus: f.bonus, maxBonus: f.maxBonus,
       minDeposit: f.minDeposit, wager: f.wager, turnover: f.turnover,
-      description: f.description, image: f.image, startDate: f.startDate, endDate: f.endDate,
+      description: f.description, image: f.image, banners: f.banners || {}, startDate: f.startDate, endDate: f.endDate,
       status: f.status, buttonText: f.buttonText, buttonLink: f.buttonLink,
     };
     try {
@@ -182,12 +207,33 @@ function PromoEditModal({ initial, onClose, onSaved }) {
             <div className="pm-fld"><label>Button Text</label><input value={f.buttonText} onChange={set('buttonText')} placeholder="Deposit Now" /></div>
             <div className="pm-fld"><label>Button Link</label><input value={f.buttonLink} onChange={set('buttonLink')} placeholder="/deposit" /></div>
             <div className="pm-fld" style={{ gridColumn: '1 / -1' }}>
-              <label>Image</label>
+              <label>Default Banner</label>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <input type="file" accept="image/*" onChange={pickImage} />
                 {uploading && <span style={{ color: 'var(--gold)' }}>uploading…</span>}
                 {f.image && <img src={f.image} alt="" style={{ height: 40, borderRadius: 6 }} />}
               </div>
+            </div>
+            <div className="pm-fld" style={{ gridColumn: '1 / -1' }}>
+              <label>Currency Banners <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(optional — players see the banner for their own currency, e.g. an MYR banner with RM amounts)</span></label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <select value={bannerCur} onChange={(e) => setBannerCur(e.target.value)} style={{ padding: '8px 10px', borderRadius: 8, background: 'var(--panel-3,#1b2541)', color: 'var(--text,#fff)', border: '1px solid var(--border,#243049)' }}>
+                  {PROMO_CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <input type="file" accept="image/*" onChange={pickCurrencyBanner} />
+                {bannerUploading && <span style={{ color: 'var(--gold)' }}>uploading…</span>}
+              </div>
+              {f.banners && Object.keys(f.banners).length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
+                  {Object.entries(f.banners).map(([cur, url]) => (
+                    <div key={cur} style={{ position: 'relative', border: '1px solid var(--border,#243049)', borderRadius: 8, padding: 6, textAlign: 'center' }}>
+                      <img src={url} alt={cur} style={{ height: 44, borderRadius: 4, display: 'block' }} />
+                      <div style={{ fontSize: 11, fontWeight: 800, marginTop: 3 }}>{cur}</div>
+                      <button type="button" onClick={() => removeCurrencyBanner(cur)} title="Remove" style={{ position: 'absolute', top: -8, right: -8, width: 20, height: 20, borderRadius: '50%', border: 'none', background: 'var(--red,#ff4d5e)', color: '#fff', cursor: 'pointer', fontSize: 12, lineHeight: '20px' }}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useUI } from '../context/UIContext';
 import { useAuth } from '../context/AuthContext';
 import useSectionNav from '../hooks/useSectionNav';
+import { resolvePromoBanner } from '../utils/promoTerms';
 import api from '../services/api';
 
 const VALID_PROMO_CODES = ['WELCOME100', 'LEGOX', 'VIP500', 'FREESPIN55'];
@@ -235,7 +236,7 @@ export default function Promotions() {
                 {(p.country || p.currency) && (
                   <span className="pb-region">🌏 {[p.country, p.currency].filter(Boolean).join(' · ')}</span>
                 )}
-                {p.image && <img src={p.image} alt="" className="pb-banner" />}
+                {resolvePromoBanner(p, viewerCur) && <img src={resolvePromoBanner(p, viewerCur)} alt="" className="pb-banner" />}
                 {p.bonus && <div className="pb-deco">{p.bonus}</div>}
                 <div className="pb-title">{p.title}</div>
                 {p.description && <div className="pb-detail">{String(p.description).split('\n').map((l, j) => <span key={j}>{l}<br /></span>)}</div>}

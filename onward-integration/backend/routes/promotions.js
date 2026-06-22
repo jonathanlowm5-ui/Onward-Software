@@ -20,10 +20,23 @@ const router = express.Router();
 const COLLECTION = 'promotions';
 const CURRENCIES = ['PHP', 'USD', 'EUR', 'INR', 'THB', 'VND', 'IDR', 'MYR', 'CNY', 'JPY'];
 
+// Per-currency banner images: { PHP: url, MYR: url, ... }. A player sees the
+// banner for their own currency; otherwise the default `image` is used.
+function cleanBanners(src) {
+  const out = {};
+  const obj = src && typeof src === 'object' ? src : {};
+  for (const k of CURRENCIES) {
+    const v = obj[k];
+    if (typeof v === 'string' && v.trim()) out[k] = v.trim();
+  }
+  return out;
+}
+
 function clean(body) {
   const cur = String(body.currency || '').toUpperCase();
   return {
     image: body.image || '',
+    banners: cleanBanners(body.banners),
     title: String(body.title || '').trim(),
     description: String(body.description || '').trim(),
     // Economic / display fields (shown on the admin table and player cards).

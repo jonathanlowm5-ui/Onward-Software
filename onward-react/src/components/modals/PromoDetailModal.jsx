@@ -1,7 +1,7 @@
 import Modal from './Modal.jsx';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
-import { buildPromoTerms } from '../../utils/promoTerms';
+import { buildPromoTerms, resolvePromoBanner } from '../../utils/promoTerms';
 
 /*
  * Promotion detail modal (#promo). Opened from any promo card on the
@@ -45,6 +45,7 @@ export default function PromoDetailModal() {
   const ends = fmtDate(p.endDate);
 
   const terms = buildPromoTerms(p, profile?.currency);
+  const banner = resolvePromoBanner(p, profile?.currency);
   const ctaLabel = p.buttonText || 'Deposit Now';
   const onCta = () => {
     closeModal();
@@ -61,9 +62,9 @@ export default function PromoDetailModal() {
         <button className="modal-close" onClick={closeModal}>✕</button>
       </div>
       <div className="modal-body" style={{ paddingTop: 14 }}>
-        {/* Banner — either the uploaded image or a gradient header with the bonus deco */}
-        {p.image ? (
-          <img src={p.image} alt={title} className="promo-detail-banner" />
+        {/* Banner — per-currency image, or a gradient header with the bonus deco */}
+        {banner ? (
+          <img src={banner} alt={title} className="promo-detail-banner" />
         ) : (
           <div className="promo-detail-banner promo-detail-banner--gradient">
             {(p.deco || p.bonus) && <span className="promo-detail-deco">{p.deco || p.bonus}</span>}
