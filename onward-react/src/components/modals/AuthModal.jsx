@@ -12,6 +12,12 @@ const EMPTY_REG = {
 // Currencies offered at registration (must match backend playerUtils.CURRENCIES).
 const CURRENCIES = ['PHP', 'USD', 'EUR', 'INR', 'THB', 'VND', 'IDR', 'MYR', 'CNY', 'JPY'];
 
+// International dialing code per country — used to auto-fill the mobile prefix.
+const DIAL_CODES = {
+  Philippines: '+63', Malaysia: '+60', Singapore: '+65', Thailand: '+66',
+  Indonesia: '+62', Vietnam: '+84', Other: '',
+};
+
 /**
  * Login / Register / Deposit modal — the original #auth-modal with its three
  * tab panels. Login & registration run through the Firebase-backed AuthContext.
@@ -50,6 +56,19 @@ export default function AuthModal() {
   }, [open, activeModal, setError]);
 
   const setR = (k) => (e) => setReg((s) => ({ ...s, [k]: e.target.value }));
+
+  // Auto-detect the dialing code from the chosen country and prefix the mobile
+  // field with it (e.g. Malaysia -> +60, Philippines -> +63), keeping any local
+  // number the player already typed.
+  const onCountry = (e) => {
+    const country = e.target.value;
+    const code = DIAL_CODES[country] || '';
+    setReg((s) => {
+      const rest = String(s.phone || '').replace(/^\s*\+\d{1,4}\s*/, '').trimStart();
+      const phone = code ? (rest ? `${code} ${rest}` : `${code} `) : rest;
+      return { ...s, country, phone };
+    });
+  };
 
   const doLogin = async () => {
     if (!loginUser || !loginPass) { toast('Enter your username and password', 'error'); return; }
@@ -170,7 +189,7 @@ export default function AuthModal() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div className="form-group">
               <label data-i18n="auth_phone">Mobile Number</label>
-              <input type="tel" id="reg-phone" placeholder="+63 9XX XXX XXXX" value={reg.phone} onChange={setR('phone')} />
+              <input type="tel" id="reg-phone" placeholder={`${DIAL_CODES[reg.country] || '+63'} 9XX XXX XXXX`} value={reg.phone} onChange={setR('phone')} />
             </div>
             <div className="form-group">
               <label data-i18n="auth_currency">Currency</label>
@@ -182,7 +201,7 @@ export default function AuthModal() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div className="form-group">
               <label data-i18n="auth_country">Country</label>
-              <select id="reg-country" value={reg.country} onChange={setR('country')} style={{ width: '100%', padding: '12px', borderRadius: '8px', background: '#0c1322', color: '#fff', border: '1px solid #2a3a5c', fontSize: '14px' }}>
+              <select id="reg-country" value={reg.country} onChange={onCountry} style={{ width: '100%', padding: '12px', borderRadius: '8px', background: '#0c1322', color: '#fff', border: '1px solid #2a3a5c', fontSize: '14px' }}>
                 <option value="">Select country</option><option>Philippines</option><option>Malaysia</option><option>Singapore</option><option>Thailand</option><option>Indonesia</option><option>Vietnam</option><option>Other</option>
               </select>
             </div>
