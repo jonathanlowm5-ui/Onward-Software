@@ -136,7 +136,7 @@ export default function Header() {
       <header id="topbar">
         <div className="topbar-inner">
           <button id="sb-toggle" onClick={toggleSidebar} title="Menu">☰</button>
-          <div className="logo">
+          <div className="logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }} title="Home">
             <img src={LOGO} alt="Onward" style={{ height: '40px', width: 'auto', objectFit: 'contain', display: 'block' }} />
           </div>
           <nav className="nav">
@@ -224,7 +224,7 @@ export default function Header() {
 
         <div className="hdr-row2">
           <button className="hdr-hamburger" id="sb-toggle2" onClick={toggleSidebar} title="Menu">☰</button>
-          <div className="hdr-logo">
+          <div className="hdr-logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }} title="Home">
             <img src={LOGO} alt="Onward" style={{ height: '52px', width: 'auto', objectFit: 'contain', display: 'block' }} />
           </div>
           <div className="hdr-online">
