@@ -4,6 +4,7 @@ import { Table } from '../components/ui.jsx';
 import { listPromotions, togglePromotion, removePromotion, createPromotion, updatePromotion } from '../services/promotionService';
 import { uploadImage } from '../services/uploadService';
 import { getMiniGames, saveMiniGames } from '../services/minigameService';
+import { buildPromoTerms } from '../utils/promoTerms';
 
 /* ---------- demo data (fallbacks) ---------- */
 const DEMO_PROMOS = [
@@ -175,6 +176,19 @@ function PromoEditModal({ initial, onClose, onSaved }) {
                 {f.image && <img src={f.image} alt="" style={{ height: 40, borderRadius: 6 }} />}
               </div>
             </div>
+          </div>
+
+          {/* Auto-generated Terms & Conditions preview. Lines 1–6 update live
+              from the fields above; 7–12 are fixed. Shown to members on the
+              player Promo Detail modal — no manual typing needed. */}
+          <div style={{ marginTop: 16, borderTop: '1px dashed var(--border)', paddingTop: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text)', marginBottom: 2 }}>TERMS &amp; CONDITIONS <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(auto-generated — shown to members)</span></div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>Lines 1–6 fill from the package above; 7–12 are fixed.</div>
+            <ol style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 5, maxHeight: 180, overflowY: 'auto' }}>
+              {buildPromoTerms(f).map((t, i) => (
+                <li key={i} style={{ fontSize: 11.5, lineHeight: 1.45, color: i < 6 ? 'var(--text)' : 'var(--muted)' }}>{t}</li>
+              ))}
+            </ol>
           </div>
         </div>
         <div className="pm-foot">

@@ -1,5 +1,6 @@
 import Modal from './Modal.jsx';
 import { useUI } from '../../context/UIContext';
+import { buildPromoTerms } from '../../utils/promoTerms';
 
 /*
  * Promotion detail modal (#promo). Opened from any promo card on the
@@ -41,6 +42,7 @@ export default function PromoDetailModal() {
   const starts = fmtDate(p.startDate);
   const ends = fmtDate(p.endDate);
 
+  const terms = buildPromoTerms(p);
   const ctaLabel = p.buttonText || 'Deposit Now';
   const onCta = () => {
     closeModal();
@@ -105,9 +107,12 @@ export default function PromoDetailModal() {
           <p className="promo-detail-desc">{lines.join(' ')}</p>
         )}
 
-        {/* Terms note */}
+        {/* Terms & Conditions — 1–6 auto-filled from the package, 7–12 fixed */}
         <div className="promo-detail-terms">
-          ⓘ Bonus is subject to wagering requirements before withdrawal. One bonus per player unless stated. Onward reserves the right to amend or cancel this promotion.
+          <div className="promo-terms-head">TERMS &amp; CONDITIONS:</div>
+          <ol className="promo-terms-list">
+            {terms.map((t, i) => <li key={i}>{t}</li>)}
+          </ol>
         </div>
 
         <button className="promo-detail-cta" onClick={onCta}>{ctaLabel}</button>
