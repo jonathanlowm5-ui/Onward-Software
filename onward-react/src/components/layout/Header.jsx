@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useUI } from '../../context/UIContext';
@@ -31,53 +31,66 @@ const LANGS = [
 ];
 
 // Self-contained language switcher: own local open state + own portal, so it
-// never depends on the shared dropdown/backdrop wiring.
+// never depends on the shared dropdown/backdrop wiring. Closes on outside click
+// via a document listener attached on the NEXT tick — so the opening tap (and
+// any mobile "ghost click") can't immediately close it (the flash-then-close bug).
 function LangSwitcher() {
   const { lang, setLang } = useUI();
   const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => {
+      const t = e.target;
+      if (wrapRef.current && wrapRef.current.contains(t)) return; // the button
+      if (t.closest && t.closest('[data-langmenu]')) return;      // inside the menu
+      setOpen(false);
+    };
+    const id = setTimeout(() => document.addEventListener('pointerdown', onDown), 0);
+    return () => { clearTimeout(id); document.removeEventListener('pointerdown', onDown); };
+  }, [open]);
+
   return (
-    <>
+    <div ref={wrapRef} style={{ display: 'inline-flex' }}>
       <button
         className="hdr-icon-btn hdr-lang-btn"
         id="lang-btn"
         title="Language"
-        onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
+        onClick={() => setOpen((o) => !o)}
       >
         <span id="selected-lang-flag" className="hdr-flag">{LANG_FLAGS[lang] || '🌐'}</span>
         <span className="hdr-lang-name">{LANG_SHORT[lang] || 'EN'}</span>
         <span className="hdr-lang-caret">▾</span>
       </button>
       {open && createPortal(
-        <>
-          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 99998 }} />
-          <div role="menu" style={{
-            position: 'fixed', top: 64, right: 14, zIndex: 99999,
-            background: 'var(--surface, #131a2c)', border: '1px solid var(--border, #243049)',
-            borderRadius: 12, padding: 8, minWidth: 230, maxHeight: '72vh', overflowY: 'auto',
-            boxShadow: '0 20px 60px rgba(0,0,0,.6)',
-          }}>
-            <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.09em', color: 'var(--text-muted, #8898b8)', padding: '6px 10px' }}>Language</div>
-            {LANGS.map((l) => (
-              <button
-                key={l.code}
-                onClick={() => { setLang(l.code); setOpen(false); }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left',
-                  background: lang === l.code ? 'rgba(240,192,64,.12)' : 'none', border: 'none',
-                  color: lang === l.code ? 'var(--gold, #f0c040)' : 'var(--text, #fff)',
-                  padding: '11px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600,
-                }}
-              >
-                <span style={{ width: 26, fontSize: 18 }}>{l.flag}</span>
-                <span>{l.name}</span>
-                {lang === l.code && <span style={{ marginLeft: 'auto', color: 'var(--gold,#f0c040)' }}>✓</span>}
-              </button>
-            ))}
-          </div>
-        </>,
+        <div data-langmenu role="menu" style={{
+          position: 'fixed', top: 64, right: 14, zIndex: 99999,
+          background: 'var(--surface, #131a2c)', border: '1px solid var(--border, #243049)',
+          borderRadius: 12, padding: 8, minWidth: 230, maxHeight: '72vh', overflowY: 'auto',
+          boxShadow: '0 20px 60px rgba(0,0,0,.6)',
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.09em', color: 'var(--text-muted, #8898b8)', padding: '6px 10px' }}>Language</div>
+          {LANGS.map((l) => (
+            <button
+              key={l.code}
+              onClick={() => { setLang(l.code); setOpen(false); }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left',
+                background: lang === l.code ? 'rgba(240,192,64,.12)' : 'none', border: 'none',
+                color: lang === l.code ? 'var(--gold, #f0c040)' : 'var(--text, #fff)',
+                padding: '11px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600,
+              }}
+            >
+              <span style={{ width: 26, fontSize: 18 }}>{l.flag}</span>
+              <span>{l.name}</span>
+              {lang === l.code && <span style={{ marginLeft: 'auto', color: 'var(--gold,#f0c040)' }}>✓</span>}
+            </button>
+          ))}
+        </div>,
         document.body,
       )}
-    </>
+    </div>
   );
 }
 
