@@ -8,13 +8,13 @@ export default function PromoCard({ promo, index, onOpen }) {
   const desc = p.desc || p.description || '';
   const lines = String(desc).split('\n');
 
-  const handle = () => (onOpen ? onOpen(index) : openModal('register'));
+  const handle = () => (onOpen ? onOpen(index) : openModal('promo', p));
 
   return (
     <div className={`promo-card ${p.highlighted ? 'promo-card-highlighted' : ''}`} onClick={handle}>
       {(p.amount != null) && <div className="promo-watermark">{p.amount}</div>}
       {p.tag && <span className="promo-tag">{p.tag}</span>}
-      {p.image && <img src={p.image} alt={p.title} style={{ width: '100%', borderRadius: '10px', marginBottom: '10px' }} />}
+      {p.image && <img src={p.image} alt={p.title} className="promo-card-banner" />}
       <div className="promo-title">{p.title}</div>
       <div className="promo-desc">{lines.map((l, i) => <div key={i}>{l}</div>)}</div>
       {p.buttonText && (

@@ -5,6 +5,41 @@ import api from '../services/api';
 
 const VALID_PROMO_CODES = ['WELCOME100', 'LEGOX', 'VIP500', 'FREESPIN55'];
 
+// Built-in showcase promotions (shown when/while the admin hasn't created its
+// own). Each carries full detail so the detail modal can render it properly.
+const SHOWCASE_BONUSES = [
+  { deco: '125%', title: '1ST DEPOSIT BONUS', lines: ['125% UP TO ₱3,970', '+100 FREE SPINS'], status: 'AWAITS DEPOSIT', highlighted: true,
+    bonus: '125%', maxBonus: '₱3,970', minDeposit: '₱500', wager: '30x', turnover: '0x', type: 'deposit',
+    description: 'Kick off your journey with a 125% match on your first deposit plus 100 free spins on selected slots.' },
+  { deco: '100%', title: '2ND DEPOSIT BONUS', lines: ['100% UP TO ₱1,980', '+25 FREE SPINS'],
+    bonus: '100%', maxBonus: '₱1,980', minDeposit: '₱500', wager: '30x', turnover: '0x', type: 'deposit',
+    description: 'Top up again and get a 100% match up to ₱1,980 with 25 bonus spins.' },
+  { deco: '75%', title: '3RD DEPOSIT BONUS', lines: ['75% UP TO ₱5,950', '+50 FREE SPINS'],
+    bonus: '75%', maxBonus: '₱5,950', minDeposit: '₱500', wager: '35x', turnover: '0x', type: 'deposit',
+    description: 'Your third deposit earns a 75% boost up to ₱5,950 and 50 free spins.' },
+  { deco: '200%', title: '4TH DEPOSIT BONUS', lines: ['200% UP TO ₱7,940', '+25 FREE SPINS'],
+    bonus: '200%', maxBonus: '₱7,940', minDeposit: '₱1,000', wager: '40x', turnover: '0x', type: 'deposit',
+    description: 'Finish the welcome series strong with a massive 200% match up to ₱7,940.' },
+  { deco: '50%', title: 'WEEKEND RELOAD', i18nKey: 'promo_weekend', lines: ['50% UP TO ₱5,000', '+55 FREE SPINS'],
+    bonus: '50%', maxBonus: '₱5,000', minDeposit: '₱500', wager: '25x', turnover: '0x', type: 'deposit',
+    description: 'Reload every weekend for a 50% bonus up to ₱5,000 plus 55 free spins.' },
+  { deco: '10%', title: 'WEEKLY CASHBACK', i18nKey: 'promo_cashback', lines: ['10% CASHBACK', 'EVERY WEEK'],
+    bonus: '10%', maxBonus: '₱20,000', minDeposit: '₱0', wager: '5x', turnover: '0x', type: 'cashback',
+    description: 'Get 10% cashback on your net losses every week — credited automatically.' },
+];
+
+const SHOWCASE_RELOAD = [
+  { deco: '50%', title: 'MONDAY RELOAD', i18nKey: 'promo_monday', lines: ['50% UP TO ₱3,000', '+30 FREE SPINS'],
+    bonus: '50%', maxBonus: '₱3,000', minDeposit: '₱300', wager: '30x', turnover: '0x', type: 'deposit',
+    description: 'Beat the Monday blues with a 50% reload up to ₱3,000 and 30 free spins.' },
+  { deco: '30%', title: 'DAILY RELOAD', i18nKey: 'promo_daily', lines: ['30% UP TO ₱2,000', 'EVERY DAY'],
+    bonus: '30%', maxBonus: '₱2,000', minDeposit: '₱200', wager: '25x', turnover: '0x', type: 'deposit',
+    description: 'A 30% reload bonus available every single day, up to ₱2,000.' },
+  { deco: '75%', title: 'WEEKEND SPECIAL', i18nKey: 'promo_weekend_special', lines: ['75% UP TO ₱8,000', 'SAT & SUN ONLY'],
+    bonus: '75%', maxBonus: '₱8,000', minDeposit: '₱500', wager: '35x', turnover: '0x', type: 'deposit',
+    description: 'A special 75% weekend reload up to ₱8,000 — Saturdays and Sundays only.' },
+];
+
 // Which section IDs are visible for each filter tab.
 const SHOW_MAP = {
   all: ['welcome', 'bonuses', 'reload', 'tournaments'],
@@ -50,7 +85,7 @@ export default function Promotions() {
     }
   }
 
-  const openPromoDetail = () => openModal('promo');
+  const openPromoDetail = (promo) => openModal('promo', promo || null);
 
   return (
     <div id="view-promos">
@@ -129,7 +164,7 @@ export default function Promotions() {
                 <div className="wh-tier-pct">125%</div>
                 <div className="wh-tier-detail">UP TO ₱3,970+100FS</div>
                 <button className="wh-tier-btn primary" onClick={() => openModal('deposit')}>DEPOSIT</button>
-                <button className="wh-tier-info">ℹ</button>
+                <button className="wh-tier-info" onClick={() => openPromoDetail(SHOWCASE_BONUSES[0])}>ℹ</button>
               </div>
               {/* Tier 2 */}
               <div className="wh-tier">
@@ -178,9 +213,9 @@ export default function Promotions() {
               <div
                 className={'pb-card' + (i === 0 ? ' highlighted' : '')}
                 key={p.id ?? 'api-' + i}
-                onClick={openPromoDetail}
+                onClick={() => openPromoDetail(p)}
               >
-                {p.image && <img src={p.image} alt="" style={{ width: '100%', borderRadius: 10, marginBottom: 10, display: 'block' }} />}
+                {p.image && <img src={p.image} alt="" className="pb-banner" />}
                 {p.bonus && <div className="pb-deco">{p.bonus}</div>}
                 <div className="pb-title">{p.title}</div>
                 {p.description && <div className="pb-detail">{String(p.description).split('\n').map((l, j) => <span key={j}>{l}<br /></span>)}</div>}
@@ -188,42 +223,15 @@ export default function Promotions() {
               </div>
             ))}
 
-            <div className="pb-card highlighted" onClick={openPromoDetail}>
-              <span className="pb-status awaits">AWAITS DEPOSIT</span>
-              <div className="pb-deco">125%</div>
-              <div className="pb-title">1ST DEPOSIT BONUS</div>
-              <div className="pb-detail">125% UP TO ₱3,970<br />+100 FREE SPINS</div>
-            </div>
-
-            <div className="pb-card" onClick={openPromoDetail}>
-              <div className="pb-deco">100%</div>
-              <div className="pb-title">2ND DEPOSIT BONUS</div>
-              <div className="pb-detail">100% UP TO ₱1,980<br />+25 FREE SPINS</div>
-            </div>
-
-            <div className="pb-card" onClick={openPromoDetail}>
-              <div className="pb-deco">75%</div>
-              <div className="pb-title">3RD DEPOSIT BONUS</div>
-              <div className="pb-detail">75% UP TO ₱5,950<br />+50 FREE SPINS</div>
-            </div>
-
-            <div className="pb-card" onClick={openPromoDetail}>
-              <div className="pb-deco">200%</div>
-              <div className="pb-title">4TH DEPOSIT BONUS</div>
-              <div className="pb-detail">200% UP TO ₱7,940<br />+25 FREE SPINS</div>
-            </div>
-
-            <div className="pb-card" onClick={openPromoDetail}>
-              <div className="pb-deco">50%</div>
-              <div className="pb-title" data-i18n="promo_weekend">WEEKEND RELOAD</div>
-              <div className="pb-detail">50% UP TO ₱5,000<br />+55 FREE SPINS</div>
-            </div>
-
-            <div className="pb-card" onClick={openPromoDetail}>
-              <div className="pb-deco">10%</div>
-              <div className="pb-title" data-i18n="promo_cashback">WEEKLY CASHBACK</div>
-              <div className="pb-detail">10% CASHBACK<br />EVERY WEEK</div>
-            </div>
+            {/* Built-in showcase bonuses */}
+            {SHOWCASE_BONUSES.map((p, i) => (
+              <div className={'pb-card' + (p.highlighted ? ' highlighted' : '')} key={'bonus-' + i} onClick={() => openPromoDetail(p)}>
+                {p.status && <span className="pb-status awaits">{p.status}</span>}
+                <div className="pb-deco">{p.deco}</div>
+                <div className="pb-title" {...(p.i18nKey ? { 'data-i18n': p.i18nKey } : {})}>{p.title}</div>
+                <div className="pb-detail">{p.lines.map((l, j) => <span key={j}>{l}<br /></span>)}</div>
+              </div>
+            ))}
 
           </div>
         </div>{/* /promo-section-bonuses */}
@@ -232,21 +240,13 @@ export default function Promotions() {
         <div id="promo-section-reload" style={show('reload')}>
           <div className="promo-sub-title" data-i18n="promo_reload">RELOAD BONUSES</div>
           <div className="promo-bonus-grid">
-            <div className="pb-card" onClick={openPromoDetail}>
-              <div className="pb-deco">50%</div>
-              <div className="pb-title" data-i18n="promo_monday">MONDAY RELOAD</div>
-              <div className="pb-detail">50% UP TO ₱3,000<br />+30 FREE SPINS</div>
-            </div>
-            <div className="pb-card" onClick={openPromoDetail}>
-              <div className="pb-deco">30%</div>
-              <div className="pb-title" data-i18n="promo_daily">DAILY RELOAD</div>
-              <div className="pb-detail">30% UP TO ₱2,000<br />EVERY DAY</div>
-            </div>
-            <div className="pb-card" onClick={openPromoDetail}>
-              <div className="pb-deco">75%</div>
-              <div className="pb-title" data-i18n="promo_weekend_special">WEEKEND SPECIAL</div>
-              <div className="pb-detail">75% UP TO ₱8,000<br />SAT &amp; SUN ONLY</div>
-            </div>
+            {SHOWCASE_RELOAD.map((p, i) => (
+              <div className="pb-card" key={'reload-' + i} onClick={() => openPromoDetail(p)}>
+                <div className="pb-deco">{p.deco}</div>
+                <div className="pb-title" {...(p.i18nKey ? { 'data-i18n': p.i18nKey } : {})}>{p.title}</div>
+                <div className="pb-detail">{p.lines.map((l, j) => <span key={j}>{l}<br /></span>)}</div>
+              </div>
+            ))}
           </div>
         </div>{/* /promo-section-reload */}
 
