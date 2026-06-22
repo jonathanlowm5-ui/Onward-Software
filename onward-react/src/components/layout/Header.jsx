@@ -9,11 +9,11 @@ import { IMG0 as LOGO } from '../../assets/images';
 // Flag + short name shown on the header language button for the active language.
 const LANG_FLAGS = {
   en: '🇬🇧', zh: '🇨🇳', id: '🇮🇩', ms: '🇲🇾', th: '🇹🇭', vi: '🇻🇳',
-  hi: '🇮🇳', ko: '🇰🇷', ja: '🇯🇵', es: '🇪🇸', pt: '🇵🇹', ar: '🇸🇦',
+  hi: '🇮🇳', ko: '🇰🇷', ja: '🇯🇵', es: '🇪🇸', pt: '🇵🇹',
 };
 const LANG_SHORT = {
   en: 'EN', zh: '中文', id: 'ID', ms: 'MS', th: 'TH', vi: 'VI',
-  hi: 'HI', ko: '한국어', ja: '日本語', es: 'ES', pt: 'PT', ar: 'AR',
+  hi: 'HI', ko: '한국어', ja: '日本語', es: 'ES', pt: 'PT',
 };
 const LANGS = [
   { code: 'en', flag: '🇬🇧', name: 'English' },
@@ -27,7 +27,6 @@ const LANGS = [
   { code: 'ja', flag: '🇯🇵', name: '日本語' },
   { code: 'es', flag: '🇪🇸', name: 'Español' },
   { code: 'pt', flag: '🇵🇹', name: 'Português' },
-  { code: 'ar', flag: '🇸🇦', name: 'العربية' },
 ];
 
 // Self-contained language switcher: own local open state + own portal, so it

@@ -25,7 +25,6 @@ const LANGS = [
   { code: 'ja', flag: '🇯🇵', name: '日本語' },
   { code: 'es', flag: '🇪🇸', name: 'Español' },
   { code: 'pt', flag: '🇵🇹', name: 'Português' },
-  { code: 'ar', flag: '🇸🇦', name: 'العربية' },
 ];
 
 export default function Dropdowns() {

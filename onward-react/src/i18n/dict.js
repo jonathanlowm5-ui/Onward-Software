@@ -148,21 +148,7 @@ export const DICT = {
     sec_providers: '🤝 Provedores de Jogos', sec_big_wins: 'Grandes Prêmios', sec_top_matches: 'Partidas em Destaque',
     sec_all_slots: '🎲 Todos os Caça-Níqueis', sec_live_jackpots: 'Jackpots ao Vivo',
   },
-  ar: {
-    nav_lobby: 'اللوبي', nav_slots: 'سلوتس', nav_live: 'كازينو مباشر', nav_sports: 'الرياضة', nav_fish: 'ألعاب الصيد',
-    nav_promos: 'العروض', nav_referral: 'الإحالة', nav_giveaways: 'الهدايا', nav_tournaments: 'البطولات',
-    ui_login: 'تسجيل الدخول', ui_register: 'تسجيل', ui_join_now: 'انضم الآن', ui_logout: 'تسجيل الخروج',
-    ui_deposit: 'إيداع', ui_deposit_btn: '＋ إيداع', ui_withdraw: 'سحب', ui_balance: 'الرصيد', ui_bonus: 'المكافأة',
-    ui_see_all: 'عرض الكل', ui_play_now: 'العب الآن', ui_more_info: 'مزيد من المعلومات', ui_load_more: 'تحميل المزيد',
-    ui_activate: 'تفعيل', ui_save: 'حفظ', ui_clear_all: 'مسح الكل',
-    ftr_casino: 'كازينو', ftr_sports: 'المراهنات الرياضية', ftr_crash: 'ألعاب الكراش', ftr_table_games: 'ألعاب الطاولة',
-    ftr_vip_prog: 'برنامج VIP', ftr_support: 'الدعم', ftr_help: 'مركز المساعدة', ftr_contact: 'اتصل بنا',
-    ftr_live_chat: 'الدردشة المباشرة', ftr_terms: 'شروط الخدمة', ftr_privacy: 'سياسة الخصوصية', ftr_licensed: 'مرخّص من PAGCOR', ftr_ssl: 'SSL آمن',
-    sec_hot_promos: '🎁 العروض الساخنة', sec_popular: '🔥 الألعاب الشائعة', sec_live_casino: '📡 كازينو مباشر',
-    sec_providers: '🤝 مزودو الألعاب', sec_big_wins: 'أرباح كبيرة', sec_top_matches: 'أبرز المباريات',
-    sec_all_slots: '🎲 جميع ألعاب السلوت', sec_live_jackpots: 'جوائز مباشرة',
-  },
 };
 
-export const SUPPORTED_LANGS = ['en', 'zh', 'id', 'ms', 'th', 'vi', 'hi', 'ko', 'ja', 'es', 'pt', 'ar'];
-export const RTL_LANGS = new Set(['ar']);
+export const SUPPORTED_LANGS = ['en', 'zh', 'id', 'ms', 'th', 'vi', 'hi', 'ko', 'ja', 'es', 'pt'];
+export const RTL_LANGS = new Set();
