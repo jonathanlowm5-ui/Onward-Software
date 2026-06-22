@@ -1,0 +1,18 @@
+{
+  "projects": {
+    "default": "onward-1590a"
+  },
+  "targets": {
+    "onward-1590a": {
+      "hosting": {
+        "frontend": [
+          "onward-1590a"
+        ],
+        "admin": [
+          "onward-1590a-admin"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

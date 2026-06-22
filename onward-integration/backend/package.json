@@ -1,0 +1,29 @@
+{
+  "name": "onward-backend",
+  "version": "1.1.0",
+  "description": "Shared API connecting the Onward admin panel and customer frontend.",
+  "type": "commonjs",
+  "main": "functions.js",
+  "engines": {
+    "node": "20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "set-admin": "node scripts/set-admin.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "busboy": "^1.6.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "firebase-admin": "^12.7.0",
+    "firebase-functions": "^6.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1"
+  },
+  "optionalDependencies": {
+    "better-sqlite3": "^11.10.0",
+    "pg": "^8.12.0"
+  }
+}

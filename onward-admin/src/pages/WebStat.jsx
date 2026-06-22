@@ -1,0 +1,286 @@
+import { useState } from 'react';
+import { useUI } from '../context/UIContext';
+
+// --- ported helpers (from original admin js) ---
+function pie(center, slices) {
+  let acc = 0;
+  const stops = slices
+    .map((x) => { const a = acc; acc += x[2]; return `${x[1]} ${a}% ${acc}%`; })
+    .join(',');
+  return (
+    <div className="pie-wrap">
+      <div className="pie" data-c={center} style={{ background: `conic-gradient(${stops})` }}></div>
+      <div className="legend">
+        {slices.map((x, i) => (
+          <div className="li" key={i}><span className="swatch" style={{ background: x[1] }}></span>{x[0]} {x[2]}%</div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Smooth (Catmull-Rom -> Bézier) path through a set of points.
+function smoothPath(pts) {
+  if (pts.length < 2) return '';
+  let d = `M${pts[0][0].toFixed(1)},${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i += 1) {
+    const p0 = pts[i - 1] || pts[i];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2] || p2;
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6;
+    const c1y = p1[1] + (p2[1] - p0[1]) / 6;
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6;
+    const c2y = p2[1] - (p3[1] - p1[1]) / 6;
+    d += ` C${c1x.toFixed(1)},${c1y.toFixed(1)} ${c2x.toFixed(1)},${c2y.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+  }
+  return d;
+}
+
+// X-axis label sets per view granularity.
+const HOUR_LABELS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, '0')}:00`);
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const dateLabels = (n) => Array.from({ length: n }, (_, i) => `05-${String(i + 1).padStart(2, '0')}`);
+
+// Deterministic sample series so switching view keeps a natural-looking shape.
+const synth = (n, peak, seed) => Array.from({ length: n }, (_, i) =>
+  Math.max(0, Math.round(peak * ((Math.sin(i * 1.3 + seed) * 0.5 + 0.5) * 0.7 + 0.15))));
+
+// Resolve {data,labels} for the active view. `dateData` is the real "by date"
+// series; Day shows 24 hours, Month shows 12 months (illustrative).
+function viewSeries(view, dateData, seed) {
+  const peak = Math.max(...dateData, 1);
+  if (view === 'day') return { data: synth(24, peak, seed), labels: HOUR_LABELS };
+  if (view === 'month') return { data: synth(12, peak, seed), labels: MONTH_LABELS };
+  return { data: dateData, labels: dateLabels(dateData.length) };
+}
+
+// Line/area chart with a labelled Y-axis grid, crisp HTML X-axis labels and
+// per-point value labels (text stays sharp because it's HTML, not stretched SVG).
+function Chart({ data, labels, color, gid }) {
+  const n = data.length;
+  const W = 1000, H = 240, padY = 20;
+  const dataMax = Math.max(...data, 1);
+  const min = Math.min(0, ...data);
+  const max = dataMax * 1.12 || 1;
+  const range = (max - min) || 1;
+  const xAt = (i) => (n === 1 ? W / 2 : (i / (n - 1)) * W);
+  const yAt = (v) => padY + (1 - (v - min) / range) * (H - padY * 2);
+  const pts = data.map((v, i) => [xAt(i), yAt(v)]);
+  const line = smoothPath(pts);
+  const areaD = `${line} L${W},${H} L0,${H} Z`;
+  const steps = 4;
+  const grid = Array.from({ length: steps + 1 }, (_, i) => {
+    const val = min + range * (i / steps);
+    return { y: yAt(val), val: Math.round(val) };
+  });
+  const rotate = n > 14;
+  const showVals = n <= 31;
+  return (
+    <div className="ws-chart">
+      <div className="ws-yaxis">
+        {[...grid].reverse().map((g, i) => <span key={i}>{g.val}</span>)}
+      </div>
+      <div className="ws-chart-main">
+        <div className="ws-plot">
+          <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="ws-plot-svg">
+            <defs>
+              <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={color} stopOpacity="0.30" />
+                <stop offset="100%" stopColor={color} stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            {grid.map((g, i) => (
+              <line key={i} x1="0" x2={W} y1={g.y.toFixed(1)} y2={g.y.toFixed(1)} stroke="var(--border)" strokeWidth="1" opacity="0.55" />
+            ))}
+            <path d={areaD} fill={`url(#${gid})`} />
+            <path d={line} fill="none" stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+          </svg>
+          {pts.map((p, i) => {
+            const left = `${(p[0] / W) * 100}%`;
+            const top = `${(p[1] / H) * 100}%`;
+            return (
+              <span key={i}>
+                {showVals && <span className="ws-pt-val" style={{ left, top }}>{data[i]}</span>}
+                <span className="ws-dot" style={{ left, top, color }} />
+              </span>
+            );
+          })}
+        </div>
+        <div className={'ws-xaxis' + (rotate ? ' rot' : '')}>
+          {labels.map((l, i) => (
+            <span key={i} className="ws-xlab" style={{ left: `${(xAt(i) / W) * 100}%` }}>{l}</span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function groupedBars(groups, colors) {
+  const W = 760, H = 230, padB = 22;
+  const all = groups.flatMap((g) => g[1]);
+  const max = Math.max(...all) * 1.08, min = Math.min(0, ...all) * 1.4;
+  const y0 = (max / (max - min)) * (H - padB);
+  const gw = W / groups.length, bw = Math.min(26, (gw - 40) / colors.length);
+  const bars = [], labels = [];
+  groups.forEach((g, gi) => {
+    const cx = gi * gw + gw / 2;
+    const start = cx - (colors.length * bw + (colors.length - 1) * 5) / 2;
+    g[1].forEach((v, si) => {
+      const h = Math.abs(v) / (max - min) * (H - padB);
+      const x = start + si * (bw + 5);
+      const y = v >= 0 ? y0 - h : y0;
+      bars.push(<rect key={`${gi}-${si}`} x={x.toFixed(1)} y={y.toFixed(1)} width={bw} height={Math.max(h, 1).toFixed(1)} rx="2" fill={colors[si]} />);
+    });
+    labels.push(<text key={`l${gi}`} x={cx.toFixed(1)} y={H + 6} textAnchor="middle" fontSize="10" fill="#8b97b1">{g[0]}</text>);
+  });
+  return (
+    <svg className="gbar-svg" viewBox={`0 0 ${W} ${H + 14}`} preserveAspectRatio="none">
+      <line x1="0" y1={y0.toFixed(1)} x2={W} y2={y0.toFixed(1)} stroke="#22304f" strokeWidth="1" />
+      {bars}{labels}
+    </svg>
+  );
+}
+
+// A coloured metric panel: hero stat + zebra stat rows.
+const ACCENT = { green: 'var(--green)', red: 'var(--red)', gold: 'var(--gold)', blue: 'var(--blue)' };
+function StatPanel({ accent = 'green', icon, big, label, rows }) {
+  return (
+    <div className="ws-panel">
+      <div className={`ws-hero ${accent}`}>
+        <div className="ws-hero-ic">{icon}</div>
+        <div><div className="ws-hero-v" style={{ color: ACCENT[accent] }}>{big}</div><div className="ws-hero-l">{label}</div></div>
+      </div>
+      <div className="ws-stat-list">
+        {rows.map((r, i) => (
+          <div className={`ws-stat${r[2] ? ' highlight' : ''}`} key={i}><span className="k">{r[0]}</span><span className="v">{r[1]}</span></div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Real "by date" series (the values stay the same; the view only re-buckets
+// the x-axis between hours / dates / months).
+const TX_DATE = [8, 5, 9, 12, 8, 3, 7, 8, 8, 17, 13, 12, 5, 8, 9, 11, 10, 10, 9, 2, 9, 8, 4, 12, 13, 11, 8, 6, 6, 6, 1];
+const MEM_DATE = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0];
+const WAG_DATE = [120, 340, 80, 510, 420, 660, 580, 690, 610, 640, 520, 676];
+
+const VIEWS = [['day', 'Day'], ['date', 'Date'], ['month', 'Month']];
+
+export default function WebStat() {
+  const { toast } = useUI();
+  const [view, setView] = useState('date');
+  const tx = viewSeries(view, TX_DATE, 1);
+  const mem = viewSeries(view, MEM_DATE, 4);
+  const wag = viewSeries(view, WAG_DATE, 7);
+  return (
+    <>
+      <div className="ws-toolbar">Date Range:
+        <input type="date" defaultValue="2026-05-01" /> — <input type="date" defaultValue="2026-05-31" />
+        <button className="mini-btn gold" onClick={() => toast('Searching range… ✔')}>Search</button>
+        <button className="mini-btn" onClick={() => toast('Exported! ⬇ web-statistic.csv')}>⬇ Export</button>
+        <span className="ws-viewby">View by:
+          <span className="ws-seg">
+            {VIEWS.map((v) => (
+              <button key={v[0]} className={'ws-seg-btn' + (view === v[0] ? ' on' : '')} onClick={() => setView(v[0])}>{v[1]}</button>
+            ))}
+          </span>
+        </span>
+      </div>
+      <div className="card"><div className="card-title">💳 Transaction</div>
+        <div className="tx3">
+          <StatPanel accent="green" icon="⬇️" big="100.00" label="Total Deposit"
+            rows={[["Total Trans.", "1"], ["Average", "100.00"], ["Daily Average", "100.00"], ["Daily Average Trans.", "1.00"], ["No. of Player", "1"]]} />
+          <StatPanel accent="red" icon="⬆️" big="0.00" label="Total Withdrawal"
+            rows={[["Total Trans.", "0"], ["Average", "0.00"], ["Daily Average", "0.00"], ["Daily Average Trans.", "0.00"], ["No. of Player", "0"]]} />
+          <StatPanel accent="gold" icon="🎁" big="6.00" label="Total Promotion"
+            rows={[["Total Trans.", "1"], ["Average", "6.00"], ["Daily Average", "6.00"], ["Daily Average Trans.", "1.00"], ["No. of Player", "0"]]} />
+        </div>
+        <div className="ws-net-banner">
+          <div className="ws-net-ic">📈</div>
+          <div className="ws-net-txt"><div className="ws-net-v">+100.00</div><div className="ws-net-l">Total Net <span>(Deposit − Withdraw)</span></div></div>
+        </div>
+        <div className="ws-chart-box" style={{ marginTop: 'var(--pad)' }}>
+          <Chart data={tx.data} labels={tx.labels} color="#3aa0ff" gid="ws-grad-tx" />
+          <div className="chart-legend">
+            <span className="li"><span className="ln" style={{ background: 'var(--green)' }}></span>Deposit</span>
+            <span className="li"><span className="ln" style={{ background: 'var(--red)' }}></span>Withdraw</span>
+            <span className="li"><span className="ln" style={{ background: 'var(--gold)' }}></span>Promotion</span>
+            <span className="li"><span className="ln" style={{ background: 'var(--blue)' }}></span>Adj. In</span>
+            <span className="li"><span className="ln" style={{ background: '#8b97b1' }}></span>Adj. Out</span>
+          </div>
+        </div>
+      </div>
+      <div className="card" style={{ marginTop: 'var(--pad)' }}><div className="card-title">📊 Pie Statistics</div>
+        <div className="pie-grid">
+          {[
+            ['Deposit by Method', 'Deposits', [["GCash", "#3aa0ff", 46], ["Bank", "#2ecc71", 24], ["USDT", "#f4b223", 18], ["Maya", "#9b6dff", 12]]],
+            ['Traffic Source', 'Traffic', [["Organic", "#2ecc71", 38], ["Ads", "#f4b223", 30], ["Referral", "#3aa0ff", 20], ["Direct", "#8b97b1", 12]]],
+            ['Device Split', 'Devices', [["Android", "#2ecc71", 58], ["iOS", "#3aa0ff", 26], ["Desktop", "#f4b223", 16]]],
+            ['Wager by Category', 'Wager', [["Slots", "#f4b223", 59], ["Live", "#3aa0ff", 25], ["Sports", "#ff4d5e", 16]]],
+            ['Player Market', 'Markets', [["PHP", "#2ecc71", 52], ["VND", "#3aa0ff", 22], ["CNY", "#f4b223", 16], ["Other", "#8b97b1", 10]]],
+            ['Session Time', 'Session', [["<5 min", "#8b97b1", 22], ["5–20 min", "#3aa0ff", 41], ["20+ min", "#2ecc71", 37]]],
+          ].map((p, i) => (
+            <div className="ws-pie-card" key={i}>
+              <div className="ws-pie-title">{p[0]}</div>
+              {pie(p[1], p[2])}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="card" style={{ marginTop: 'var(--pad)' }}><div className="card-title">👥 Member</div>
+        <div className="member-flex">
+          <div className="ws-panel">
+            <div className="ws-hero blue">
+              <div className="ws-hero-ic">🧑‍💼</div>
+              <div><div className="ws-hero-v" style={{ color: 'var(--blue)' }}>0</div><div className="ws-hero-l">Total Register</div></div>
+            </div>
+            <div className="ws-stat-list">
+              <div className="ws-stat"><span className="k">Total Conversion</span><span className="v">0</span></div>
+              <div className="ws-stat highlight"><span className="k">Conversion Rate</span><span className="v" style={{ color: 'var(--blue)' }}>0.00%</span></div>
+            </div>
+          </div>
+          <div className="ws-chart-box">
+            <Chart data={mem.data} labels={mem.labels} color="#3aa0ff" gid="ws-grad-mem" />
+            <div className="chart-legend"><span className="li"><span className="ln" style={{ background: 'var(--blue)' }}></span>Member</span><span className="li"><span className="ln" style={{ background: 'var(--green)' }}></span>First Deposit</span></div>
+          </div>
+        </div>
+      </div>
+      <div className="card" style={{ marginTop: 'var(--pad)' }}><div className="card-title">🎲 Wager</div>
+        <div className="member-flex">
+          <div className="ws-panel">
+            <div className="ws-hero green">
+              <div className="ws-hero-ic">🎰</div>
+              <div><div className="ws-hero-v">676</div><div className="ws-hero-l">No. of Record</div></div>
+            </div>
+            <div className="ws-stat-list">
+              <div className="ws-stat"><span className="k">Total T/O</span><span className="v">668.06</span></div>
+              <div className="ws-stat"><span className="k">Total Bet</span><span className="v">668.06</span></div>
+              <div className="ws-stat"><span className="k">Total Payout</span><span className="v">469.71</span></div>
+              <div className="ws-stat"><span className="k">Total W/L</span><span className="v neg">-198.34</span></div>
+              <div className="ws-stat highlight"><span className="k">Total Profit</span><span className="v pos">198.34</span></div>
+            </div>
+          </div>
+          <div className="ws-chart-box">
+            <Chart data={wag.data} labels={wag.labels} color="#2ecc71" gid="ws-grad-wager" />
+            <div className="chart-legend"><span className="li"><span className="ln" style={{ background: 'var(--green)' }}></span>Turnover</span><span className="li"><span className="ln" style={{ background: 'var(--red)' }}></span>Payout</span></div>
+          </div>
+        </div>
+      </div>
+      <div className="card" style={{ marginTop: 'var(--pad)' }}><div className="card-title">🎮 Product</div>
+        <div className="ws-chart-box gbar-wrap">{groupedBars(
+          [["PRAGMATIC", [75, 25, 25, 18, 4]], ["PGSOFT", [140, 300, 300, 95, 215]], ["JILI", [530, 340, 350, 360, -32]], ["FACHAI", [8, 5, 5, 4, 1]]],
+          ['#454c5c', '#3aa0ff', '#f4b223', '#ff4d5e', '#2ecc71'])}</div>
+        <div className="chart-legend">
+          <span className="li"><span className="ln" style={{ background: '#454c5c', height: '10px', width: '10px' }}></span>No. of Record</span>
+          <span className="li"><span className="ln" style={{ background: '#3aa0ff', height: '10px', width: '10px' }}></span>T/O</span>
+          <span className="li"><span className="ln" style={{ background: '#f4b223', height: '10px', width: '10px' }}></span>Bet</span>
+          <span className="li"><span className="ln" style={{ background: '#ff4d5e', height: '10px', width: '10px' }}></span>Payout</span>
+          <span className="li"><span className="ln" style={{ background: '#2ecc71', height: '10px', width: '10px' }}></span>W/L</span>
+        </div>
+      </div>
+    </>
+  );
+}

@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+#
+# firebase-deploy.sh — build the two frontends and deploy the whole stack
+# (Hosting x2 + Cloud Functions API + Firestore rules) to Firebase.
+#
+# Prerequisites (one-time, see FIREBASE_DEPLOY.md):
+#   1. The Firebase project must be on the Blaze (pay-as-you-go) plan.
+#   2. A Firestore database must exist (Native mode).
+#   3. Export a CI token:  export FIREBASE_TOKEN="$(firebase login:ci output)"
+#
+# Usage:  FIREBASE_TOKEN=1//xxxx ./firebase-deploy.sh
+#
+set -euo pipefail
+
+PROJECT="${FIREBASE_PROJECT:-onward-1590a}"
+ADMIN_SITE="${FIREBASE_ADMIN_SITE:-onward-1590a-admin}"
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+cd "$ROOT"
+
+if [ -z "${FIREBASE_TOKEN:-}" ] && [ -z "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]; then
+  echo "ERROR: no Firebase credentials."
+  echo "  On your own machine run:  firebase login:ci"
+  echo "  then:  export FIREBASE_TOKEN='<the token it prints>'"
+  echo "  (or set GOOGLE_APPLICATION_CREDENTIALS to a service-account key path)"
+  exit 1
+fi
+
+# Resolve the Firebase CLI (use global if present, otherwise npx).
+if command -v firebase >/dev/null 2>&1; then
+  FB="firebase"
+else
+  echo "==> firebase CLI not found; using npx firebase-tools"
+  FB="npx --yes firebase-tools"
+fi
+
+echo "==> [1/5] Building customer frontend (onward-react)"
+( cd onward-react && npm install --no-audit --no-fund && npm run build )
+
+echo "==> [2/5] Building admin panel (onward-admin)"
+( cd onward-admin && npm install --no-audit --no-fund && npm run build )
+
+echo "==> [3/5] Ensuring admin Hosting site '$ADMIN_SITE' exists"
+$FB hosting:sites:create "$ADMIN_SITE" --project "$PROJECT" 2>/dev/null \
+  || echo "    (site already exists — continuing)"
+
+echo "==> [4/5] Binding Hosting targets"
+$FB target:apply hosting frontend "$PROJECT"    --project "$PROJECT"
+$FB target:apply hosting admin    "$ADMIN_SITE" --project "$PROJECT"
+
+echo "==> [5/5] Deploying Firestore rules + Functions + Hosting"
+$FB deploy \
+  --only firestore:rules,functions,hosting \
+  --project "$PROJECT" \
+  --non-interactive --force
+
+echo ""
+echo "==> Deploy complete."
+echo "    Customer site : https://${PROJECT}.web.app"
+echo "    Admin panel   : https://${ADMIN_SITE}.web.app"
+echo "    API health    : https://${PROJECT}.web.app/api/health"

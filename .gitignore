@@ -1,0 +1,42 @@
+# ---- Dependencies ----
+node_modules/
+**/node_modules/
+
+# ---- Build output ----
+dist/
+dist-ssr/
+**/dist/
+build/
+
+# ---- Environment / secrets ----
+.env
+.env.*
+!.env.example
+*.local
+
+# ---- Backend runtime data (json/sqlite store + uploads) ----
+onward-integration/backend/data/
+onward-integration/backend/uploads/*
+!onward-integration/backend/uploads/.gitkeep
+*.sqlite
+*.db
+
+# ---- Firebase ----
+.firebase/
+firebase-debug.log*
+firestore-debug.log*
+*-debug.log
+
+# ---- Logs ----
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---- Editor / OS ----
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
