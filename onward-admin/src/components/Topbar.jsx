@@ -3,6 +3,62 @@ import { useLocation } from 'react-router-dom';
 import { useUI } from '../context/UIContext';
 import MENU from '../services/menu';
 import { ADMIN_LANGS } from '../i18n/dict';
+import { listNotifications } from '../services/notificationService';
+
+const fmtTime = (t) => { if (!t) return ''; const d = new Date(t); return Number.isNaN(d.getTime()) ? '' : d.toLocaleString(); };
+
+// Notification bell with a real dropdown that loads admin notifications.
+function NotificationBell() {
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const ref = useRef(null);
+
+  const load = () => {
+    setLoading(true);
+    listNotifications()
+      .then((d) => setItems(Array.isArray(d) ? d : []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const t = setTimeout(() => document.addEventListener('pointerdown', onDown), 0);
+    return () => { clearTimeout(t); document.removeEventListener('pointerdown', onDown); };
+  }, [open]);
+
+  const count = items.length;
+  return (
+    <div ref={ref} style={{ position: 'relative' }} id="nbWrap">
+      <button className="tb-btn bell" onClick={() => { setOpen((o) => !o); if (!open) load(); }} aria-label="Notifications">
+        🔔{count > 0 && <span className="dot" id="nbDot">{count > 99 ? '99+' : count}</span>}
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: '120%', right: 0, zIndex: 9999, width: 320, maxHeight: '72vh', overflowY: 'auto',
+          background: 'var(--card, #131a2c)', border: '1px solid var(--border, #243049)', borderRadius: 10, boxShadow: '0 16px 44px rgba(0,0,0,.5)',
+        }}>
+          <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border, #243049)', fontWeight: 800 }}>Notifications</div>
+          {loading ? (
+            <div style={{ padding: 16, color: 'var(--muted, #8898b8)', fontSize: 13 }}>Loading…</div>
+          ) : items.length === 0 ? (
+            <div style={{ padding: 18, color: 'var(--muted, #8898b8)', fontSize: 13, textAlign: 'center' }}>No notifications</div>
+          ) : items.map((n, i) => (
+            <div key={n.id || i} style={{ padding: '11px 14px', borderBottom: '1px solid var(--border, #243049)' }}>
+              <div style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--text, #e8edf7)' }}>
+                {n.title || 'Untitled'}{n.status === 'draft' && <span style={{ fontSize: 10, color: 'var(--gold, #f4b223)', marginLeft: 6 }}>· draft</span>}
+              </div>
+              {n.body && <div style={{ fontSize: 12.5, color: 'var(--muted, #8898b8)', marginTop: 3 }}>{n.body}</div>}
+              <div style={{ fontSize: 11, color: 'var(--muted, #8898b8)', marginTop: 4 }}>{fmtTime(n.sentAt || n.createdAt)}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Resolve the page title for the current route from the MENU hierarchy.
 function titleFor(id) {
@@ -36,9 +92,7 @@ export default function Topbar() {
       <button className="hamburger" onClick={openSidebar} aria-label="Open menu">☰</button>
       <div className="page-title" id="pageTitle">{titleFor(id)}</div>
       <div className="tb-right">
-        <div style={{ position: 'relative' }} id="nbWrap">
-          <button className="tb-btn bell" onClick={() => toast('Notifications')}>🔔<span className="dot" id="nbDot">6</span></button>
-        </div>
+        <NotificationBell />
         <button className="tb-btn tb-theme" id="themeBtn" title="Toggle day / night" onClick={toggleTheme}>
           <span className="ic">{light ? '☀️' : '🌙'}</span>
         </button>
