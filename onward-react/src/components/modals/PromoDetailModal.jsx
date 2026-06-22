@@ -1,5 +1,6 @@
 import Modal from './Modal.jsx';
 import { useUI } from '../../context/UIContext';
+import { useAuth } from '../../context/AuthContext';
 import { buildPromoTerms } from '../../utils/promoTerms';
 
 /*
@@ -20,6 +21,7 @@ function fmtDate(d) {
 
 export default function PromoDetailModal() {
   const { activeModal, modalData, closeModal, openModal } = useUI();
+  const { profile } = useAuth();
   const open = activeModal === 'promo';
   if (!open) return null;
 
@@ -42,7 +44,7 @@ export default function PromoDetailModal() {
   const starts = fmtDate(p.startDate);
   const ends = fmtDate(p.endDate);
 
-  const terms = buildPromoTerms(p);
+  const terms = buildPromoTerms(p, profile?.currency);
   const ctaLabel = p.buttonText || 'Deposit Now';
   const onCta = () => {
     closeModal();

@@ -95,9 +95,11 @@ function normalizePromo(p) {
 
 /* a blank promotion form */
 const EMPTY_PROMO = {
-  title: '', type: 'welcome', bonus: '', maxBonus: '', minDeposit: '', wager: '', turnover: '',
+  title: '', type: 'welcome', currency: '', bonus: '', maxBonus: '', minDeposit: '', wager: '', turnover: '',
   description: '', image: '', startDate: '', endDate: '', status: 'active', buttonText: '', buttonLink: '',
 };
+
+const PROMO_CURRENCIES = ['PHP', 'USD', 'EUR', 'INR', 'THB', 'VND', 'IDR', 'MYR', 'CNY', 'JPY'];
 
 /* ===================== create / edit modal ===================== */
 function PromoEditModal({ initial, onClose, onSaved }) {
@@ -129,7 +131,7 @@ function PromoEditModal({ initial, onClose, onSaved }) {
     if (!f.title.trim()) { toast('Promotion title is required', 'error'); return; }
     setBusy(true);
     const payload = {
-      title: f.title.trim(), type: f.type, bonus: f.bonus, maxBonus: f.maxBonus,
+      title: f.title.trim(), type: f.type, currency: f.currency, bonus: f.bonus, maxBonus: f.maxBonus,
       minDeposit: f.minDeposit, wager: f.wager, turnover: f.turnover,
       description: f.description, image: f.image, startDate: f.startDate, endDate: f.endDate,
       status: f.status, buttonText: f.buttonText, buttonLink: f.buttonLink,
@@ -157,6 +159,7 @@ function PromoEditModal({ initial, onClose, onSaved }) {
           <div className="pm-grid">
             <div className="pm-fld" style={{ gridColumn: '1 / -1' }}><label>Title <span style={{ color: 'var(--red)' }}>*</span></label><input value={f.title} onChange={set('title')} placeholder="200% Welcome Bonus" /></div>
             <div className="pm-fld"><label>Type</label><select value={f.type} onChange={set('type')}><option value="welcome">welcome</option><option value="deposit">deposit</option><option value="referral">referral</option><option value="cashback">cashback</option><option value="freespin">freespin</option></select></div>
+            <div className="pm-fld"><label>Currency</label><select value={f.currency} onChange={set('currency')}><option value="">Auto (player's currency)</option>{PROMO_CURRENCIES.map((c) => <option key={c} value={c}>{c} only</option>)}</select></div>
             <div className="pm-fld"><label>Bonus</label><input value={f.bonus} onChange={set('bonus')} placeholder="200% / ₱500 / 100 spins" /></div>
             <div className="pm-fld"><label>Max Bonus</label><input value={f.maxBonus} onChange={set('maxBonus')} placeholder="₱10,000" /></div>
             <div className="pm-fld"><label>Min Deposit</label><input value={f.minDeposit} onChange={set('minDeposit')} placeholder="₱500" /></div>
@@ -183,7 +186,7 @@ function PromoEditModal({ initial, onClose, onSaved }) {
               player Promo Detail modal — no manual typing needed. */}
           <div style={{ marginTop: 16, borderTop: '1px dashed var(--border)', paddingTop: 12 }}>
             <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text)', marginBottom: 2 }}>TERMS &amp; CONDITIONS <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(auto-generated — shown to members)</span></div>
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>Lines 1–6 fill from the package above; 7–12 are fixed.</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>Lines 1–6 fill from the package above; 7–12 are fixed.{f.currency ? '' : ' Currency is set to Auto — each member sees their own currency (PHP shown as example below).'}</div>
             <ol style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 5, maxHeight: 180, overflowY: 'auto' }}>
               {buildPromoTerms(f).map((t, i) => (
                 <li key={i} style={{ fontSize: 11.5, lineHeight: 1.45, color: i < 6 ? 'var(--text)' : 'var(--muted)' }}>{t}</li>

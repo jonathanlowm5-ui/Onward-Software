@@ -14,10 +14,13 @@ function digits(value, fallback) {
   return m ? m[0].replace(/,/g, '') : String(fallback);
 }
 
-export function buildPromoTerms(promo = {}) {
+// viewerCurrency = the currency of the player viewing the promo. A promo pinned
+// to a specific currency uses that; otherwise the terms follow the viewer's
+// own currency (defaulting to PHP).
+export function buildPromoTerms(promo = {}, viewerCurrency) {
   const p = promo || {};
   const minDep = digits(p.minDeposit ?? p.md, 100);
-  const currency = String(p.currency || 'PHP').toUpperCase();
+  const currency = String(p.currency || viewerCurrency || 'PHP').toUpperCase();
   const rollover = digits(p.wager ?? p.rollover, 15);
   const firstDepositOnly = /welcome|first/i.test(String(p.type || '')) || p.firstDepositOnly;
 

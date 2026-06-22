@@ -18,14 +18,19 @@ const { requireAuth } = require('../auth');
 
 const router = express.Router();
 const COLLECTION = 'promotions';
+const CURRENCIES = ['PHP', 'USD', 'EUR', 'INR', 'THB', 'VND', 'IDR', 'MYR', 'CNY', 'JPY'];
 
 function clean(body) {
+  const cur = String(body.currency || '').toUpperCase();
   return {
     image: body.image || '',
     title: String(body.title || '').trim(),
     description: String(body.description || '').trim(),
     // Economic / display fields (shown on the admin table and player cards).
     type: String(body.type || 'welcome').trim(),
+    // Optional currency restriction. Empty = auto (follows the viewing
+    // player's currency in the terms & conditions).
+    currency: CURRENCIES.includes(cur) ? cur : '',
     bonus: String(body.bonus || '').trim(),
     maxBonus: String(body.maxBonus ?? body.max ?? '').trim(),
     minDeposit: String(body.minDeposit ?? body.md ?? '').trim(),
