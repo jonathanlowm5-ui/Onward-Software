@@ -170,6 +170,27 @@ function move(req, res, sign) {
 router.post('/:id/wallet/credit', requireAuth, requirePerm('players.adjust'), (req, res) => move(req, res, 1));
 router.post('/:id/wallet/debit', requireAuth, requirePerm('players.adjust'), (req, res) => move(req, res, -1));
 
+// ---- ADMIN: manual deposit (credits the wallet + records a DEPOSIT, not an
+// adjustment) — requires the bank/channel the funds were received into. ----
+router.post('/:id/wallet/deposit', requireAuth, requirePerm('players.adjust'), (req, res) => {
+  const p = store.get(COLLECTION, req.params.id);
+  if (!p) return res.status(404).json({ error: 'Player not found' });
+  const amount = Number(req.body?.amount || 0);
+  if (!(amount > 0)) return res.status(400).json({ error: 'A positive amount is required' });
+  const bank = String(req.body?.bank || '').trim();
+  if (!bank) return res.status(400).json({ error: 'Please choose the bank of deposit' });
+  const reference = String(req.body?.reference || '').trim();
+  const updated = store.update(COLLECTION, req.params.id, { balance: Number(p.balance || 0) + amount });
+  const txn = store.insert('transactions', {
+    playerId: p.id, username: p.username, currency: p.currency || 'PHP',
+    type: 'deposit', amount,
+    method: bank, bank, source: 'manual-deposit', status: 'approved',
+    reference: reference || undefined,
+    note: req.body?.note || `Manual deposit via ${bank}`,
+  });
+  res.json({ playerId: p.id, balance: updated.balance, transaction: txn });
+});
+
 // ---- ADMIN: full player detail (incl. bank + login history + shared-IP accounts) ----
 router.get('/:id', requireAuth, (req, res) => {
   const p = store.get(COLLECTION, req.params.id);

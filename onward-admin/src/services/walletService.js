@@ -7,6 +7,10 @@ export const credit = (playerId, amount, note) =>
   api.post(`/players/${playerId}/wallet/credit`, { amount, note }).then((r) => r.data);
 export const debit = (playerId, amount, note) =>
   api.post(`/players/${playerId}/wallet/debit`, { amount, note }).then((r) => r.data);
+// Manual deposit: credits the wallet and records a DEPOSIT (with the bank the
+// funds were received into) — distinct from a balance adjustment.
+export const manualDeposit = (playerId, { amount, bank, reference, note }) =>
+  api.post(`/players/${playerId}/wallet/deposit`, { amount, bank, reference, note }).then((r) => r.data);
 export const listTransactions = (params) => api.get('/transactions', { params }).then((r) => r.data);
 export const listDeposits = (params) => api.get('/transactions', { params: { type: 'deposit', ...params } }).then((r) => r.data);
 export const listWithdrawals = (params) => api.get('/transactions', { params: { type: 'withdrawal', ...params } }).then((r) => r.data);
