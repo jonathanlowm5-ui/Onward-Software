@@ -2,6 +2,7 @@ import { useMemo, useRef, useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useUI } from '../context/UIContext';
 import GameCard from '../components/casino/GameCard.jsx';
+import BannerCarousel from '../components/promotions/BannerCarousel.jsx';
 import { ALL_SLOTS, PROVIDERS, PROVIDER_LOGOS } from '../services/data/gameData';
 
 const PER_PAGE = 30;
@@ -38,6 +39,9 @@ export default function Slots() {
 
   return (
     <div id="view-slots">
+      <div className="section" style={{ paddingTop: 20, paddingBottom: 0 }}>
+        <BannerCarousel />
+      </div>
       <div className="section">
         <div className="section-header">
           <h2 className="section-title" data-i18n="sec_all_slots">🎲 All Slot Games</h2>

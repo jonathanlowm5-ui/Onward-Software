@@ -60,7 +60,9 @@ export default function Lobby() {
   return (
     <div id="view-lobby">
       {/* HERO BANNER — admin-uploaded promo banners (one image fits every page) */}
-      <BannerCarousel promos={promos} />
+      <div className="section" style={{ paddingTop: 20, paddingBottom: 0 }}>
+        <BannerCarousel promos={promos} />
+      </div>
 
       {/* HERO BANNER GRID */}
       <section id="hero">

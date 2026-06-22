@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useUI } from '../context/UIContext';
 import useSectionNav from '../hooks/useSectionNav';
+import BannerCarousel from '../components/promotions/BannerCarousel.jsx';
 import { JP_WINNINGS, JP_FAV_GAMES } from '../services/data/gameData';
 
 const TIER_ICONS = { Bronze: '🥉', Silver: '🥈', Golden: '🥇', Imperial: '👑' };
@@ -46,6 +47,7 @@ export default function Jackpots() {
   return (
     <div id="view-jackpots">
       <div className="jp-page">
+        <BannerCarousel />
 
         {/* ORNATE HEADER */}
         <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '16px 20px 0' }}>

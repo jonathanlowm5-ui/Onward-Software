@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { resolvePromoBanner } from '../../utils/promoTerms';
+import { fetchPromotions } from '../../services/gamesService';
 
 /*
  * BannerCarousel — one responsive hero banner reused across the site (front
@@ -13,10 +14,31 @@ import { resolvePromoBanner } from '../../utils/promoTerms';
  *
  * Recommended source image: 1200 × 525 (16:7), under 4 MB.
  */
-export default function BannerCarousel({ promos = [], className = '' }) {
+export default function BannerCarousel({ promos, className = '' }) {
   const { openModal } = useUI();
   const { profile } = useAuth();
-  const slides = (promos || [])
+
+  // When no promos are passed in, the banner fetches its own (active admin
+  // promotions) so it can be dropped onto any page with zero wiring.
+  const [fetched, setFetched] = useState([]);
+  const selfFetch = promos === undefined;
+  useEffect(() => {
+    if (!selfFetch) return undefined;
+    let alive = true;
+    fetchPromotions().then((p) => { if (alive && Array.isArray(p)) setFetched(p); }).catch(() => {});
+    return () => { alive = false; };
+  }, [selfFetch]);
+
+  const source = selfFetch ? fetched : (promos || []);
+  // Respect region targeting: a promo pinned to a currency/country only shows to
+  // matching players (guests see all).
+  const cur = profile?.currency;
+  const country = profile?.country;
+  const matchesViewer = (p) =>
+    (!p.currency || !cur || p.currency === cur) &&
+    (!p.country || !country || p.country === country);
+  const slides = source
+    .filter(matchesViewer)
     .map((p) => ({ p, img: resolvePromoBanner(p, profile?.currency) }))
     .filter((s) => s.img);
 

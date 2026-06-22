@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef } from 'react';
 import { useUI } from '../context/UIContext';
 import useSectionNav from '../hooks/useSectionNav';
+import BannerCarousel from '../components/promotions/BannerCarousel.jsx';
 import { LOTTERY_LOGOS } from '../data/lotteryLogos';
 
 // ===== Latest results data (from initLotteryPage) =====
@@ -245,6 +246,9 @@ export default function Lottery() {
 
   return (
     <div id="view-lottery">
+      <div className="section" style={{ paddingTop: 20, paddingBottom: 0 }}>
+        <BannerCarousel />
+      </div>
       <div className="section">
 
         {/* Header */}
