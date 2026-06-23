@@ -36,6 +36,15 @@ function defaultConfig() {
     wheel: {
       enabled: true,
       image: '',
+      theme: {
+        bgImage: '',
+        titleImage: '',
+        title: 'WHEEL OF FORTUNE',
+        rimColor: '#f4b223',
+        hubColor: '#f4b223',
+        pointerColor: '#f4b223',
+        bulbs: true,
+      },
       freeSpinsPerDay: 1,
       spinCost: 50,
       maxPerDay: 5,
@@ -78,6 +87,19 @@ function cleanSlice(raw = {}, def = {}) {
   };
 }
 
+function cleanTheme(raw = {}, def = {}) {
+  const t = raw && typeof raw === 'object' ? raw : {};
+  return {
+    bgImage: str(t.bgImage, '').slice(0, 2048),
+    titleImage: str(t.titleImage, '').slice(0, 2048),
+    title: str(t.title, def.title || 'WHEEL OF FORTUNE').slice(0, 60),
+    rimColor: str(t.rimColor, def.rimColor || '#f4b223').slice(0, 24) || (def.rimColor || '#f4b223'),
+    hubColor: str(t.hubColor, def.hubColor || '#f4b223').slice(0, 24) || (def.hubColor || '#f4b223'),
+    pointerColor: str(t.pointerColor, def.pointerColor || '#f4b223').slice(0, 24) || (def.pointerColor || '#f4b223'),
+    bulbs: bool(t.bulbs, def.bulbs !== undefined ? def.bulbs : true),
+  };
+}
+
 function cleanConfig(raw = {}) {
   const def = defaultConfig();
   const w = raw.wheel || {};
@@ -89,6 +111,7 @@ function cleanConfig(raw = {}) {
     wheel: {
       enabled: bool(w.enabled, def.wheel.enabled),
       image: str(w.image, '').slice(0, 2048),
+      theme: cleanTheme(w.theme, def.wheel.theme),
       freeSpinsPerDay: Math.max(0, num(w.freeSpinsPerDay, def.wheel.freeSpinsPerDay)),
       spinCost: Math.max(0, num(w.spinCost, def.wheel.spinCost)),
       maxPerDay: Math.max(1, num(w.maxPerDay, def.wheel.maxPerDay)),

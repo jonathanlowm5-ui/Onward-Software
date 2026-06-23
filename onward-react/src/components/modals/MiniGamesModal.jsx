@@ -95,50 +95,82 @@ function FortuneWheel({ config, onClose }) {
   };
 
   const size = 320;
+  const theme = wheel.theme || {};
+  const rimColor = theme.rimColor || '#f4b223';
+  const hubColor = theme.hubColor || '#f4b223';
+  const pointerColor = theme.pointerColor || '#f4b223';
+  const showBulbs = theme.bulbs !== false;
+  const BULB_COUNT = 16;
+  const bulbs = Array.from({ length: BULB_COUNT }, (_, i) => {
+    const ang = (i / BULB_COUNT) * 2 * Math.PI;
+    const rB = size / 2 - 7;
+    return { x: size / 2 + rB * Math.cos(ang), y: size / 2 + rB * Math.sin(ang), on: i % 2 === 0 };
+  });
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr)', gap: 18, justifyItems: 'center' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr)', gap: 16, justifyItems: 'center' }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', width: '100%' }}>
         <span style={chip}>🎟️ Free today: <b style={{ color: 'var(--gold)' }}>{freeLeft}</b></span>
         {spinCost > 0 && <span style={chip}>Paid spin: <b style={{ color: 'var(--gold)' }}>{sym}{spinCost.toLocaleString()}</b></span>}
         {isLoggedIn && <span style={chip}>Balance: <b style={{ color: 'var(--gold)' }}>{sym}{Number(profile?.balance || 0).toLocaleString()}</b></span>}
       </div>
 
-      <div style={{ position: 'relative', width: size, height: size, maxWidth: '86vw' }}>
-        {/* pointer */}
-        <div style={{ position: 'absolute', top: -6, left: '50%', transform: 'translateX(-50%)', zIndex: 3,
-          width: 0, height: 0, borderLeft: '14px solid transparent', borderRight: '14px solid transparent',
-          borderTop: '26px solid var(--gold,#f4b223)', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.5))' }} />
-        {/* disc */}
-        <div style={{
-          width: '100%', height: '100%', borderRadius: '50%',
-          ...(wheelImage
-            ? { backgroundImage: `url(${wheelImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-            : { background: gradient }),
-          transform: `rotate(${rot}deg)`,
-          transition: spinning ? 'transform 4s cubic-bezier(.17,.67,.27,1)' : 'none',
-          boxShadow: '0 0 0 8px rgba(244,178,35,.85), 0 0 0 12px rgba(0,0,0,.35), 0 14px 40px rgba(0,0,0,.5)',
-          position: 'relative',
-        }}>
-          {/* slice labels — only for the generated colour wheel */}
-          {!wheelImage && active.map((s, i) => {
-            const a = (centers[i] - 90) * (Math.PI / 180); // -90 → 0deg at top
-            const r = size * 0.34;
-            const x = size / 2 + r * Math.cos(a);
-            const y = size / 2 + r * Math.sin(a);
-            return (
-              <span key={i} style={{
-                position: 'absolute', left: x, top: y, transform: 'translate(-50%,-50%)',
-                fontSize: 11, fontWeight: 800, color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,.85)',
-                maxWidth: 76, textAlign: 'center', lineHeight: 1.05, pointerEvents: 'none',
-              }}>{s.l}</span>
-            );
-          })}
+      {/* Themed stage — background, title banner, gold light-bulb rim */}
+      <div style={{
+        position: 'relative', width: '100%', maxWidth: size + 80, borderRadius: 18, overflow: 'hidden',
+        padding: '16px 14px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
+        background: theme.bgImage ? `url(${theme.bgImage}) center/cover no-repeat` : 'radial-gradient(120% 90% at 50% 0%, #3a2a14, #190f04 72%)',
+        border: `1px solid ${rimColor}55`, boxShadow: 'inset 0 0 70px rgba(0,0,0,.6)',
+      }}>
+        {/* title */}
+        {theme.titleImage
+          ? <img src={theme.titleImage} alt="" style={{ maxWidth: '82%', maxHeight: 70, objectFit: 'contain', display: 'block' }} />
+          : <div style={fwTitle}>{theme.title || 'WHEEL OF FORTUNE'}</div>}
+
+        <div style={{ position: 'relative', width: size, height: size, maxWidth: '80vw', aspectRatio: '1 / 1' }}>
+          {/* pointer */}
+          <div style={{ position: 'absolute', top: -2, left: '50%', transform: 'translateX(-50%)', zIndex: 6,
+            width: 0, height: 0, borderLeft: '13px solid transparent', borderRight: '13px solid transparent',
+            borderTop: `24px solid ${pointerColor}`, filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.6))' }} />
+          {/* disc */}
+          <div style={{
+            width: '100%', height: '100%', borderRadius: '50%',
+            ...(wheelImage
+              ? { backgroundImage: `url(${wheelImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+              : { background: gradient }),
+            transform: `rotate(${rot}deg)`,
+            transition: spinning ? 'transform 4s cubic-bezier(.17,.67,.27,1)' : 'none',
+            boxShadow: 'inset 0 0 30px rgba(0,0,0,.45)', position: 'relative',
+          }}>
+            {/* slice labels — only for the generated colour wheel */}
+            {!wheelImage && active.map((s, i) => {
+              const a = (centers[i] - 90) * (Math.PI / 180); // -90 → 0deg at top
+              const r = size * 0.33;
+              const x = size / 2 + r * Math.cos(a);
+              const y = size / 2 + r * Math.sin(a);
+              return (
+                <span key={i} style={{
+                  position: 'absolute', left: x, top: y, transform: `translate(-50%,-50%) rotate(${centers[i]}deg)`,
+                  fontSize: 11, fontWeight: 800, color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,.85)',
+                  maxWidth: 74, textAlign: 'center', lineHeight: 1.05, pointerEvents: 'none', whiteSpace: 'nowrap',
+                }}>{s.l}</span>
+              );
+            })}
+          </div>
+          {/* gold rim ring */}
+          <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', pointerEvents: 'none', zIndex: 3,
+            boxShadow: `inset 0 0 0 3px rgba(0,0,0,.45), inset 0 0 0 13px ${rimColor}, inset 0 0 0 16px rgba(0,0,0,.4)` }} />
+          {/* light bulbs */}
+          {showBulbs && bulbs.map((b, i) => (
+            <span key={i} style={{ position: 'absolute', left: b.x, top: b.y, transform: 'translate(-50%,-50%)', zIndex: 4,
+              width: 7, height: 7, borderRadius: '50%', background: b.on ? '#fff7d6' : '#b98e2c',
+              boxShadow: b.on ? '0 0 5px 1px rgba(255,240,180,.9)' : 'inset 0 0 2px rgba(0,0,0,.5)' }} />
+          ))}
+          {/* hub knob */}
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 5,
+            width: 46, height: 46, borderRadius: '50%', background: `radial-gradient(circle at 35% 30%, #fff2c0, ${hubColor})`,
+            border: '3px solid rgba(0,0,0,.35)', boxShadow: '0 2px 8px rgba(0,0,0,.55)' }} />
         </div>
-        {/* hub */}
-        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 2,
-          width: 54, height: 54, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, #2a3350, #121a2c)',
-          border: '3px solid var(--gold,#f4b223)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>🎡</div>
       </div>
 
       {result && (
@@ -246,6 +278,7 @@ function LuckyTicket({ config, onClose }) {
 }
 
 const chip = { fontSize: 13, color: 'var(--text-muted,#8898b8)', background: 'rgba(255,255,255,.05)', border: '1px solid var(--border,#243049)', borderRadius: 999, padding: '5px 12px' };
+const fwTitle = { fontFamily: "'Cinzel', serif", fontWeight: 900, fontSize: 26, lineHeight: 1.05, textAlign: 'center', color: '#ffd75e', textShadow: '0 2px 0 #a8730a, 0 4px 8px rgba(0,0,0,.6)', letterSpacing: '.04em' };
 const ltStat = { background: 'rgba(255,255,255,.04)', border: '1px solid var(--border,#243049)', borderRadius: 12, padding: '11px 13px' };
 const ltLbl = { fontSize: 11, color: 'var(--text-muted,#8898b8)', textTransform: 'uppercase', letterSpacing: '.04em' };
 const ltVal = { fontWeight: 800, marginTop: 4, color: '#fff' };

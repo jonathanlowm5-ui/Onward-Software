@@ -28,7 +28,8 @@ const INITIAL_SLICES = [
   { l: '₱5,000 JACKPOT', p: 5000, w: 3, c: '#f7e08b', on: 1 },
 ];
 
-const INITIAL_WHEEL_CFG = { enabled: true, image: '', freeSpinsPerDay: 1, spinCost: 50, maxPerDay: 5 };
+const INITIAL_WHEEL_THEME = { bgImage: '', titleImage: '', title: 'WHEEL OF FORTUNE', rimColor: '#f4b223', hubColor: '#f4b223', pointerColor: '#f4b223', bulbs: true };
+const INITIAL_WHEEL_CFG = { enabled: true, image: '', theme: { ...INITIAL_WHEEL_THEME }, freeSpinsPerDay: 1, spinCost: 50, maxPerDay: 5 };
 const INITIAL_TICKET_CFG = { enabled: true, drawDate: '', totalTickets: 10000, winnersCount: 50, earnBy: 'Every ₱100 deposited', minDeposit: 100, maxPerPlayer: 50 };
 
 const INITIAL_BIGWINS = [
@@ -355,6 +356,25 @@ function MgWheel({ slices, setSlices, wheelCfg = {}, setWheelCfg, onSave, saving
     } finally { setImgUploading(false); }
   };
   const removeWheelImage = () => setWheelCfg?.((s) => ({ ...s, image: '' }));
+
+  // Theme design controls (background, title banner, colours).
+  const theme = wheelCfg.theme || {};
+  const setTheme = (k, v) => setWheelCfg?.((s) => ({ ...s, theme: { ...(s.theme || {}), [k]: v } }));
+  const [themeUploading, setThemeUploading] = useState('');
+  const pickThemeImage = (key) => async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) { toast('⚠ Image too large — keep it under 4 MB'); return; }
+    setThemeUploading(key);
+    try {
+      const { url } = await uploadImage(file);
+      setTheme(key, url);
+      toast('Image uploaded ✔');
+    } catch (err) {
+      toast('⚠ Upload failed: ' + (err.message || 'error'));
+    } finally { setThemeUploading(''); }
+  };
   const spinTest = () => {
     const next = rot + 1080 + Math.floor(Math.random() * 360);
     setRot(next);
@@ -414,6 +434,40 @@ function MgWheel({ slices, setSlices, wheelCfg = {}, setWheelCfg, onSave, saving
             </div>
             <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>For a custom image the prizes use equal segments in the slice order above. Save to publish.</div>
           </div>
+        </div>
+        <div className="card" style={{ marginTop: 'var(--pad)' }}>
+          <div className="card-title">🎨 Wheel Design <span style={{ color: 'var(--muted)', fontSize: 12, fontWeight: 600 }}>(template — change anytime)</span></div>
+          <div className="fld" style={{ marginBottom: 12 }}>
+            <label>Title Text</label>
+            <input value={theme.title || ''} onChange={(e) => setTheme('title', e.target.value)} placeholder="WHEEL OF FORTUNE" />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+            <div>
+              <label className="fld-lbl">Background Image</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <input type="file" accept="image/*" onChange={pickThemeImage('bgImage')} />
+                {themeUploading === 'bgImage' && <span style={{ color: 'var(--gold)' }}>…</span>}
+                {theme.bgImage && <button className="del-btn" onClick={() => setTheme('bgImage', '')}>🗑</button>}
+              </div>
+            </div>
+            <div>
+              <label className="fld-lbl">Title Image</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <input type="file" accept="image/*" onChange={pickThemeImage('titleImage')} />
+                {themeUploading === 'titleImage' && <span style={{ color: 'var(--gold)' }}>…</span>}
+                {theme.titleImage && <button className="del-btn" onClick={() => setTheme('titleImage', '')}>🗑</button>}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            <div><label className="fld-lbl">Rim Colour</label><input type="color" value={theme.rimColor || '#f4b223'} onChange={(e) => setTheme('rimColor', e.target.value)} style={{ width: '100%', height: 38, borderRadius: 8, background: 'none', border: '1px solid var(--border)' }} /></div>
+            <div><label className="fld-lbl">Hub Colour</label><input type="color" value={theme.hubColor || '#f4b223'} onChange={(e) => setTheme('hubColor', e.target.value)} style={{ width: '100%', height: 38, borderRadius: 8, background: 'none', border: '1px solid var(--border)' }} /></div>
+            <div><label className="fld-lbl">Pointer Colour</label><input type="color" value={theme.pointerColor || '#f4b223'} onChange={(e) => setTheme('pointerColor', e.target.value)} style={{ width: '100%', height: 38, borderRadius: 8, background: 'none', border: '1px solid var(--border)' }} /></div>
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text)', fontSize: 14, marginTop: 12 }}>
+            <input type="checkbox" checked={theme.bulbs !== false} onChange={(e) => setTheme('bulbs', e.target.checked)} /> Show light-bulb rim
+          </label>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>Design the template here now and restyle it anytime — changes go live on the player wheel after Save Wheel.</div>
         </div>
         <div className="card" style={{ marginTop: 'var(--pad)' }}><div className="card-title">📊 Wheel Stats</div>
           <div className="wstat-row"><span className="k">Total Spins Today</span><span className="v">911</span></div>
@@ -699,7 +753,7 @@ export default function Promotions() {
     getMiniGames().then((cfg) => {
       if (!alive || !cfg) return;
       if (Array.isArray(cfg.wheel?.slices) && cfg.wheel.slices.length) setSlices(cfg.wheel.slices);
-      if (cfg.wheel) setWheelCfg((s) => ({ ...s, enabled: cfg.wheel.enabled, image: cfg.wheel.image || '', freeSpinsPerDay: cfg.wheel.freeSpinsPerDay, spinCost: cfg.wheel.spinCost, maxPerDay: cfg.wheel.maxPerDay }));
+      if (cfg.wheel) setWheelCfg((s) => ({ ...s, enabled: cfg.wheel.enabled, image: cfg.wheel.image || '', theme: { ...INITIAL_WHEEL_THEME, ...(cfg.wheel.theme || {}) }, freeSpinsPerDay: cfg.wheel.freeSpinsPerDay, spinCost: cfg.wheel.spinCost, maxPerDay: cfg.wheel.maxPerDay }));
       if (cfg.ticket) setTicketCfg((s) => ({ ...s, ...cfg.ticket }));
     }).catch(() => {});
     return () => { alive = false; };
