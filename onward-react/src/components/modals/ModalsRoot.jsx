@@ -6,6 +6,7 @@ import BankSetupModal from './BankSetupModal.jsx';
 import DownloadModal from './DownloadModal.jsx';
 import MiniGamesModal from './MiniGamesModal.jsx';
 import PromoDetailModal from './PromoDetailModal.jsx';
+import UseCodeModal from './UseCodeModal.jsx';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 
@@ -40,6 +41,7 @@ export default function ModalsRoot() {
       <DownloadModal />
       <MiniGamesModal />
       <PromoDetailModal />
+      <UseCodeModal />
     </>
   );
 }

@@ -45,6 +45,7 @@ export default function Sidebar() {
 
   const openFortuneWheel = () => { openModal('fortune'); closeSidebar(); };
   const openPromoModal = () => { openModal('promo'); closeSidebar(); };
+  const openUseCodeModal = () => { openModal('usecode'); closeSidebar(); };
   const openDownloadModal = () => { openModal('download'); closeSidebar(); };
 
   return (
@@ -68,7 +69,7 @@ export default function Sidebar() {
           <SbItem icon="💎" label="VIP Club" i18n="nav_vip" onClick={() => go('vip')} />
           <SbItem icon="⚡" label="Giveaways" i18n="nav_giveaways" badge={{ cls: 'hot', text: 'HOT' }} onClick={() => go('giveaways')} />
           <SbItem icon="🎯" label="Mission" i18n="nav_mission" onClick={() => go('missions')} />
-          <SbItem icon="🎟️" label="Use Code" i18n="nav_use_code" onClick={openPromoModal} />
+          <SbItem icon="🎟️" label="Use Code" i18n="nav_use_code" onClick={openUseCodeModal} />
           <SbItem icon="👑" label="Jackpots" i18n="nav_jackpots" badge={{ cls: 'hot', text: '₱128M' }} onClick={() => go('jackpots')} />
           <SbItem icon="🤝" label="Referral" i18n="nav_referral" onClick={() => go('referral')} />
 
