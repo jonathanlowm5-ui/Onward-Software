@@ -155,59 +155,91 @@ function FortuneWheel({ config, onClose }) {
   );
 }
 
-function LuckyTicket({ config }) {
-  const { currency } = useUI();
+const parseAmount = (s) => {
+  const m = String(s ?? '').replace(/,/g, '').match(/\d+(?:\.\d+)?/);
+  return m ? parseFloat(m[0]) : 0;
+};
+const RANK_BADGE = ['🥇', '🥈', '🥉'];
+
+function LuckyTicket({ config, onClose }) {
+  const { currency, openModal } = useUI();
   const ticket = config?.ticket || {};
   const tiers = ticket.prizeTiers || [];
   const sym = currency?.symbol || '₱';
   const totalWinners = tiers.reduce((a, t) => a + (Number(t.winners) || 0), 0) || ticket.winnersCount || 0;
+  const prizePool = tiers.reduce((a, t) => a + parseAmount(t.prize) * (Number(t.winners) || 0), 0);
+
+  const deposit = () => { onClose?.(); openModal('deposit'); };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {/* Hero — next draw */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Hero — prize pool + next draw */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 14,
-        background: 'linear-gradient(135deg,#2a1c10,#3a2a14)', border: '1px solid rgba(244,178,35,.35)',
+        position: 'relative', overflow: 'hidden', borderRadius: 16, padding: '20px 18px',
+        background: 'radial-gradient(120% 140% at 0% 0%, rgba(244,178,35,.22), transparent 60%), linear-gradient(135deg,#241a0e,#171c2e)',
+        border: '1px solid rgba(244,178,35,.4)', textAlign: 'center',
       }}>
-        <div style={{ fontSize: 34, lineHeight: 1 }}>🎟️</div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--gold,#f4b223)', fontWeight: 700 }}>Next Draw</div>
-          <div style={{ fontWeight: 900, fontSize: 17, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ticket.drawDate || 'To be announced'}</div>
+        <div style={{ position: 'absolute', right: -14, top: -10, fontSize: 96, opacity: 0.08, pointerEvents: 'none' }}>🎟️</div>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--gold,#f4b223)' }}>
+          🎟️ Lucky Ticket Draw
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--text-muted,#8898b8)', marginTop: 12, letterSpacing: '.05em', textTransform: 'uppercase' }}>Total Prize Pool</div>
+        <div style={{ fontSize: 34, fontWeight: 900, color: 'var(--gold,#f4b223)', lineHeight: 1.1, textShadow: '0 2px 12px rgba(244,178,35,.35)' }}>
+          {prizePool > 0 ? `${sym}${prizePool.toLocaleString()}` : '—'}
+        </div>
+        <div style={{ marginTop: 12, display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px', borderRadius: 999, background: 'rgba(0,0,0,.28)', border: '1px solid rgba(255,255,255,.1)' }}>
+          <span style={{ fontSize: 13 }}>🗓️</span>
+          <span style={{ fontSize: 12, color: 'var(--text-muted,#8898b8)' }}>Next draw:</span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>{ticket.drawDate || 'To be announced'}</span>
         </div>
       </div>
 
-      {/* Two compact stats */}
+      {/* Stat row */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <div style={ltStat}><div style={ltLbl}>Total Winners</div><div style={ltVal}>{totalWinners}</div></div>
-        <div style={ltStat}><div style={ltLbl}>Earn a Ticket</div><div style={{ ...ltVal, fontSize: 13, lineHeight: 1.25 }}>{ticket.earnBy || `Every ${sym}100 deposited`}</div></div>
+        <div style={ltStat}><div style={ltLbl}>🏆 Total Winners</div><div style={ltVal}>{totalWinners}</div></div>
+        <div style={ltStat}><div style={ltLbl}>🎫 Earn a Ticket</div><div style={{ ...ltVal, fontSize: 13, lineHeight: 1.25 }}>{ticket.earnBy || `Every ${sym}100 deposited`}</div></div>
       </div>
 
-      {/* Prize tiers — clean 2-column rows (prize never wraps) */}
-      <div style={{ borderRadius: 12, border: '1px solid var(--border,#243049)', overflow: 'hidden' }}>
-        <div style={{ padding: '11px 14px', fontWeight: 800, fontSize: 14, background: 'rgba(255,255,255,.04)' }}>🏆 Prize Tiers</div>
+      {/* Prize tiers */}
+      <div style={{ borderRadius: 14, border: '1px solid var(--border,#243049)', overflow: 'hidden', background: 'rgba(255,255,255,.02)' }}>
+        <div style={{ padding: '12px 14px', fontWeight: 800, fontSize: 13, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--text-muted,#8898b8)', background: 'rgba(255,255,255,.04)', display: 'flex', justifyContent: 'space-between' }}>
+          <span>Prize Tiers</span><span>Winners</span>
+        </div>
         {tiers.map((t, i) => (
-          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '11px 14px', borderTop: '1px solid var(--border,#243049)' }}>
-            <span style={{ fontWeight: 800, fontSize: 14, color: '#fff', whiteSpace: 'nowrap' }}>{t.rank}</span>
-            <span style={{ textAlign: 'right', minWidth: 0 }}>
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderTop: '1px solid var(--border,#243049)', background: i < 3 ? 'rgba(244,178,35,.05)' : 'transparent' }}>
+            <span style={{
+              flexShrink: 0, width: 30, height: 30, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: i < 3 ? 16 : 11, fontWeight: 800, color: '#fff',
+              background: i < 3 ? 'rgba(244,178,35,.14)' : 'rgba(255,255,255,.05)', border: '1px solid var(--border,#243049)',
+            }}>{RANK_BADGE[i] || (i + 1)}</span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: 13, color: '#fff', whiteSpace: 'nowrap' }}>{String(t.rank).replace(/^[🥇🥈🥉]\s*/u, '')}</div>
               <div style={{ color: 'var(--gold,#f4b223)', fontWeight: 900, fontSize: 14, whiteSpace: 'nowrap' }}>{t.prize}</div>
-              <div style={{ color: 'var(--text-muted,#8898b8)', fontSize: 11 }}>{t.winners} winner{Number(t.winners) === 1 ? '' : 's'}</div>
             </span>
+            <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 700, color: 'var(--text-muted,#8898b8)', padding: '4px 10px', borderRadius: 999, background: 'rgba(255,255,255,.05)', border: '1px solid var(--border,#243049)' }}>×{t.winners}</span>
           </div>
         ))}
         {!tiers.length && <div style={{ padding: 16, textAlign: 'center', color: 'var(--text-muted,#8898b8)' }}>No active draw right now.</div>}
       </div>
 
+      {/* CTA */}
+      <button onClick={deposit} style={{
+        width: '100%', padding: '14px', borderRadius: 12, border: 'none', cursor: 'pointer',
+        fontWeight: 900, fontSize: 15, color: '#1a1205',
+        background: 'linear-gradient(180deg,#ffd75e,#f0c040)', boxShadow: '0 8px 20px rgba(240,192,64,.3)',
+      }}>💰 Deposit to Earn Tickets</button>
+
       <div style={{ fontSize: 12, color: 'var(--text-muted,#8898b8)', textAlign: 'center', lineHeight: 1.5 }}>
-        Deposit &amp; play to collect Lucky Tickets — winners are drawn automatically and credited on draw day.
+        Collect Lucky Tickets as you deposit &amp; play. Winners are drawn automatically and credited on draw day.
       </div>
     </div>
   );
 }
 
 const chip = { fontSize: 13, color: 'var(--text-muted,#8898b8)', background: 'rgba(255,255,255,.05)', border: '1px solid var(--border,#243049)', borderRadius: 999, padding: '5px 12px' };
-const ltStat = { background: 'rgba(255,255,255,.04)', border: '1px solid var(--border,#243049)', borderRadius: 12, padding: '10px 13px' };
+const ltStat = { background: 'rgba(255,255,255,.04)', border: '1px solid var(--border,#243049)', borderRadius: 12, padding: '11px 13px' };
 const ltLbl = { fontSize: 11, color: 'var(--text-muted,#8898b8)', textTransform: 'uppercase', letterSpacing: '.04em' };
-const ltVal = { fontWeight: 800, marginTop: 3, color: '#fff' };
+const ltVal = { fontWeight: 800, marginTop: 4, color: '#fff' };
 
 export default function MiniGamesModal() {
   const { activeModal, closeModal } = useUI();
@@ -246,11 +278,11 @@ export default function MiniGamesModal() {
         ) : !config ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Mini games are unavailable right now.</div>
         ) : tab === 'ticket' && ticketOn ? (
-          <LuckyTicket config={config} />
+          <LuckyTicket config={config} onClose={closeModal} />
         ) : wheelOn ? (
           <FortuneWheel config={config} onClose={closeModal} />
         ) : (
-          <LuckyTicket config={config} />
+          <LuckyTicket config={config} onClose={closeModal} />
         )}
       </div>
     </Modal>
