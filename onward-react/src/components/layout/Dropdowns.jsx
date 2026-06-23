@@ -5,12 +5,12 @@ import { useAuth } from '../../context/AuthContext';
 import useSectionNav from '../../hooks/useSectionNav';
 
 const CURRENCIES = [
-  { code: 'PHP', symbol: '₱', name: 'Philippine Peso' },
-  { code: 'USD', symbol: '$', name: 'US Dollar' },
-  { code: 'MYR', symbol: 'RM', name: 'Malaysian Ringgit' },
-  { code: 'THB', symbol: '฿', name: 'Thai Baht' },
-  { code: 'IDR', symbol: 'Rp', name: 'Indonesian Rupiah' },
-  { code: 'VND', symbol: '₫', name: 'Vietnamese Dong' },
+  { code: 'PHP', symbol: '₱', flag: '🇵🇭', name: 'Philippine Peso' },
+  { code: 'USD', symbol: '$', flag: '🇺🇸', name: 'US Dollar' },
+  { code: 'MYR', symbol: 'RM', flag: '🇲🇾', name: 'Malaysian Ringgit' },
+  { code: 'THB', symbol: '฿', flag: '🇹🇭', name: 'Thai Baht' },
+  { code: 'IDR', symbol: 'Rp', flag: '🇮🇩', name: 'Indonesian Rupiah' },
+  { code: 'VND', symbol: '₫', flag: '🇻🇳', name: 'Vietnamese Dong' },
 ];
 
 const LANGS = [
@@ -49,6 +49,7 @@ export default function Dropdowns() {
           {CURRENCIES.map((c) => (
             <button key={c.code} style={{ ...row, color: currency.code === c.code ? 'var(--gold)' : 'var(--text)' }}
               onClick={() => { setCurrency({ code: c.code, symbol: c.symbol }); closeDropdown(); }}>
+              <span style={{ width: 24, fontSize: 18 }}>{c.flag}</span>
               <span style={{ width: 28, fontWeight: 700 }}>{c.symbol}</span>
               <span>{c.code}</span>
               <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: 12 }}>{c.name}</span>
