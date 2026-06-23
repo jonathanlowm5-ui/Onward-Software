@@ -1705,7 +1705,7 @@ footer{
 }
 .hdr-flag{font-size:17px;line-height:1}
 /* Language button — labelled so it's obviously a language switcher */
-.hdr-lang-btn,.hdr-cur-btn{width:auto;gap:5px;padding:0 9px}
+.hdr-lang-btn{width:auto;gap:5px;padding:0 9px}
 .hdr-lang-name{font-size:12px;font-weight:800;color:var(--text);line-height:1}
 .hdr-lang-caret{font-size:9px;color:var(--text-muted);line-height:1}
 

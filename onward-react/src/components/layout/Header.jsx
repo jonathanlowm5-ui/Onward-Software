@@ -15,12 +15,6 @@ const LANG_SHORT = {
   en: 'EN', zh: '中文', id: 'ID', ms: 'MS', th: 'TH', vi: 'VI',
   hi: 'HI', ko: '한국어', ja: '日本語', es: 'ES', pt: 'PT',
 };
-// Flag per currency so the header currency chip is a clear flag + code instead
-// of a bare symbol (the peso ₱ glyph in particular reads like a struck-through P).
-const CURRENCY_FLAGS = {
-  PHP: '🇵🇭', USD: '🇺🇸', MYR: '🇲🇾', THB: '🇹🇭', IDR: '🇮🇩', VND: '🇻🇳',
-  EUR: '🇪🇺', INR: '🇮🇳', CNY: '🇨🇳', JPY: '🇯🇵',
-};
 const LANGS = [
   { code: 'en', flag: '🇬🇧', name: 'English' },
   { code: 'zh', flag: '🇨🇳', name: '中文' },
@@ -65,8 +59,6 @@ function LangSwitcher() {
         onClick={() => setOpen((o) => !o)}
       >
         <span id="selected-lang-flag" className="hdr-flag">{LANG_FLAGS[lang] || '🌐'}</span>
-        <span className="hdr-lang-name">{LANG_SHORT[lang] || 'EN'}</span>
-        <span className="hdr-lang-caret">▾</span>
       </button>
       {open && createPortal(
         <div data-langmenu role="menu" style={{
@@ -217,9 +209,8 @@ export default function Header() {
             </button>
           </div>
           <div className="hdr-row1-right">
-            <button className="hdr-icon-btn hdr-cur-btn" id="currency-btn" title="Currency" onClick={(e) => { e.stopPropagation(); toggleDropdown('currency'); }}>
-              <span className="hdr-flag">{CURRENCY_FLAGS[currency.code] || '🌐'}</span>
-              <span className="hdr-lang-name" id="selected-currency-symbol">{currency.code}</span>
+            <button className="hdr-icon-btn" id="currency-btn" title="Currency" onClick={(e) => { e.stopPropagation(); toggleDropdown('currency'); }}>
+              <span style={{ fontSize: '13px', fontWeight: 700 }} id="selected-currency-symbol">{currency.symbol}</span>
             </button>
             <LangSwitcher />
             <button className="hdr-icon-btn" title="Notifications">
