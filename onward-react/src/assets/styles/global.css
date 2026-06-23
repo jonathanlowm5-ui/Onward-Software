@@ -2210,14 +2210,14 @@ footer{
   display:flex;
   align-items:center;
   gap:12px;
-  padding:10px 14px;
+  padding:12px 14px;
   font-size:13px;font-weight:500;
   color:var(--text-muted);
   cursor:pointer;
   border:none;background:none;
   width:100%;text-align:left;
   border-radius:8px;
-  margin:1px 6px;
+  margin:4px 6px;
   width:calc(100% - 12px);
   transition:all .18s;
   position:relative;
@@ -5169,19 +5169,19 @@ img{ -webkit-user-drag:none; user-drag:none; }
   #sidebar-nav .sb-tab{ padding:8px 6px !important; font-size:12px !important; }
 
   #sidebar-nav .sb-nav-item{
-    padding:7px 12px !important;
-    gap:10px !important;
-    font-size:12.5px !important;
-    margin:0 6px !important;
-    border-radius:7px !important;
+    padding:13px 14px !important;
+    gap:13px !important;
+    font-size:14px !important;
+    margin:5px 8px !important;
+    border-radius:10px !important;
   }
-  #sidebar-nav .sb-nav-icon{ font-size:16px !important; width:20px !important; }
-  #sidebar-nav .sb-nav-label{ font-size:12.5px !important; }
+  #sidebar-nav .sb-nav-icon{ font-size:19px !important; width:24px !important; }
+  #sidebar-nav .sb-nav-label{ font-size:14px !important; }
   #sidebar-nav .sb-nav-badge{ font-size:9px !important; padding:1px 6px !important; }
 
-  #sidebar-nav .sb-divider{ margin:4px 12px !important; }
-  #sidebar-nav .sb-bottom{ padding:5px 6px 14px !important; margin-top:2px !important; }
-  #sidebar-nav .sb-panel .sb-nav-item{ padding:6px 12px !important; }
+  #sidebar-nav .sb-divider{ margin:8px 12px !important; }
+  #sidebar-nav .sb-bottom{ padding:6px 6px 16px !important; margin-top:2px !important; }
+  #sidebar-nav .sb-panel .sb-nav-item{ padding:11px 12px !important; }
 }
 
 /* ---------------------------------------------------------------
