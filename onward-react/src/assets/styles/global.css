@@ -4271,9 +4271,9 @@ img{ -webkit-user-drag:none; user-drag:none; }
   .jp-card{ padding:14px 14px !important; }
   .jp-amount{ font-size:19px !important; }
 
-  /* Game grid → 2 up, comfortable tap targets */
-  .game-grid{ grid-template-columns:1fr 1fr !important; gap:11px !important; }
-  .game-name{ font-size:12px !important; }
+  /* Game grid → 3 up on mobile */
+  .game-grid{ grid-template-columns:repeat(3,1fr) !important; gap:8px !important; }
+  .game-name{ font-size:11px !important; }
 
   /* Category chips scroll horizontally instead of wrapping into walls */
   .cats{
@@ -4575,9 +4575,10 @@ img{ -webkit-user-drag:none; user-drag:none; }
   #hero{ padding:12px 12px !important; }
   .jackpots-section{ padding:14px 12px 6px !important; }
 
-  /* ---------- 4. GAME GRIDS → 3 in a row (slots + live casino) ----------- */
+  /* ---------- 4. GAME GRIDS → 3 in a row (slots + live casino + fish) ----- */
   #slots-grid,
   #game-grid,
+  #fish-grid,
   #live-grid{
     display:grid !important;
     grid-template-columns:repeat(3,1fr) !important;
@@ -4585,14 +4586,19 @@ img{ -webkit-user-drag:none; user-drag:none; }
   }
   /* shrink card text so 3-up stays legible */
   #game-grid .game-overlay,
+  #fish-grid .game-overlay,
   #slots-grid .game-overlay{ padding:7px !important; }
   #game-grid .game-provider,
+  #fish-grid .game-provider,
   #slots-grid .game-provider{ font-size:7.5px !important; margin-bottom:1px !important; }
   #game-grid .game-name,
+  #fish-grid .game-name,
   #slots-grid .game-name{ font-size:9.5px !important; line-height:1.2 !important; }
   #game-grid .game-badge,
+  #fish-grid .game-badge,
   #slots-grid .game-badge{ font-size:7px !important; padding:1px 5px !important; top:6px !important; right:6px !important; }
   #game-grid .play-circle,
+  #fish-grid .play-circle,
   #slots-grid .play-circle{ width:34px !important; height:34px !important; font-size:13px !important; }
 
   /* Live-casino cards (taller 3/4 tiles) compacted for 3-up */
@@ -4659,7 +4665,7 @@ img{ -webkit-user-drag:none; user-drag:none; }
 
 /* Finer squeeze on small phones */
 @media(max-width:400px){
-  #slots-grid, #game-grid, #live-grid{ gap:6px !important; }
+  #slots-grid, #game-grid, #fish-grid, #live-grid{ gap:6px !important; }
   .slide-title{ font-size:1.35rem !important; }
   .tm-card{ flex:0 0 90% !important; }
   #ls-grid > *{ flex:0 0 90% !important; }
