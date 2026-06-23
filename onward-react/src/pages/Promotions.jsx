@@ -3,7 +3,6 @@ import { useUI } from '../context/UIContext';
 import { useAuth } from '../context/AuthContext';
 import useSectionNav from '../hooks/useSectionNav';
 import { resolvePromoBanner } from '../utils/promoTerms';
-import BannerCarousel from '../components/promotions/BannerCarousel.jsx';
 import api from '../services/api';
 
 const VALID_PROMO_CODES = ['WELCOME100', 'LEGOX', 'VIP500', 'FREESPIN55'];
@@ -124,11 +123,6 @@ export default function Promotions() {
         </div>
         <button className="promo-code-btn" onClick={activatePromoCode} data-i18n="ui_activate">ACTIVATE</button>
         <button className="promo-code-help">?</button>
-      </div>
-
-      {/* HERO BANNER — same uploaded banners as the front page (one size fits all) */}
-      <div className="promo-page-wrap" style={{ paddingBottom: 0 }}>
-        <BannerCarousel promos={visiblePromos} />
       </div>
 
       {/* FILTER TABS */}
