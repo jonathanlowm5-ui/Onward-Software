@@ -160,35 +160,54 @@ function LuckyTicket({ config }) {
   const ticket = config?.ticket || {};
   const tiers = ticket.prizeTiers || [];
   const sym = currency?.symbol || '₱';
+  const totalWinners = tiers.reduce((a, t) => a + (Number(t.winners) || 0), 0) || ticket.winnersCount || 0;
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 10 }}>
-        <div style={infoCard}><div style={infoLbl}>Next Draw</div><div style={infoVal}>{ticket.drawDate || 'To be announced'}</div></div>
-        <div style={infoCard}><div style={infoLbl}>Winners</div><div style={infoVal}>{ticket.winnersCount || 0}</div></div>
-        <div style={infoCard}><div style={infoLbl}>Earn a Ticket</div><div style={{ ...infoVal, fontSize: 13 }}>{ticket.earnBy || `Every ${sym}100 deposited`}</div></div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* Hero — next draw */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 14,
+        background: 'linear-gradient(135deg,#2a1c10,#3a2a14)', border: '1px solid rgba(244,178,35,.35)',
+      }}>
+        <div style={{ fontSize: 34, lineHeight: 1 }}>🎟️</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 11, letterSpacing: '.06em', textTransform: 'uppercase', color: 'var(--gold,#f4b223)', fontWeight: 700 }}>Next Draw</div>
+          <div style={{ fontWeight: 900, fontSize: 17, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ticket.drawDate || 'To be announced'}</div>
+        </div>
       </div>
+
+      {/* Two compact stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div style={ltStat}><div style={ltLbl}>Total Winners</div><div style={ltVal}>{totalWinners}</div></div>
+        <div style={ltStat}><div style={ltLbl}>Earn a Ticket</div><div style={{ ...ltVal, fontSize: 13, lineHeight: 1.25 }}>{ticket.earnBy || `Every ${sym}100 deposited`}</div></div>
+      </div>
+
+      {/* Prize tiers — clean 2-column rows (prize never wraps) */}
       <div style={{ borderRadius: 12, border: '1px solid var(--border,#243049)', overflow: 'hidden' }}>
-        <div style={{ padding: '10px 14px', fontWeight: 800, background: 'rgba(255,255,255,.04)' }}>🏆 Prize Tiers</div>
+        <div style={{ padding: '11px 14px', fontWeight: 800, fontSize: 14, background: 'rgba(255,255,255,.04)' }}>🏆 Prize Tiers</div>
         {tiers.map((t, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderTop: '1px solid var(--border,#243049)' }}>
-            <span style={{ fontWeight: 800, minWidth: 80 }}>{t.rank}</span>
-            <span style={{ color: 'var(--gold,#f4b223)', fontWeight: 900, flex: 1 }}>{t.prize}</span>
-            <span style={{ color: 'var(--text-muted,#8898b8)', fontSize: 13 }}>{t.winners} winner{t.winners === 1 ? '' : 's'}</span>
+          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '11px 14px', borderTop: '1px solid var(--border,#243049)' }}>
+            <span style={{ fontWeight: 800, fontSize: 14, color: '#fff', whiteSpace: 'nowrap' }}>{t.rank}</span>
+            <span style={{ textAlign: 'right', minWidth: 0 }}>
+              <div style={{ color: 'var(--gold,#f4b223)', fontWeight: 900, fontSize: 14, whiteSpace: 'nowrap' }}>{t.prize}</div>
+              <div style={{ color: 'var(--text-muted,#8898b8)', fontSize: 11 }}>{t.winners} winner{Number(t.winners) === 1 ? '' : 's'}</div>
+            </span>
           </div>
         ))}
         {!tiers.length && <div style={{ padding: 16, textAlign: 'center', color: 'var(--text-muted,#8898b8)' }}>No active draw right now.</div>}
       </div>
-      <div style={{ fontSize: 12, color: 'var(--text-muted,#8898b8)', textAlign: 'center' }}>
-        Deposit & play to collect Lucky Tickets — winners are drawn automatically and credited on draw day.
+
+      <div style={{ fontSize: 12, color: 'var(--text-muted,#8898b8)', textAlign: 'center', lineHeight: 1.5 }}>
+        Deposit &amp; play to collect Lucky Tickets — winners are drawn automatically and credited on draw day.
       </div>
     </div>
   );
 }
 
 const chip = { fontSize: 13, color: 'var(--text-muted,#8898b8)', background: 'rgba(255,255,255,.05)', border: '1px solid var(--border,#243049)', borderRadius: 999, padding: '5px 12px' };
-const infoCard = { background: 'rgba(255,255,255,.04)', border: '1px solid var(--border,#243049)', borderRadius: 12, padding: '12px 14px' };
-const infoLbl = { fontSize: 12, color: 'var(--text-muted,#8898b8)' };
-const infoVal = { fontWeight: 800, marginTop: 3 };
+const ltStat = { background: 'rgba(255,255,255,.04)', border: '1px solid var(--border,#243049)', borderRadius: 12, padding: '10px 13px' };
+const ltLbl = { fontSize: 11, color: 'var(--text-muted,#8898b8)', textTransform: 'uppercase', letterSpacing: '.04em' };
+const ltVal = { fontWeight: 800, marginTop: 3, color: '#fff' };
 
 export default function MiniGamesModal() {
   const { activeModal, closeModal } = useUI();
