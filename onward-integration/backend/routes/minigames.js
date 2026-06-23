@@ -35,6 +35,7 @@ function defaultConfig() {
   return {
     wheel: {
       enabled: true,
+      image: '',
       freeSpinsPerDay: 1,
       spinCost: 50,
       maxPerDay: 5,
@@ -87,6 +88,7 @@ function cleanConfig(raw = {}) {
   return {
     wheel: {
       enabled: bool(w.enabled, def.wheel.enabled),
+      image: str(w.image, '').slice(0, 2048),
       freeSpinsPerDay: Math.max(0, num(w.freeSpinsPerDay, def.wheel.freeSpinsPerDay)),
       spinCost: Math.max(0, num(w.spinCost, def.wheel.spinCost)),
       maxPerDay: Math.max(1, num(w.maxPerDay, def.wheel.maxPerDay)),

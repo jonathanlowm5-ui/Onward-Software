@@ -36,6 +36,12 @@ function FortuneWheel({ config, onClose }) {
   const wheel = config?.wheel || {};
   const active = useMemo(() => (wheel.slices || []).filter((s) => s.on), [wheel.slices]);
   const { gradient, centers } = useMemo(() => wheelGeometry(active), [active]);
+  // A custom wheel PNG uses equal segments (in slice order) for landing.
+  const wheelImage = wheel.image || '';
+  const landCenters = useMemo(
+    () => (wheelImage ? active.map((_, i) => (i + 0.5) * (360 / (active.length || 1))) : centers),
+    [wheelImage, active, centers],
+  );
 
   const [rot, setRot] = useState(0);
   const [spinning, setSpinning] = useState(false);
@@ -63,7 +69,7 @@ function FortuneWheel({ config, onClose }) {
     try {
       const { data } = await api.post('/mini-games/wheel/spin');
       const idx = Math.max(0, Math.min(active.length - 1, data?.result?.index ?? 0));
-      const target = centers[idx] || 0;
+      const target = landCenters[idx] || 0;
       // Land the winning slice centre under the top pointer with ≥5 full turns.
       const desired = (360 - (target % 360)) % 360;
       const current = ((rot % 360) + 360) % 360;
@@ -105,14 +111,17 @@ function FortuneWheel({ config, onClose }) {
           borderTop: '26px solid var(--gold,#f4b223)', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.5))' }} />
         {/* disc */}
         <div style={{
-          width: '100%', height: '100%', borderRadius: '50%', background: gradient,
+          width: '100%', height: '100%', borderRadius: '50%',
+          ...(wheelImage
+            ? { backgroundImage: `url(${wheelImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+            : { background: gradient }),
           transform: `rotate(${rot}deg)`,
           transition: spinning ? 'transform 4s cubic-bezier(.17,.67,.27,1)' : 'none',
           boxShadow: '0 0 0 8px rgba(244,178,35,.85), 0 0 0 12px rgba(0,0,0,.35), 0 14px 40px rgba(0,0,0,.5)',
           position: 'relative',
         }}>
-          {/* slice labels */}
-          {active.map((s, i) => {
+          {/* slice labels — only for the generated colour wheel */}
+          {!wheelImage && active.map((s, i) => {
             const a = (centers[i] - 90) * (Math.PI / 180); // -90 → 0deg at top
             const r = size * 0.34;
             const x = size / 2 + r * Math.cos(a);

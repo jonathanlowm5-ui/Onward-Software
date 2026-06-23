@@ -28,7 +28,7 @@ const INITIAL_SLICES = [
   { l: '₱5,000 JACKPOT', p: 5000, w: 3, c: '#f7e08b', on: 1 },
 ];
 
-const INITIAL_WHEEL_CFG = { enabled: true, freeSpinsPerDay: 1, spinCost: 50, maxPerDay: 5 };
+const INITIAL_WHEEL_CFG = { enabled: true, image: '', freeSpinsPerDay: 1, spinCost: 50, maxPerDay: 5 };
 const INITIAL_TICKET_CFG = { enabled: true, drawDate: '', totalTickets: 10000, winnersCount: 50, earnBy: 'Every ₱100 deposited', minDeposit: 100, maxPerPlayer: 50 };
 
 const INITIAL_BIGWINS = [
@@ -330,14 +330,33 @@ function wheelGrad(slices) {
   }).join(',') + ')';
 }
 
-function MgWheel({ slices, setSlices, onSave, saving }) {
+function MgWheel({ slices, setSlices, wheelCfg = {}, setWheelCfg, onSave, saving }) {
   const { toast } = useUI();
   const [rot, setRot] = useState(0);
+  const [imgUploading, setImgUploading] = useState(false);
   const tot = slices.filter((x) => x.on).reduce((a, x) => a + x.w, 0);
 
   const update = (idx, key, val) => setSlices((prev) => prev.map((s, i) => (i === idx ? { ...s, [key]: val } : s)));
   const addSlice = () => { setSlices((prev) => [...prev, { l: 'New Prize', p: 0, w: 5, c: '#3aa0ff', on: 1 }]); toast('Slice added ＋'); };
   const removeSlice = (idx) => { setSlices((prev) => prev.filter((_, i) => i !== idx)); toast('Slice removed'); };
+
+  // Upload a custom wheel PNG. When set, the player wheel shows this image
+  // instead of the generated colour wheel.
+  const pickWheelImage = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) { toast('⚠ Image too large — keep it under 4 MB'); return; }
+    setImgUploading(true);
+    try {
+      const { url } = await uploadImage(file);
+      setWheelCfg?.((s) => ({ ...s, image: url }));
+      toast('Wheel image uploaded ✔');
+    } catch (err) {
+      toast('⚠ Upload failed: ' + (err.message || 'error'));
+    } finally { setImgUploading(false); }
+  };
+  const removeWheelImage = () => setWheelCfg?.((s) => ({ ...s, image: '' }));
   const spinTest = () => {
     const next = rot + 1080 + Math.floor(Math.random() * 360);
     setRot(next);
@@ -375,8 +394,27 @@ function MgWheel({ slices, setSlices, onSave, saving }) {
       <div>
         <div className="card"><div className="card-title" style={{ textAlign: 'center' }}>Live Preview</div>
           <div className="wheel-wrap">
-            <div className="wheel-disc" style={{ background: wheelGrad(slices), transform: `rotate(${rot}deg)` }}><span className="wheel-hub">🎡</span></div>
+            <div className="wheel-disc" style={wheelCfg.image
+              ? { backgroundImage: `url(${wheelCfg.image})`, backgroundSize: 'cover', backgroundPosition: 'center', transform: `rotate(${rot}deg)` }
+              : { background: wheelGrad(slices), transform: `rotate(${rot}deg)` }}>
+              {!wheelCfg.image && <span className="wheel-hub">🎡</span>}
+            </div>
             <button className="spin-btn" onClick={spinTest}>▶ Spin Test</button>
+          </div>
+          {/* Custom wheel image (PNG) — overrides the generated colour wheel */}
+          <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 12 }}>
+            <div className="fld-lbl" style={{ marginBottom: 6 }}>Wheel Image <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(optional PNG — square, transparent background)</span></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <input type="file" accept="image/png,image/*" onChange={pickWheelImage} />
+              {imgUploading && <span style={{ color: 'var(--gold)' }}>uploading…</span>}
+              {wheelCfg.image && (
+                <>
+                  <img src={wheelCfg.image} alt="wheel" style={{ height: 40, width: 40, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border)' }} />
+                  <button className="del-btn" onClick={removeWheelImage}>🗑 Remove</button>
+                </>
+              )}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>For a custom image the prizes use equal segments in the slice order above. Save to publish.</div>
           </div>
         </div>
         <div className="card" style={{ marginTop: 'var(--pad)' }}><div className="card-title">📊 Wheel Stats</div>
@@ -471,7 +509,7 @@ function MiniTab({ slices, setSlices, wheelCfg, setWheelCfg, ticketCfg, setTicke
         <button className={`mg-pill ${mgTab === 'ticket' ? 'active' : ''}`} onClick={() => setMgTab('ticket')}>🎟️ Lucky Ticket</button>
         <button className={`mg-pill ${mgTab === 'set' ? 'active' : ''}`} onClick={() => setMgTab('set')}>⚙️ Settings</button>
       </div>
-      {mgTab === 'wheel' ? <MgWheel slices={slices} setSlices={setSlices} onSave={onSave} saving={saving} />
+      {mgTab === 'wheel' ? <MgWheel slices={slices} setSlices={setSlices} wheelCfg={wheelCfg} setWheelCfg={setWheelCfg} onSave={onSave} saving={saving} />
         : mgTab === 'ticket' ? <MgTicket />
           : <MgSettings wheelCfg={wheelCfg} setWheelCfg={setWheelCfg} ticketCfg={ticketCfg} setTicketCfg={setTicketCfg} onSave={onSave} saving={saving} />}
     </>
@@ -663,7 +701,7 @@ export default function Promotions() {
     getMiniGames().then((cfg) => {
       if (!alive || !cfg) return;
       if (Array.isArray(cfg.wheel?.slices) && cfg.wheel.slices.length) setSlices(cfg.wheel.slices);
-      if (cfg.wheel) setWheelCfg((s) => ({ ...s, enabled: cfg.wheel.enabled, freeSpinsPerDay: cfg.wheel.freeSpinsPerDay, spinCost: cfg.wheel.spinCost, maxPerDay: cfg.wheel.maxPerDay }));
+      if (cfg.wheel) setWheelCfg((s) => ({ ...s, enabled: cfg.wheel.enabled, image: cfg.wheel.image || '', freeSpinsPerDay: cfg.wheel.freeSpinsPerDay, spinCost: cfg.wheel.spinCost, maxPerDay: cfg.wheel.maxPerDay }));
       if (cfg.ticket) setTicketCfg((s) => ({ ...s, ...cfg.ticket }));
     }).catch(() => {});
     return () => { alive = false; };
