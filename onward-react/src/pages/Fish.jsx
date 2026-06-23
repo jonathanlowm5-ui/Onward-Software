@@ -1,7 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { useUI } from '../context/UIContext';
 import GameCard from '../components/casino/GameCard.jsx';
-import BannerCarousel from '../components/promotions/BannerCarousel.jsx';
 import { ALL_GAME_ICONS, GAMES } from '../services/data/gameData';
 
 // Build the fish catalogue exactly like the original initFishSection().
@@ -37,9 +36,6 @@ export default function Fish() {
 
   return (
     <div id="view-fish">
-      <div className="section" style={{ paddingTop: 20, paddingBottom: 0 }}>
-        <BannerCarousel />
-      </div>
       <div className="section">
         <div className="section-header" style={{ marginBottom: '16px' }}>
           <h2 className="section-title">🐟 Fish Games</h2>

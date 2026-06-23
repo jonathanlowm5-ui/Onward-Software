@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useUI } from '../context/UIContext';
-import BannerCarousel from '../components/promotions/BannerCarousel.jsx';
 
 /* ──────────────────────────────────────────────────────────
    Local data (mirrors the original inline sportsbook data).
@@ -306,11 +305,6 @@ export default function Sports() {
 
   return (
     <div id="view-sports" style={{ padding: '0 0 40px' }}>
-
-      {/* Unified promo hero banner (admin-uploaded, one size everywhere) */}
-      <div style={{ padding: '16px 20px 0' }}>
-        <BannerCarousel />
-      </div>
 
       {/* Promo Banner Carousel */}
       <div style={{ padding: '16px 20px 0', position: 'relative' }}>

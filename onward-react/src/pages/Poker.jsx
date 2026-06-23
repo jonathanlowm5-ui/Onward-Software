@@ -1,5 +1,4 @@
 import { useUI } from '../context/UIContext';
-import BannerCarousel from '../components/promotions/BannerCarousel.jsx';
 
 const POKER_TABLES = [
   { sub: 'No Limit 9-max', blind: 'RM 1 / RM 2', players: 6, max: 9, status: 'live', color: '#f7c843', icon: '♠' },
@@ -35,9 +34,6 @@ export default function Poker() {
 
   return (
     <div id="view-poker">
-      <div className="section" style={{ paddingTop: 20, paddingBottom: 0 }}>
-        <BannerCarousel />
-      </div>
       <div className="section">
         <div className="section-header" style={{ marginBottom: '20px' }}>
           <h2 className="section-title" data-i18n="sec_poker_title">🃏 Texas Hold'em Poker</h2>
