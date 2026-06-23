@@ -320,14 +320,12 @@ function PromosTab({ promos, setPromos, loading, onEdit }) {
   );
 }
 
+// Equal-sized segments visually; weight only controls win chance.
 function wheelGrad(slices) {
   const act = slices.filter((x) => x.on);
-  const tot = act.reduce((a, x) => a + x.w, 0) || 1;
-  let acc = 0;
-  return 'conic-gradient(' + act.map((x) => {
-    const f = (acc / tot) * 360; acc += x.w; const t2 = (acc / tot) * 360;
-    return `${x.c} ${f.toFixed(1)}deg ${t2.toFixed(1)}deg`;
-  }).join(',') + ')';
+  const n = act.length || 1;
+  const seg = 360 / n;
+  return 'conic-gradient(' + act.map((x, i) => `${x.c} ${(i * seg).toFixed(1)}deg ${((i + 1) * seg).toFixed(1)}deg`).join(',') + ')';
 }
 
 function MgWheel({ slices, setSlices, wheelCfg = {}, setWheelCfg, onSave, saving }) {
@@ -377,7 +375,7 @@ function MgWheel({ slices, setSlices, wheelCfg = {}, setWheelCfg, onSave, saving
           </span>
         </div>
         <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}><table style={{ minWidth: 520 }}>
-          <thead><tr><th>Label</th><th>Prize</th><th>Weight %</th><th>Colour</th><th>Active</th><th>Del</th></tr></thead>
+          <thead><tr><th>Label</th><th>Prize</th><th>Win %</th><th>Colour</th><th>Active</th><th>Del</th></tr></thead>
           <tbody>{slices.map((x, i) => (
             <tr key={i}>
               <td><input className="slice-in" value={x.l} onChange={(e) => update(i, 'l', e.target.value)} /></td>
@@ -389,7 +387,7 @@ function MgWheel({ slices, setSlices, wheelCfg = {}, setWheelCfg, onSave, saving
             </tr>
           ))}</tbody>
         </table></div>
-        <div className="tw-row"><span style={{ color: 'var(--muted)' }}>Total Weight:</span><span className={tot === 100 ? 'tw-ok' : 'tw-bad'}>{tot}%</span></div>
+        <div className="tw-row"><span style={{ color: 'var(--muted)' }}>Total Win Chance:</span><span className={tot === 100 ? 'tw-ok' : 'tw-bad'}>{tot}%</span></div>
       </div>
       <div>
         <div className="card"><div className="card-title" style={{ textAlign: 'center' }}>Live Preview</div>

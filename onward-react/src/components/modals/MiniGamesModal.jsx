@@ -13,17 +13,17 @@ import api from '../../services/api';
  * credited to the player's real balance.
  */
 
-// Build the conic-gradient + per-slice centre angles for the active slices.
+// Build the conic-gradient + per-slice centre angles. Segments are ALWAYS equal
+// size visually; a slice's weight only controls its win chance (decided
+// server-side), not how big it looks on the wheel.
 function wheelGeometry(active) {
-  const total = active.reduce((a, s) => a + (s.w > 0 ? s.w : 0), 0) || active.length;
-  let acc = 0;
+  const n = active.length || 1;
+  const seg = 360 / n;
   const stops = [];
   const centers = [];
-  active.forEach((s) => {
-    const w = s.w > 0 ? s.w : (total / active.length);
-    const start = (acc / total) * 360;
-    acc += w;
-    const end = (acc / total) * 360;
+  active.forEach((s, i) => {
+    const start = i * seg;
+    const end = (i + 1) * seg;
     stops.push(`${s.c} ${start.toFixed(2)}deg ${end.toFixed(2)}deg`);
     centers.push((start + end) / 2);
   });
