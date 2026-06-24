@@ -305,7 +305,27 @@ function PromosTab({ promos, setPromos, loading, onEdit }) {
           <thead><tr><th>Promotion</th><th>Type</th><th>Bonus</th><th>Min Dep</th><th>Wager</th><th>Turnover</th><th>Claims</th><th>Expiry</th><th>Active</th><th>Actions</th></tr></thead>
           <tbody>{promos.map((x, i) => (
             <tr key={x.id ?? i} style={{ display: visible(x) ? '' : 'none' }}>
-              <td className="promo-cell"><div className="pn">{x.n}</div><div className="pd">{x.d}</div></td>
+              <td className="promo-cell">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {(() => {
+                    const r = x.raw || {};
+                    const thumb = r.image || (r.banners && Object.values(r.banners)[0]) || '';
+                    return thumb
+                      ? <img src={thumb} alt="" style={{ width: 54, height: 30, objectFit: 'cover', borderRadius: 5, flexShrink: 0, border: '1px solid var(--border)' }} />
+                      : <span style={{ width: 54, height: 30, borderRadius: 5, flexShrink: 0, border: '1px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: 'var(--muted)' }}>🖼</span>;
+                  })()}
+                  <div style={{ minWidth: 0 }}>
+                    <div className="pn">{x.n}
+                      {(x.raw?.country || x.raw?.currency) && (
+                        <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 800, color: '#8fc0ff', background: 'rgba(59,130,246,.16)', border: '1px solid rgba(59,130,246,.35)', borderRadius: 999, padding: '1px 7px' }}>
+                          🌏 {[x.raw?.country, x.raw?.currency].filter(Boolean).join(' · ')}
+                        </span>
+                      )}
+                    </div>
+                    <div className="pd">{x.d}</div>
+                  </div>
+                </div>
+              </td>
               <td><span className={`vtype ${x.tc}`}>{x.t}</span></td>
               <td className="bonus-cell">{x.b}<span className="mx">{x.mx}</span></td>
               <td>{x.md}</td><td className="wager-b">{x.w}</td><td className="turn-o">{x.to}</td>
