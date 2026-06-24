@@ -71,15 +71,16 @@ export default function Promotions() {
     return () => { alive = false; };
   }, []);
 
-  // Region targeting: a promo pinned to a currency/country only shows to players
-  // whose account matches. Guests (no profile) see everything. This re-evaluates
-  // whenever the player's currency or country changes (profile refreshes).
+  // Region targeting is now a LABEL, not a filter: every player sees all
+  // promotions (so nothing ever silently disappears), but those matching the
+  // player's currency/country are shown first and region-specific ones carry a
+  // 🌏 badge.
   const viewerCur = profile?.currency;
   const viewerCountry = profile?.country;
   const matchesViewer = (p) =>
     (!p.currency || !viewerCur || p.currency === viewerCur) &&
     (!p.country || !viewerCountry || p.country === viewerCountry);
-  const visiblePromos = apiPromos.filter(matchesViewer);
+  const visiblePromos = [...apiPromos].sort((a, b) => (matchesViewer(b) ? 1 : 0) - (matchesViewer(a) ? 1 : 0));
 
   const visible = SHOW_MAP[activeTab] || SHOW_MAP.all;
   const show = (id) => (visible.includes(id) ? {} : { display: 'none' });

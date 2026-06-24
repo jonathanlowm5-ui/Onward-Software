@@ -30,15 +30,15 @@ export default function BannerCarousel({ promos, className = '' }) {
   }, [selfFetch]);
 
   const source = selfFetch ? fetched : (promos || []);
-  // Respect region targeting: a promo pinned to a currency/country only shows to
-  // matching players (guests see all).
+  // Region is a label, not a filter — show every promo banner, but put the ones
+  // matching the player's currency/country first.
   const cur = profile?.currency;
   const country = profile?.country;
   const matchesViewer = (p) =>
     (!p.currency || !cur || p.currency === cur) &&
     (!p.country || !country || p.country === country);
-  const slides = source
-    .filter(matchesViewer)
+  const slides = [...source]
+    .sort((a, b) => (matchesViewer(b) ? 1 : 0) - (matchesViewer(a) ? 1 : 0))
     .map((p) => ({ p, img: resolvePromoBanner(p, profile?.currency) }))
     .filter((s) => s.img);
 
