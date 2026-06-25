@@ -3,6 +3,7 @@ import Modal from './Modal.jsx';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { deposit as depositRequest } from '../../services/playersService';
+import api from '../../services/api';
 
 const EMPTY_REG = {
   name: '', username: '', email: '', phone: '',
@@ -241,13 +242,33 @@ export default function AuthModal() {
   );
 }
 
+// Compact money label for the quick-select chips (1000 -> 1K, 2500 -> 2.5K,
+// 60770 -> 60.77K, 730 -> 730).
+function shortAmt(n) {
+  const v = Number(n) || 0;
+  if (v >= 1000) {
+    const k = v / 1000;
+    return (Number.isInteger(k) ? k : +k.toFixed(2)) + 'K';
+  }
+  return String(v);
+}
+
 function DepositPanel() {
   const { toast, closeModal } = useUI();
   const { isLoggedIn, refreshProfile } = useAuth();
   const [method, setMethod] = useState('GCash');
   const [amount, setAmount] = useState('');
   const [busy, setBusy] = useState(false);
+  const [quick, setQuick] = useState([500, 1000, 2000, 5000, 10000, 20000]);
   const methods = ['GCash', 'Maya', 'Bank'];
+
+  useEffect(() => {
+    let alive = true;
+    api.get('/deposit-config')
+      .then((r) => { if (alive && Array.isArray(r.data?.quickAmounts) && r.data.quickAmounts.length) setQuick(r.data.quickAmounts); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   const doDeposit = async () => {
     const amt = Number(amount);
@@ -279,9 +300,9 @@ function DepositPanel() {
           <label data-i18n="dep_amount_label">Amount (₱)</label>
           <input type="number" placeholder="Min ₱100" id="deposit-amount" value={amount} onChange={(e) => setAmount(e.target.value)} />
         </div>
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '20px' }}>
-          {[500, 1000, 2000, 5000].map((v) => (
-            <button key={v} className="cat-btn" onClick={() => setAmount(String(v))}>₱{v.toLocaleString()}</button>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '8px', marginBottom: '20px' }}>
+          {quick.map((v) => (
+            <button key={v} className={`cat-btn${Number(amount) === Number(v) ? ' active' : ''}`} style={{ justifyContent: 'center', padding: '9px 6px' }} onClick={() => setAmount(String(v))}>{shortAmt(v)}</button>
           ))}
         </div>
         <div style={{ padding: '14px', background: 'rgba(240,192,64,.08)', border: '1px solid rgba(240,192,64,.2)', borderRadius: 'var(--radius)', marginBottom: '20px', fontSize: '13px', color: 'var(--text-muted)' }}>
