@@ -1,5 +1,6 @@
 import { useUI } from '../context/UIContext';
 import PageBanner from '../components/common/PageBanner.jsx';
+import usePageHero from '../hooks/usePageHero';
 
 const REF_LINK = 'https://legox.com/ref/PLAYER123';
 
@@ -22,6 +23,7 @@ const STEPS = [
 
 export default function Referral() {
   const { toast } = useUI();
+  const hero = usePageHero('referral');
 
   const copyRefLink = () => {
     navigator.clipboard.writeText(REF_LINK);
@@ -41,8 +43,8 @@ export default function Referral() {
             <div className="ref-hero">
               <div className="ref-hero-icon">🤝</div>
               <div className="ref-hero-content">
-                <div className="ref-hero-title">Refer Friends &<br /><span data-i18n="ref_earn_together">Earn Together</span></div>
-                <div className="ref-hero-sub">Invite your friends to Onward and earn ₱500 for every friend who registers and makes their first deposit. No limits — the more you refer, the more you earn!</div>
+                <div className="ref-hero-title">{hero.title ? hero.title : <>Refer Friends &<br /><span data-i18n="ref_earn_together">Earn Together</span></>}</div>
+                <div className="ref-hero-sub">{hero.desc || 'Invite your friends to Onward and earn ₱500 for every friend who registers and makes their first deposit. No limits — the more you refer, the more you earn!'}</div>
               </div>
             </div>
           </PageBanner>

@@ -33,4 +33,36 @@ router.put('/', requireAuth, requirePerm('settings.manage'), (req, res) => {
   res.json(current());
 });
 
+// ---- Editable hero TEXT (eyebrow / title / desc) per content page ----
+// Stored in settings.pageHeroes = { [key]: { eyebrow, title, desc } }.
+const TEXT_KEYS = ['jackpots', 'referral', 'vip', 'missions', 'agent', 'follow', 'promotions'];
+function currentText() {
+  const m = store.getSettings().pageHeroes || {};
+  const out = {};
+  TEXT_KEYS.forEach((k) => {
+    const t = m[k] && typeof m[k] === 'object' ? m[k] : {};
+    out[k] = {
+      eyebrow: typeof t.eyebrow === 'string' ? t.eyebrow : '',
+      title: typeof t.title === 'string' ? t.title : '',
+      desc: typeof t.desc === 'string' ? t.desc : '',
+    };
+  });
+  return out;
+}
+router.get('/text', (req, res) => res.json(currentText()));
+router.put('/text', requireAuth, requirePerm('settings.manage'), (req, res) => {
+  const b = req.body || {};
+  const next = { ...(store.getSettings().pageHeroes || {}) };
+  TEXT_KEYS.forEach((k) => {
+    if (!b[k] || typeof b[k] !== 'object') return;
+    next[k] = {
+      eyebrow: String(b[k].eyebrow || '').slice(0, 60),
+      title: String(b[k].title || '').slice(0, 120),
+      desc: String(b[k].desc || '').slice(0, 600),
+    };
+  });
+  store.saveSettings({ pageHeroes: next, pageHeroesUpdatedAt: new Date().toISOString() });
+  res.json(currentText());
+});
+
 module.exports = router;

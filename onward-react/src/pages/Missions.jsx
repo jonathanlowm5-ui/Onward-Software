@@ -1,6 +1,7 @@
 import useSectionNav from '../hooks/useSectionNav';
 import { useUI } from '../context/UIContext';
 import PageBanner from '../components/common/PageBanner.jsx';
+import usePageHero from '../hooks/usePageHero';
 
 const MISSIONS = [
   { icon: '🔥', title: 'Daily Login Streak', desc: 'Log in 7 days in a row', progress: '4 / 7', pct: '57%', reward: '🎁 ₱50', claimable: false },
@@ -14,6 +15,7 @@ const MISSIONS = [
 export default function Missions() {
   const go = useSectionNav();
   const { toast } = useUI();
+  const hero = usePageHero('missions');
 
   const missionClaim = () => toast('Reward claimed!', 'success');
 
@@ -26,8 +28,8 @@ export default function Missions() {
             <div className="ref-hero" style={{ marginBottom: 0 }}>
               <div className="ref-hero-icon">🎯</div>
               <div className="ref-hero-content">
-                <div className="ref-hero-title">Complete Missions &amp;<br /><span data-i18n="mission_earn">Earn Rewards</span></div>
-                <div className="ref-hero-sub" data-i18n="mission_subtitle">Finish daily and weekly tasks to unlock bonuses, free spins and cash — the more you play, the more you earn!</div>
+                <div className="ref-hero-title">{hero.title ? hero.title : <>Complete Missions &amp;<br /><span data-i18n="mission_earn">Earn Rewards</span></>}</div>
+                <div className="ref-hero-sub" {...(hero.desc ? {} : { 'data-i18n': 'mission_subtitle' })}>{hero.desc || 'Finish daily and weekly tasks to unlock bonuses, free spins and cash — the more you play, the more you earn!'}</div>
               </div>
             </div>
           </PageBanner>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useUI } from '../context/UIContext';
 import useSectionNav from '../hooks/useSectionNav';
 import PageBanner from '../components/common/PageBanner.jsx';
+import usePageHero from '../hooks/usePageHero';
 import { JP_WINNINGS, JP_FAV_GAMES } from '../services/data/gameData';
 
 const TIER_ICONS = { Bronze: '🥉', Silver: '🥈', Golden: '🥇', Imperial: '👑' };
@@ -21,6 +22,7 @@ function formatMega(v) {
 export default function Jackpots() {
   const { openModal } = useUI();
   const go = useSectionNav();
+  const hero = usePageHero('jackpots'); // admin-editable eyebrow / title / desc
 
   const [favTab, setFavTab] = useState('slots');
   const [tiers, setTiers] = useState({ t1: 7740000, t2: 173550, t3: 16560, t4: 682200 });
@@ -57,9 +59,9 @@ export default function Jackpots() {
                 <span>👑</span><span>🪙</span><span>🎲</span><span>🎁</span>
               </div>
               <div style={{ position: 'relative', zIndex: 2, maxWidth: '400px' }}>
-                <div className="jp-header-eyebrow" data-i18n="jp_exclusive">Exclusive</div>
-                <div className="jp-header-title" data-i18n="jp_title">Onward Jackpots</div>
-                <div className="jp-header-desc">Four internal progressive jackpots. All games are included. Play any games you like, place a bet of at least RM0.01. No extra effort from your side, no wager from us.</div>
+                <div className="jp-header-eyebrow" {...(hero.eyebrow ? {} : { 'data-i18n': 'jp_exclusive' })}>{hero.eyebrow || 'Exclusive'}</div>
+                <div className="jp-header-title" {...(hero.title ? {} : { 'data-i18n': 'jp_title' })}>{hero.title || 'Onward Jackpots'}</div>
+                <div className="jp-header-desc">{hero.desc || 'Four internal progressive jackpots. All games are included. Play any games you like, place a bet of at least RM0.01. No extra effort from your side, no wager from us.'}</div>
               </div>
             </div>
           </PageBanner>

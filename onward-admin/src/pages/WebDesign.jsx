@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useUI } from '../context/UIContext';
 import { uploadImage } from '../services/uploadService';
-import { getPageBanners, savePageBanners } from '../services/pageBannerService';
+import { getPageBanners, savePageBanners, getPageHeroes, savePageHeroes } from '../services/pageBannerService';
 
 const PAGE_BANNER_LIST = [
   { key: 'jackpots', label: '👑 Jackpots' },
@@ -96,6 +96,8 @@ export default function WebDesign() {
           ))}
         </div>
       </div>
+
+      <PageHeroTextCard />
 
       {/* Welcome Bonus card background — wide banner behind the 4 tier cards */}
       <div className="card" style={{ marginBottom: 'var(--pad)' }}>
@@ -210,5 +212,48 @@ export default function WebDesign() {
         </div>
       </div>
     </>
+  );
+}
+
+// Editable hero TEXT (eyebrow / title / description) for the content pages —
+// like a promo's title/description, but for the page headers (Jackpots, VIP…).
+const HERO_TEXT_PAGES = [
+  { key: 'jackpots', label: '👑 Jackpots' },
+  { key: 'vip', label: '💎 VIP Club' },
+  { key: 'referral', label: '🤝 Referral' },
+  { key: 'missions', label: '🎯 Mission' },
+];
+function PageHeroTextCard() {
+  const { toast } = useUI();
+  const [heroes, setHeroes] = useState({});
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { getPageHeroes().then((d) => setHeroes(d || {})).catch(() => {}); }, []);
+  const setField = (key, field, val) => setHeroes((p) => ({ ...p, [key]: { ...(p[key] || {}), [field]: val } }));
+  const save = async () => {
+    setBusy(true);
+    try { const saved = await savePageHeroes(heroes); setHeroes(saved || heroes); toast('Page hero text saved ✔'); }
+    catch (e) { toast('⚠ Save failed: ' + (e.message || 'error')); }
+    finally { setBusy(false); }
+  };
+  const inp = { width: '100%', padding: '9px 12px', borderRadius: 8, background: 'var(--bg3,#0b1224)', color: 'var(--text,#fff)', border: '1px solid var(--border,#243049)', fontFamily: 'inherit', fontSize: 14 };
+  return (
+    <div className="card" style={{ marginBottom: 'var(--pad)' }}>
+      <div className="card-title">✏️ Page Hero Text</div>
+      <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>Edit the eyebrow / title / description shown on each page header (when no hero banner image is uploaded). Leave a field empty to keep the built-in default.</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 14 }}>
+        {HERO_TEXT_PAGES.map((p) => {
+          const h = heroes[p.key] || {};
+          return (
+            <div key={p.key} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ fontWeight: 800 }}>{p.label}</div>
+              <input style={inp} value={h.eyebrow || ''} onChange={(e) => setField(p.key, 'eyebrow', e.target.value)} placeholder="Eyebrow (e.g. EXCLUSIVE)" />
+              <input style={inp} value={h.title || ''} onChange={(e) => setField(p.key, 'title', e.target.value)} placeholder="Title (e.g. Onward Jackpots)" />
+              <textarea style={{ ...inp, resize: 'vertical', minHeight: 64, lineHeight: 1.5 }} value={h.desc || ''} onChange={(e) => setField(p.key, 'desc', e.target.value)} placeholder="Description…" />
+            </div>
+          );
+        })}
+      </div>
+      <button className="gss-savebtn" disabled={busy} onClick={save}>{busy ? 'Saving…' : 'Save Hero Text'}</button>
+    </div>
   );
 }

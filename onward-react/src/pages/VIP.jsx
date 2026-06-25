@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useUI } from '../context/UIContext';
 import PageBanner from '../components/common/PageBanner.jsx';
+import usePageHero from '../hooks/usePageHero';
 import useSectionNav from '../hooks/useSectionNav';
 import api from '../services/api';
 
@@ -106,6 +107,7 @@ function VipHCard({ l, idx, active, mine, onTap, cardRef, levels }) {
 export default function VIP() {
   const { openModal } = useUI();
   const go = useSectionNav();
+  const hero = usePageHero('vip');
 
   // Admin-configured VIP tiers (names, icon pictures, rebate, level bonus).
   // Falls back to the bundled default theme until the backend responds.
@@ -244,8 +246,8 @@ export default function VIP() {
                 <span>🎰</span><span>🃏</span><span>💵</span><span>🎁</span>
               </div>
               <div className="vip-hero-content">
-                <div className="vip-hero-title"><span data-i18n="vip_hero_title">Become a member of the Onward VIP Club</span></div>
-                <div className="vip-hero-sub" data-i18n="vip_hero_sub">Experience the highest level of service, exclusive bonuses and other benefits</div>
+                <div className="vip-hero-title">{hero.title ? <span>{hero.title}</span> : <span data-i18n="vip_hero_title">Become a member of the Onward VIP Club</span>}</div>
+                <div className="vip-hero-sub" {...(hero.desc ? {} : { 'data-i18n': 'vip_hero_sub' })}>{hero.desc || 'Experience the highest level of service, exclusive bonuses and other benefits'}</div>
               </div>
             </div>
           </PageBanner>
