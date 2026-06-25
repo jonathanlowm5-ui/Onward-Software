@@ -164,11 +164,20 @@ export default function WebDesign() {
 
         <div className="wd-card">
           <h3>💳 Withdrawal Card</h3>
-          <div className="wd-d">Gradient of the player's saved card / withdrawal screen.</div>
+          <div className="wd-d">Gradient — or upload a background image — for the player's saved card / withdrawal screen.</div>
           <div className="wd-row"><label>Gradient Start</label><div className="wd-col"><span className="hex">{wd.withdraw.c1.toUpperCase()}</span><input type="color" value={wd.withdraw.c1} onChange={(e) => setWithdraw('c1', e.target.value)} /></div></div>
           <div className="wd-row"><label>Gradient End</label><div className="wd-col"><span className="hex">{wd.withdraw.c2.toUpperCase()}</span><input type="color" value={wd.withdraw.c2} onChange={(e) => setWithdraw('c2', e.target.value)} /></div></div>
+          <div className="wd-fld" style={{ margin: '6px 0' }}>
+            <label>Background Image <span style={{ color: 'var(--gold)', fontWeight: 700 }}>· 1000 × 240 px</span></label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <input type="file" accept="image/*" onChange={uploadPageBanner('withdrawCard')} />
+              {pbUploading === 'withdrawCard' && <span style={{ color: 'var(--gold)' }}>…</span>}
+              {pageBanners.withdrawCard && <button className="del-btn" onClick={() => clearPageBanner('withdrawCard')}>🗑</button>}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Optional — overrides the gradient. The card text stays overlaid. Cover-fitted, under 4 MB.</div>
+          </div>
           <div className="wd-prev-label">Preview</div>
-          <div className="wd-cardp" style={{ background: `linear-gradient(135deg,${wd.withdraw.c1},${wd.withdraw.c2})` }}>
+          <div className="wd-cardp" style={pageBanners.withdrawCard ? { background: `linear-gradient(rgba(6,12,26,.3),rgba(6,12,26,.45)), url(${pageBanners.withdrawCard}) center/cover` } : { background: `linear-gradient(135deg,${wd.withdraw.c1},${wd.withdraw.c2})` }}>
             <div className="ttl">Your credit card</div><div className="lbl">Enter number</div>
             <div className="num">0000 0000 0000 0000</div>
             <div className="brands"><span>VISA</span><span className="mc"><i></i><i></i></span></div>
@@ -181,8 +190,30 @@ export default function WebDesign() {
           <div className="wd-row"><label>Gradient Start</label><div className="wd-col"><span className="hex">{wd.vip.c1.toUpperCase()}</span><input type="color" value={wd.vip.c1} onChange={(e) => setVip('c1', e.target.value)} /></div></div>
           <div className="wd-row"><label>Gradient End</label><div className="wd-col"><span className="hex">{wd.vip.c2.toUpperCase()}</span><input type="color" value={wd.vip.c2} onChange={(e) => setVip('c2', e.target.value)} /></div></div>
           <div className="wd-row"><label>Accent Color</label><div className="wd-col"><span className="hex">{wd.vip.ac.toUpperCase()}</span><input type="color" value={wd.vip.ac} onChange={(e) => setVip('ac', e.target.value)} /></div></div>
-          <div className="wd-prev-label">Preview</div>
-          <div className="wd-vipp" style={{ background: `linear-gradient(135deg,${wd.vip.c1},${wd.vip.c2})`, '--wd-vac': wd.vip.ac }}>
+          <div className="wd-fld" style={{ margin: '8px 0' }}>
+            <label>Per-Tier Backgrounds <span style={{ color: 'var(--gold)', fontWeight: 700 }}>· 1000 × 240 px each</span></label>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>Upload a different background for each VIP level (1–10). Optional — overrides the gradient for that tier; text stays overlaid.</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 10 }}>
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => {
+                const k = 'vip' + n;
+                return (
+                  <div key={k} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 8 }}>
+                    <div style={{ fontWeight: 800, fontSize: 12, marginBottom: 6 }}>VIP {n}</div>
+                    <div style={{ width: '100%', aspectRatio: '1000 / 240', borderRadius: 6, overflow: 'hidden', background: 'var(--panel-3,#1b2541)', border: '1px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+                      {pageBanners[k] ? <img src={pageBanners[k]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 10, color: 'var(--muted)' }}>gradient</span>}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <input type="file" accept="image/*" onChange={uploadPageBanner(k)} style={{ maxWidth: 112, fontSize: 11 }} />
+                      {pbUploading === k && <span style={{ color: 'var(--gold)' }}>…</span>}
+                      {pageBanners[k] && <button className="del-btn" onClick={() => clearPageBanner(k)}>🗑</button>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div className="wd-prev-label">Preview (VIP 1)</div>
+          <div className="wd-vipp" style={pageBanners.vip1 ? { background: `linear-gradient(rgba(8,6,2,.45),rgba(8,6,2,.6)), url(${pageBanners.vip1}) center/cover`, '--wd-vac': wd.vip.ac } : { background: `linear-gradient(135deg,${wd.vip.c1},${wd.vip.c2})`, '--wd-vac': wd.vip.ac }}>
             <span className="cur">Current Level</span><div className="lv">VIP 1</div>
             <div className="vrow">Deposit — PHP 1,000 / 1,600</div><div className="bar"><i style={{ width: '62%' }}></i></div>
             <div className="vrow">VIP Points — 404 / 4,000</div><div className="bar"><i style={{ width: '10%' }}></i></div>

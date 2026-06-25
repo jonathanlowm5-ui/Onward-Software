@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useUI } from '../context/UIContext';
 import PageBanner from '../components/common/PageBanner.jsx';
 import usePageHero from '../hooks/usePageHero';
+import usePageBanner from '../hooks/usePageBanner';
 import useSectionNav from '../hooks/useSectionNav';
 import api from '../services/api';
 
@@ -72,6 +73,7 @@ const T = {
 
 // One horizontal VIP rank card (port of vipHCardHTML).
 function VipHCard({ l, idx, active, mine, onTap, cardRef, levels }) {
+  const tierBg = usePageBanner('vip' + l.lvl); // admin-uploaded per-tier background
   const next = levels[idx + 1];
   const nextLabel = next ? 'VIP ' + next.lvl : T.max;
   const depDone = 1000, depTarget = 1600, depMore = Math.max(depTarget - depDone, 0);
@@ -82,7 +84,8 @@ function VipHCard({ l, idx, active, mine, onTap, cardRef, levels }) {
     <div
       ref={cardRef}
       className={'vipw-header vipw-hcard' + (mine ? ' mine' : '') + (active ? ' active' : '')}
-      style={{ '--vc': l.c, '--vc-l': l.cl, '--vc-d': l.cd, '--vc-rgb': l.rgb }}
+      style={{ '--vc': l.c, '--vc-l': l.cl, '--vc-d': l.cd, '--vc-rgb': l.rgb,
+        ...(tierBg ? { backgroundImage: `linear-gradient(rgba(8,6,2,.45),rgba(8,6,2,.6)), url(${tierBg})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}) }}
       onClick={onTap}
     >
       {mine && <div className="vipw-mine-tag">{T.ribbon}</div>}

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useUI } from '../../context/UIContext';
+import usePageBanner from '../../hooks/usePageBanner';
 import { useAuth } from '../../context/AuthContext';
 import { withdraw } from '../../services/playersService';
 
@@ -40,6 +41,7 @@ function icon(m) {
 
 export default function WithdrawModal() {
   const { activeModal, closeModal, toast, currency } = useUI();
+  const cardBg = usePageBanner('withdrawCard'); // admin-uploaded card background
   const { isLoggedIn, profile, refreshProfile } = useAuth();
   const open = activeModal === 'withdraw';
 
@@ -132,7 +134,7 @@ export default function WithdrawModal() {
 
           {/* RIGHT */}
           <div className="dep2-right">
-            <div className="wd-dest">
+            <div className="wd-dest" style={cardBg ? { backgroundImage: `linear-gradient(rgba(6,12,26,.28),rgba(6,12,26,.42)), url(${cardBg})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
               <div className="wd-dest-title">{destTitle}</div>
               <div className="wd-dest-label">{destLabel}</div>
               <input className="wd-dest-input" placeholder={destPh} value={dest} onChange={(e) => setDest(e.target.value)} />
