@@ -56,6 +56,7 @@ export default function DepositModal() {
   const [amount, setAmount] = useState('1520');
   const [quick, setQuick] = useState(DEFAULT_QUICK);
   const [showDetails, setShowDetails] = useState(true);
+  const [bonusOn, setBonusOn] = useState(true);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -67,8 +68,8 @@ export default function DepositModal() {
 
   const sym = currency?.symbol || '₱';
   const amt = Number(String(amount).replace(/[^0-9.]/g, '')) || 0;
-  const bonus = useMemo(() => calcBonus(amt), [amt]);
-  const fs = amt >= BONUS.min ? BONUS.fs : 0;
+  const bonus = useMemo(() => (bonusOn ? calcBonus(amt) : 0), [amt, bonusOn]);
+  const fs = bonusOn && amt >= BONUS.min ? BONUS.fs : 0;
   const receive = amt + bonus;
   const money = (n) => `${sym}${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -121,13 +122,20 @@ export default function DepositModal() {
 
           {/* ---------- RIGHT: bonus + amount + receive ---------- */}
           <div className="dep2-right">
-            <div className="dep2-bonus">
-              <div className="dep2-bonus-top">{BONUS.label} | FROM {money(BONUS.min)}</div>
-              <div className="dep2-bonus-main">{BONUS.pctLabel} UP TO <span style={{ color: 'var(--green,#34c759)' }}>{sym}{shortAmt(BONUS.max)}</span></div>
-              <div className="dep2-bonus-fs">+{BONUS.fs} FREE SPINS</div>
-              <div className="dep2-bonus-pct">{BONUS.pctLabel}</div>
-            </div>
-            <button className="dep2-changebonus">🔄 Click to change bonus</button>
+            {bonusOn ? (
+              <div className="dep2-bonus">
+                <div className="dep2-bonus-top">{BONUS.label} | FROM {money(BONUS.min)}</div>
+                <div className="dep2-bonus-main">{BONUS.pctLabel} UP TO <span style={{ color: 'var(--green,#34c759)' }}>{sym}{shortAmt(BONUS.max)}</span></div>
+                <div className="dep2-bonus-fs">+{BONUS.fs} FREE SPINS</div>
+                <div className="dep2-bonus-pct">{BONUS.pctLabel}</div>
+              </div>
+            ) : (
+              <div className="dep2-bonus dep2-nobonus">
+                <div className="dep2-bonus-top">NO BONUS</div>
+                <div className="dep2-bonus-main">Play with your real balance only — no wagering required.</div>
+              </div>
+            )}
+            <button className="dep2-changebonus" onClick={() => setBonusOn((b) => !b)}>🔄 Click to change bonus {bonusOn ? '— switch to No bonus' : '— switch to 125% bonus'}</button>
 
             <div className="dep2-sumlabel">Enter your sum</div>
             <div className="dep2-suminput">
@@ -137,7 +145,7 @@ export default function DepositModal() {
 
             <div className="dep2-chips">
               {quick.map((v) => {
-                const b = calcBonus(Number(v));
+                const b = bonusOn ? calcBonus(Number(v)) : 0;
                 return (
                   <button key={v} className={`dep2-chip${amt === Number(v) ? ' active' : ''}`} onClick={() => setAmount(String(v))}>
                     {b > 0 && <span className="dep2-chip-bonus">+{shortAmt(b)}</span>}
