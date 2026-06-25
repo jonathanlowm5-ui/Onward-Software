@@ -71,15 +71,22 @@ export default function BannerCarousel({ promos, className = '' }) {
   return (
     <div className={`onward-banner ${className}`.trim()}>
       <div className="onward-banner-track" style={{ transform: `translateX(-${safeIdx * 100}%)` }}>
-        {slides.map((s, i) => (
-          <img
-            key={s.p.id ?? i}
-            src={s.img}
-            alt={s.p.title || 'Promotion'}
-            className="onward-banner-img"
-            onClick={() => onBannerClick(s.p)}
-          />
-        ))}
+        {slides.map((s, i) => {
+          const lines = s.p.description
+            ? String(s.p.description).split('\n').map((l, j) => <span key={j}>{l}<br /></span>)
+            : null;
+          return (
+            <div key={s.p.id ?? i} className="onward-banner-slide" onClick={() => onBannerClick(s.p)}>
+              <img src={s.img} alt={s.p.title || 'Promotion'} className="onward-banner-img" />
+              {(s.p.title || lines) && (
+                <div className="onward-banner-text">
+                  {s.p.title && <div className="onward-banner-title">{s.p.title}</div>}
+                  {lines && <div className="onward-banner-desc">{lines}</div>}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
       {slides.length > 1 && (
         <div className="onward-banner-dots">
