@@ -13,7 +13,7 @@ const store = require('../store');
 const { requireAuth } = require('../auth');
 
 const router = express.Router();
-const KEYS = ['jackpots', 'referral', 'vip', 'agent', 'follow', 'promotions'];
+const KEYS = ['jackpots', 'referral', 'vip', 'agent', 'follow', 'promotions', 'missions'];
 
 function current() {
   const m = store.getSettings().pageBanners || {};

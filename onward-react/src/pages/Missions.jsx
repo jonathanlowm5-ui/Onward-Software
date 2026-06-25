@@ -1,5 +1,6 @@
 import useSectionNav from '../hooks/useSectionNav';
 import { useUI } from '../context/UIContext';
+import PageBanner from '../components/common/PageBanner.jsx';
 
 const MISSIONS = [
   { icon: '🔥', title: 'Daily Login Streak', desc: 'Log in 7 days in a row', progress: '4 / 7', pct: '57%', reward: '🎁 ₱50', claimable: false },
@@ -20,6 +21,7 @@ export default function Missions() {
     <div id="view-missions">
       <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '24px 16px 60px' }}>
         <button onClick={() => go('lobby')} style={{ background: 'rgba(255,255,255,.06)', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '8px 16px', borderRadius: '9px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }} data-i18n="mission_back">← BACK</button>
+        <div style={{ marginTop: 16 }}><PageBanner pageKey="missions" /></div>
         <h2 style={{ fontFamily: "'Cinzel',serif", fontSize: '26px', color: 'var(--text)', margin: '18px 0 4px' }} data-i18n="mission_title">Missions</h2>
         <div style={{ color: 'var(--text-muted)', fontSize: '14px', marginBottom: '22px' }} data-i18n="mission_subtitle">Complete tasks to earn rewards</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(290px,1fr))', gap: '16px' }}>

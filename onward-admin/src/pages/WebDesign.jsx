@@ -7,6 +7,7 @@ const PAGE_BANNER_LIST = [
   { key: 'jackpots', label: '👑 Jackpots' },
   { key: 'vip', label: '💎 VIP Club' },
   { key: 'referral', label: '🤝 Referral' },
+  { key: 'missions', label: '🎯 Mission' },
   { key: 'agent', label: '🧑‍💼 Agent' },
   { key: 'follow', label: '📣 Follow Us' },
 ];
