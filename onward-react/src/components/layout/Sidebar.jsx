@@ -2,6 +2,15 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUI } from '../../context/UIContext';
 import useSectionNav from '../../hooks/useSectionNav';
+// Uploaded sidebar icons (replace the emoji on the Casino panel menu).
+import icFortune from '../../assets/sidebar/fortune-wheel.avif';
+import icTournament from '../../assets/sidebar/tournament.avif';
+import icGift from '../../assets/sidebar/gift.avif';
+import icDiamond from '../../assets/sidebar/diamond.avif';
+import icGiveaway from '../../assets/sidebar/giveaway.avif';
+import icRewards from '../../assets/sidebar/rewards.avif';
+import icUseCode from '../../assets/sidebar/use-code.avif';
+import icCrown from '../../assets/sidebar/crown.avif';
 
 // Collapsible sport groups (id, icon, label, i18n, sub-links).
 const SPORT_GROUPS = [
@@ -63,14 +72,14 @@ export default function Sidebar() {
 
         {/* CASINO PANEL */}
         <div className={`sb-panel${tab === 'casino' ? ' active' : ''}`} id="sb-casino">
-          <SbItem icon="🎡" label="Mini Games" i18n="nav_fortune_wheel" onClick={openFortuneWheel} />
-          <SbItem icon="🏆" label="Tournaments" i18n="nav_tournaments" onClick={() => go('tournaments')} />
-          <SbItem icon="🎁" label="Promotions" i18n="nav_promos" onClick={() => go('promos')} />
-          <SbItem icon="💎" label="VIP Club" i18n="nav_vip" onClick={() => go('vip')} />
-          <SbItem icon="⚡" label="Giveaways" i18n="nav_giveaways" badge={{ cls: 'hot', text: 'HOT' }} onClick={() => go('giveaways')} />
-          <SbItem icon="🎯" label="Mission" i18n="nav_mission" onClick={() => go('missions')} />
-          <SbItem icon="🎟️" label="Use Code" i18n="nav_use_code" onClick={openUseCodeModal} />
-          <SbItem icon="👑" label="Jackpots" i18n="nav_jackpots" badge={{ cls: 'hot', text: '₱128M' }} onClick={() => go('jackpots')} />
+          <SbItem img={icFortune} icon="🎡" label="Mini Games" i18n="nav_fortune_wheel" onClick={openFortuneWheel} />
+          <SbItem img={icTournament} icon="🏆" label="Tournaments" i18n="nav_tournaments" onClick={() => go('tournaments')} />
+          <SbItem img={icGift} icon="🎁" label="Promotions" i18n="nav_promos" onClick={() => go('promos')} />
+          <SbItem img={icDiamond} icon="💎" label="VIP Club" i18n="nav_vip" onClick={() => go('vip')} />
+          <SbItem img={icGiveaway} icon="⚡" label="Giveaways" i18n="nav_giveaways" badge={{ cls: 'hot', text: 'HOT' }} onClick={() => go('giveaways')} />
+          <SbItem img={icRewards} icon="🎯" label="Mission" i18n="nav_mission" onClick={() => go('missions')} />
+          <SbItem img={icUseCode} icon="🎟️" label="Use Code" i18n="nav_use_code" onClick={openUseCodeModal} />
+          <SbItem img={icCrown} icon="👑" label="Jackpots" i18n="nav_jackpots" badge={{ cls: 'hot', text: '₱128M' }} onClick={() => go('jackpots')} />
           <SbItem icon="🤝" label="Referral" i18n="nav_referral" onClick={() => go('referral')} />
 
           <div className="sb-divider"></div>
@@ -137,10 +146,12 @@ export default function Sidebar() {
   );
 }
 
-function SbItem({ icon, label, i18n, badge, active, onClick }) {
+function SbItem({ icon, img, label, i18n, badge, active, onClick }) {
   return (
     <button className={`sb-nav-item${active ? ' active' : ''}`} onClick={onClick}>
-      <span className="sb-nav-icon">{icon}</span>
+      <span className="sb-nav-icon">
+        {img ? <img src={img} alt="" className="sb-nav-img" /> : icon}
+      </span>
       <span className="sb-nav-label" data-i18n={i18n}>{label}</span>
       {badge && <span className={`sb-nav-badge ${badge.cls}`}>{badge.text}</span>}
     </button>
