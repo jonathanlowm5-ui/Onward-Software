@@ -855,12 +855,7 @@ body::before{
 .pb-card.tournament:hover{border-color:rgba(168,85,247,.5)}
 /* Big % decoration */
 .pb-deco{
-  position:absolute;right:-10px;bottom:-10px;
-  font-size:72px;font-weight:900;
-  color:rgba(240,192,64,.12);
-  font-family:'Cinzel',serif;
-  line-height:1;pointer-events:none;
-  letter-spacing:-4px;
+  display:none; /* removed the big faded % watermark on promo cards */
 }
 .pb-card.tournament .pb-deco{
   font-size:60px;opacity:.15;
@@ -920,10 +915,11 @@ body::before{
 }
 
 /* ===== Reusable hero banner (front page, promo page, …) =====
-   One 16:7 frame so a single uploaded banner fits every placement. */
+   One 16:7 frame so a single uploaded banner fits every placement and matches
+   the promo-card banners exactly. */
 .onward-banner{
   position:relative;width:100%;
-  aspect-ratio:16 / 7;max-height:360px;
+  aspect-ratio:16 / 7;
   border-radius:16px;overflow:hidden;margin-bottom:20px;
   background:#0c1626;border:1px solid var(--border);
 }
