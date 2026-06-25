@@ -528,11 +528,8 @@ export default function Header() {
                 ['📜', 'Game History', () => goSection('history')],
                 ['💳', 'Transactions', () => goSection('transactions')],
                 ['🎰', 'Wager', () => goSection('wager')],
-                ['🏦', 'Bank', () => goSection('security')],
-                ['💰', 'Deposit', () => { setAcctOpen(false); openModal('deposit'); }],
                 ['💸', 'Withdraw', () => { setAcctOpen(false); openModal('withdraw'); }],
-                ['💎', 'VIP Club', () => { setAcctOpen(false); go('vip'); }],
-                ['🤝', 'Referral', () => { setAcctOpen(false); go('referral'); }],
+                ['🕴️', 'Agent', () => { setAcctOpen(false); go('agent'); }],
               ].map(([ic, label, fn]) => (
                 <button key={label} onClick={fn} style={acctRow}>
                   <span style={{ width: 22, textAlign: 'center' }}>{ic}</span><span>{label}</span>
