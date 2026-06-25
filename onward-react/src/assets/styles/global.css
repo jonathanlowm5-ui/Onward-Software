@@ -5695,8 +5695,13 @@ img{ -webkit-user-drag:none; user-drag:none; }
 }
 
 /* ---- 2. Promo grid widgets: one shared track, equal heights ---- */
-.promo-grid, .promo-bonus-grid{
+.promo-grid{
   grid-template-columns:repeat(auto-fill,minmax(300px,1fr)) !important;
+  gap:14px !important;
+  align-items:stretch !important;
+}
+.promo-bonus-grid{
+  grid-template-columns:repeat(3,1fr) !important;
   gap:14px !important;
   align-items:stretch !important;
 }
