@@ -440,6 +440,12 @@ export default function AllPlayers() {
               try { await resetPlayerPassword(id, pw); toast('Password reset ✔ for ' + players[pmIdx][0]); }
               catch (e) { toast('Could not reset: ' + (e?.response?.data?.error || e.message || 'error')); }
             }}>🔑 Reset Password</button>}
+            {can('players.edit') && <button className="mini-btn" onClick={async () => {
+              const id = players[pmIdx] && players[pmIdx][15];
+              if (!id) { toast('No backend account for this row'); return; }
+              try { await updatePlayer(id, { welcomeClaimed: 0 }); toast('Welcome bonus reset ✔ — card will show again for ' + players[pmIdx][0]); }
+              catch (e) { toast('Could not reset: ' + (e?.response?.data?.error || e.message || 'error')); }
+            }}>🎁 Reset Welcome Bonus</button>}
             <button className="mini-btn" onClick={() => toast('2FA disabled 🔓')}>🔓 Disable 2FA</button>
             <button className="act-suspend" onClick={() => toast('Player suspended ⛔')}>⛔ Suspend</button>
             <button className="mini-btn red" onClick={() => toast('Account banned 🚫')}>🚫 Ban Account</button>

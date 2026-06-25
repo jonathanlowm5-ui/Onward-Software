@@ -320,6 +320,8 @@ router.put('/:id', requireAuth, requirePerm('players.edit'), (req, res) => {
   if (b.country !== undefined) patch.country = b.country;
   if (b.currency !== undefined) patch.currency = String(b.currency).toUpperCase();
   if (b.vipLevel !== undefined) patch.vipLevel = Math.max(0, Number(b.vipLevel) || 0);
+  // Welcome-bonus progress (0–4). Setting to 0 re-shows the welcome card.
+  if (b.welcomeClaimed !== undefined) patch.welcomeClaimed = Math.max(0, Math.min(4, Number(b.welcomeClaimed) || 0));
   if (b.status !== undefined && ['active', 'suspended', 'blocked'].includes(b.status)) patch.status = b.status;
   else if (b.active !== undefined) patch.status = b.active ? 'active' : 'suspended';
 
