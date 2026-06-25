@@ -329,7 +329,7 @@ function LuckyTicket({ config, onClose }) {
 }
 
 const chip = { fontSize: 13, color: 'var(--text-muted,#8898b8)', background: 'rgba(255,255,255,.05)', border: '1px solid var(--border,#243049)', borderRadius: 999, padding: '5px 12px' };
-const fwTitle = { fontFamily: "'Cinzel', serif", fontWeight: 900, fontSize: 26, lineHeight: 1.05, textAlign: 'center', color: '#ffd75e', textShadow: '0 2px 0 #a8730a, 0 4px 8px rgba(0,0,0,.6)', letterSpacing: '.04em' };
+const fwTitle = { fontFamily: "'Montserrat',sans-serif", fontWeight: 900, fontSize: 26, lineHeight: 1.05, textAlign: 'center', color: '#ffd75e', textShadow: '0 2px 0 #a8730a, 0 4px 8px rgba(0,0,0,.6)', letterSpacing: '.04em' };
 const ltStat = { background: 'rgba(255,255,255,.04)', border: '1px solid var(--border,#243049)', borderRadius: 12, padding: '11px 13px' };
 const ltLbl = { fontSize: 11, color: 'var(--text-muted,#8898b8)', textTransform: 'uppercase', letterSpacing: '.04em' };
 const ltVal = { fontWeight: 800, marginTop: 4, color: '#fff' };

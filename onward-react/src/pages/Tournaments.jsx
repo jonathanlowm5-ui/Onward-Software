@@ -57,7 +57,7 @@ export default function Tournaments() {
         {/* Page header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px', flexWrap: 'wrap', gap: '12px' }}>
           <div>
-            <div style={{ fontFamily: "'Cinzel',serif", fontSize: '26px', fontWeight: 900, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ fontFamily: "'Montserrat',sans-serif", fontSize: '26px', fontWeight: 900, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '12px' }}>
               <span style={{ display: 'inline-block', width: '4px', height: '28px', background: 'linear-gradient(to bottom,var(--gold),var(--gold-dark))', borderRadius: '2px' }}></span>
               <span data-i18n="nav_tournaments">Tournaments</span>
             </div>
@@ -81,9 +81,9 @@ export default function Tournaments() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px', flexWrap: 'wrap' }}>
                 <span style={{ background: 'var(--red)', color: '#fff', fontSize: '10px', fontWeight: 800, padding: '3px 10px', borderRadius: '5px', letterSpacing: '.08em' }} data-i18n="trn_badge_fast">⚡ FAST</span>
                 <span style={{ fontSize: '12px', color: 'rgba(255,255,255,.5)' }} data-i18n="trn_ends_in">Ends in:</span>
-                <span id="trn-countdown" style={{ fontFamily: "'Cinzel',serif", fontSize: '18px', fontWeight: 900, color: secs <= 0 ? 'var(--text-muted)' : 'var(--gold)' }}>{countdown}</span>
+                <span id="trn-countdown" style={{ fontFamily: "'Montserrat',sans-serif", fontSize: '18px', fontWeight: 900, color: secs <= 0 ? 'var(--text-muted)' : 'var(--gold)' }}>{countdown}</span>
               </div>
-              <div style={{ fontFamily: "'Cinzel',serif", fontSize: '28px', fontWeight: 900, color: '#fff', marginBottom: '6px' }}><span data-i18n="trn_fast_name">FAST TOURNAMENT</span> #3</div>
+              <div style={{ fontFamily: "'Montserrat',sans-serif", fontSize: '28px', fontWeight: 900, color: '#fff', marginBottom: '6px' }}><span data-i18n="trn_fast_name">FAST TOURNAMENT</span> #3</div>
               <div style={{ fontSize: '13px', color: 'rgba(255,255,255,.55)', marginBottom: '18px' }} data-i18n="trn_duration_desc">Duration: 2 hours · Top 20 players win prizes</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                 <div className="trn-prize-big">🏆 18,450 ₱</div>
@@ -139,7 +139,7 @@ export default function Tournaments() {
                 <span style={{ background: 'rgba(240,192,64,.2)', border: '1px solid rgba(240,192,64,.4)', color: 'var(--gold)', fontSize: '10px', fontWeight: 800, padding: '3px 10px', borderRadius: '5px', letterSpacing: '.08em' }}>🕐 6 DAYS LEFT</span>
                 <span style={{ fontSize: '12px', color: 'rgba(255,255,255,.5)' }}>21-day tournament</span>
               </div>
-              <div style={{ fontFamily: "'Cinzel',serif", fontSize: '28px', fontWeight: 900, color: '#fff', marginBottom: '6px' }}>PIXEL RUSH</div>
+              <div style={{ fontFamily: "'Montserrat',sans-serif", fontSize: '28px', fontWeight: 900, color: '#fff', marginBottom: '6px' }}>PIXEL RUSH</div>
               <div style={{ fontSize: '13px', color: 'rgba(255,255,255,.55)', marginBottom: '18px' }}>Collect points on featured slot games. Top 100 players share the prize pool.</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                 <div className="trn-prize-big">🏆 799,570 ₱</div>
@@ -224,7 +224,7 @@ export default function Tournaments() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
                 <span style={{ background: 'rgba(56,189,248,.2)', border: '1px solid rgba(56,189,248,.4)', color: '#38bdf8', fontSize: '10px', fontWeight: 800, padding: '3px 10px', borderRadius: '5px' }}>🔜 STARTS IN 2 DAYS</span>
               </div>
-              <div style={{ fontFamily: "'Cinzel',serif", fontSize: '28px', fontWeight: 900, color: '#fff', marginBottom: '6px' }}>MEGA SLOTS BATTLE</div>
+              <div style={{ fontFamily: "'Montserrat',sans-serif", fontSize: '28px', fontWeight: 900, color: '#fff', marginBottom: '6px' }}>MEGA SLOTS BATTLE</div>
               <div style={{ fontSize: '13px', color: 'rgba(255,255,255,.55)', marginBottom: '18px' }}>7-day tournament · All slots eligible · Top 50 win prizes</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                 <div className="trn-prize-big">🏆 250,000 ₱</div>
@@ -242,7 +242,7 @@ export default function Tournaments() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
                   <span style={{ background: 'rgba(34,197,94,.2)', border: '1px solid rgba(34,197,94,.4)', color: 'var(--green)', fontSize: '10px', fontWeight: 800, padding: '3px 10px', borderRadius: '5px' }}>🔜 STARTS IN 5 DAYS</span>
                 </div>
-                <div style={{ fontFamily: "'Cinzel',serif", fontSize: '28px', fontWeight: 900, color: '#fff', marginBottom: '6px' }}>LIVE CASINO ROYALE</div>
+                <div style={{ fontFamily: "'Montserrat',sans-serif", fontSize: '28px', fontWeight: 900, color: '#fff', marginBottom: '6px' }}>LIVE CASINO ROYALE</div>
                 <div style={{ fontSize: '13px', color: 'rgba(255,255,255,.55)', marginBottom: '18px' }}>3-day live casino exclusive · Roulette, Blackjack &amp; Baccarat</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                   <div className="trn-prize-big">🏆 500,000 ₱</div>
@@ -266,7 +266,7 @@ export default function Tournaments() {
               <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text)', marginBottom: '4px' }}>FAST TOURNAMENT #2</div>
               <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '14px' }}>18.05.2026 · 2-hour event</div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontFamily: "'Cinzel',serif", fontSize: '18px', fontWeight: 800, color: 'var(--gold)' }}>18,450 ₱</span>
+                <span style={{ fontFamily: "'Montserrat',sans-serif", fontSize: '18px', fontWeight: 800, color: 'var(--gold)' }}>18,450 ₱</span>
                 <span style={{ fontSize: '12px', color: 'var(--green)' }}>🏆 Winner: mar***67</span>
               </div>
             </div>
@@ -279,7 +279,7 @@ export default function Tournaments() {
               <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text)', marginBottom: '4px' }}>MAY SLOTS MANIA</div>
               <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '14px' }}>01.05.2026 – 15.05.2026 · 14-day event</div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontFamily: "'Cinzel',serif", fontSize: '18px', fontWeight: 800, color: 'var(--gold)' }}>320,000 ₱</span>
+                <span style={{ fontFamily: "'Montserrat',sans-serif", fontSize: '18px', fontWeight: 800, color: 'var(--gold)' }}>320,000 ₱</span>
                 <span style={{ fontSize: '12px', color: 'var(--green)' }}>🏆 Winner: kev***12</span>
               </div>
             </div>
@@ -292,7 +292,7 @@ export default function Tournaments() {
               <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text)', marginBottom: '4px' }}>APRIL LIVE LEGENDS</div>
               <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '14px' }}>20.04.2026 – 30.04.2026 · 10-day event</div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontFamily: "'Cinzel',serif", fontSize: '18px', fontWeight: 800, color: 'var(--gold)' }}>180,000 ₱</span>
+                <span style={{ fontFamily: "'Montserrat',sans-serif", fontSize: '18px', fontWeight: 800, color: 'var(--gold)' }}>180,000 ₱</span>
                 <span style={{ fontSize: '12px', color: 'var(--green)' }}>🏆 Winner: ana***88</span>
               </div>
             </div>

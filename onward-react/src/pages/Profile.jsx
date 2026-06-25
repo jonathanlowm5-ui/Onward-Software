@@ -1482,7 +1482,7 @@ function AgentDashboard({ show, code, toast }) {
         </div>
         <div style={{ background: 'rgba(240,192,64,.12)', border: '1px solid rgba(240,192,64,.25)', borderRadius: 8, padding: '6px 14px', display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 10, color: 'rgba(255,255,255,.5)' }}>Agent Code</span>
-          <span style={{ fontSize: 14, fontWeight: 900, color: 'var(--gold)', fontFamily: "'Cinzel',serif" }} id="ag-code-display">{code}</span>
+          <span style={{ fontSize: 14, fontWeight: 900, color: 'var(--gold)', fontFamily: "'Montserrat',sans-serif" }} id="ag-code-display">{code}</span>
         </div>
       </div>
 
@@ -1559,7 +1559,7 @@ function AgentDashboard({ show, code, toast }) {
       <div id="ag-panel-share" style={{ display: stab === 'share' ? 'block' : 'none', padding: 18 }}>
         <div style={{ background: 'rgba(240,192,64,.06)', border: '1px solid rgba(240,192,64,.2)', borderRadius: 12, padding: 18, marginBottom: 14 }}>
           <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(240,192,64,.7)', marginBottom: 6 }}>Your Agent Code</div>
-          <div style={{ fontFamily: "'Cinzel',serif", fontSize: 28, fontWeight: 900, color: '#f0c040', marginBottom: 12 }} id="ag-share-code">{code}</div>
+          <div style={{ fontFamily: "'Montserrat',sans-serif", fontSize: 28, fontWeight: 900, color: '#f0c040', marginBottom: 12 }} id="ag-share-code">{code}</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: 'rgba(0,0,0,.3)', border: '1px solid rgba(240,192,64,.2)', borderRadius: 8, padding: '8px 12px', cursor: 'pointer', marginBottom: 10 }} onClick={() => { navigator.clipboard?.writeText(link).catch(() => {}); toast('✅ Agent link copied!', 'success'); }}>
             <span style={{ fontSize: 12, fontFamily: 'monospace', color: 'rgba(240,192,64,.8)', flex: 1 }} id="ag-share-link">{link}</span>
             <span style={{ color: '#f0c040', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>📋 Copy</span>
@@ -1590,7 +1590,7 @@ function AgentKpi({ color, label, i18n, value, sub }) {
     <div style={{ background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 12, padding: 14, position: 'relative', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: color }}></div>
       <div style={{ fontSize: 10, color: 'rgba(255,255,255,.4)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.06em' }} data-i18n={i18n}>{label}</div>
-      <div style={{ fontSize: 20, fontWeight: 900, color, fontFamily: "'Cinzel',serif" }}>{value}</div>
+      <div style={{ fontSize: 20, fontWeight: 900, color, fontFamily: "'Montserrat',sans-serif" }}>{value}</div>
       <div style={{ fontSize: 10, color: 'rgba(255,255,255,.3)', marginTop: 3 }}>{sub}</div>
     </div>
   );

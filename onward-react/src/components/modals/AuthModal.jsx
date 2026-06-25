@@ -291,7 +291,7 @@ function DepositPanel() {
   return (
     <div className="tab-panel active" id="panel-deposit">
       <div className="modal-body">
-        <h3 style={{ fontFamily: "'Cinzel',serif", marginBottom: '20px' }} data-i18n="dep_title">Deposit Funds</h3>
+        <h3 style={{ fontFamily: "'Montserrat',sans-serif", marginBottom: '20px' }} data-i18n="dep_title">Deposit Funds</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '20px' }} id="payment-methods">
           {methods.map((m) => (
             <button key={m} className={`cat-btn${method === m ? ' active' : ''}`} style={{ justifyContent: 'center' }} onClick={() => setMethod(m)}>{m}</button>
