@@ -41,7 +41,20 @@ function icon(m) {
 
 export default function WithdrawModal() {
   const { activeModal, closeModal, toast, currency } = useUI();
-  const cardBg = usePageBanner('withdrawCard'); // admin-uploaded card background
+  // 3 selectable card styles (distinct colours; admin can upload a design for each).
+  const [cardStyle, setCardStyle] = useState(1);
+  const cardImg1 = usePageBanner('withdrawCard1');
+  const cardImg2 = usePageBanner('withdrawCard2');
+  const cardImg3 = usePageBanner('withdrawCard3');
+  const CARD_STYLES = [
+    { id: 1, grad: 'linear-gradient(135deg,#1f4e79,#0e8a7a)', img: cardImg1 },
+    { id: 2, grad: 'linear-gradient(135deg,#5b2a86,#2d1b69)', img: cardImg2 },
+    { id: 3, grad: 'linear-gradient(135deg,#1fa05f,#0c5c39)', img: cardImg3 },
+  ];
+  const selStyle = CARD_STYLES.find((s) => s.id === cardStyle) || CARD_STYLES[0];
+  const cardBgStyle = selStyle.img
+    ? { backgroundImage: `linear-gradient(rgba(6,12,26,.28),rgba(6,12,26,.42)), url(${selStyle.img})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    : { background: selStyle.grad };
   const { isLoggedIn, profile, refreshProfile } = useAuth();
   const open = activeModal === 'withdraw';
 
@@ -134,7 +147,19 @@ export default function WithdrawModal() {
 
           {/* RIGHT */}
           <div className="dep2-right">
-            <div className="wd-dest" style={cardBg ? { backgroundImage: `linear-gradient(rgba(6,12,26,.28),rgba(6,12,26,.42)), url(${cardBg})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+            <div className="wd-cardstyles">
+              {CARD_STYLES.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className={'wd-cardstyle' + (cardStyle === s.id ? ' active' : '')}
+                  onClick={() => setCardStyle(s.id)}
+                  title={`Card style ${s.id}`}
+                  style={s.img ? { backgroundImage: `url(${s.img})`, backgroundSize: 'cover', backgroundPosition: 'center' } : { background: s.grad }}
+                />
+              ))}
+            </div>
+            <div className="wd-dest" style={cardBgStyle}>
               <div className="wd-dest-title">{destTitle}</div>
               <div className="wd-dest-label">{destLabel}</div>
               <input className="wd-dest-input" placeholder={destPh} value={dest} onChange={(e) => setDest(e.target.value)} />

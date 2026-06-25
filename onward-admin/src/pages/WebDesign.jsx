@@ -168,16 +168,29 @@ export default function WebDesign() {
           <div className="wd-row"><label>Gradient Start</label><div className="wd-col"><span className="hex">{wd.withdraw.c1.toUpperCase()}</span><input type="color" value={wd.withdraw.c1} onChange={(e) => setWithdraw('c1', e.target.value)} /></div></div>
           <div className="wd-row"><label>Gradient End</label><div className="wd-col"><span className="hex">{wd.withdraw.c2.toUpperCase()}</span><input type="color" value={wd.withdraw.c2} onChange={(e) => setWithdraw('c2', e.target.value)} /></div></div>
           <div className="wd-fld" style={{ margin: '6px 0' }}>
-            <label>Background Image <span style={{ color: 'var(--gold)', fontWeight: 700 }}>· 1000 × 240 px</span></label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <input type="file" accept="image/*" onChange={uploadPageBanner('withdrawCard')} />
-              {pbUploading === 'withdrawCard' && <span style={{ color: 'var(--gold)' }}>…</span>}
-              {pageBanners.withdrawCard && <button className="del-btn" onClick={() => clearPageBanner('withdrawCard')}>🗑</button>}
+            <label>3 Card Styles <span style={{ color: 'var(--gold)', fontWeight: 700 }}>· 1000 × 240 px each — players choose one</span></label>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+              {[{ n: 1, c: '#1f4e79,#0e8a7a' }, { n: 2, c: '#5b2a86,#2d1b69' }, { n: 3, c: '#1fa05f,#0c5c39' }].map(({ n, c }) => {
+                const k = 'withdrawCard' + n;
+                return (
+                  <div key={k} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 8 }}>
+                    <div style={{ fontWeight: 800, fontSize: 12, marginBottom: 6 }}>Style {n}</div>
+                    <div style={{ width: '100%', aspectRatio: '1000 / 240', borderRadius: 6, overflow: 'hidden', marginBottom: 6, background: pageBanners[k] ? undefined : `linear-gradient(135deg,${c})` }}>
+                      {pageBanners[k] && <img src={pageBanners[k]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <input type="file" accept="image/*" onChange={uploadPageBanner(k)} style={{ maxWidth: 112, fontSize: 11 }} />
+                      {pbUploading === k && <span style={{ color: 'var(--gold)' }}>…</span>}
+                      {pageBanners[k] && <button className="del-btn" onClick={() => clearPageBanner(k)}>🗑</button>}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Optional — overrides the gradient. The card text stays overlaid. Cover-fitted, under 4 MB.</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>Players pick one of these 3 styles on the withdrawal card. Leave a style empty to use its default colour; text stays overlaid.</div>
           </div>
-          <div className="wd-prev-label">Preview</div>
-          <div className="wd-cardp" style={pageBanners.withdrawCard ? { background: `linear-gradient(rgba(6,12,26,.3),rgba(6,12,26,.45)), url(${pageBanners.withdrawCard}) center/cover` } : { background: `linear-gradient(135deg,${wd.withdraw.c1},${wd.withdraw.c2})` }}>
+          <div className="wd-prev-label">Preview (Style 1)</div>
+          <div className="wd-cardp" style={pageBanners.withdrawCard1 ? { background: `linear-gradient(rgba(6,12,26,.3),rgba(6,12,26,.45)), url(${pageBanners.withdrawCard1}) center/cover` } : { background: 'linear-gradient(135deg,#1f4e79,#0e8a7a)' }}>
             <div className="ttl">Your credit card</div><div className="lbl">Enter number</div>
             <div className="num">0000 0000 0000 0000</div>
             <div className="brands"><span>VISA</span><span className="mc"><i></i><i></i></span></div>

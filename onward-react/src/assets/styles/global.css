@@ -988,6 +988,11 @@ body::before{
 .wd-tag{position:absolute;top:10px;left:50%;transform:translateX(-50%);font-size:8px;font-weight:800;color:#fff;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:5px;padding:1px 5px}
 .dep2-method{position:relative}
 .wd-dest{position:relative;overflow:hidden;border-radius:14px;padding:20px;background:linear-gradient(120deg,#15324a,#194a44 70%,#143240);border:1px solid #2a5a55}
+/* 3 selectable card styles above the withdrawal card */
+.wd-cardstyles{display:flex;gap:8px;margin-bottom:10px}
+.wd-cardstyle{width:42px;height:26px;border-radius:7px;border:2px solid rgba(255,255,255,.25);cursor:pointer;padding:0;transition:transform .12s,border-color .12s;background-size:cover;background-position:center}
+.wd-cardstyle:hover{transform:translateY(-1px)}
+.wd-cardstyle.active{border-color:var(--gold,#f0c040);box-shadow:0 0 0 2px rgba(240,192,64,.3)}
 .wd-dest-title{font-size:18px;font-weight:800;color:#fff;margin-bottom:14px}
 .wd-dest-label{font-size:12px;color:rgba(255,255,255,.7);margin-bottom:7px}
 .wd-dest-input{width:100%;padding:13px 14px;border-radius:10px;background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.14);color:#fff;font-size:16px;outline:none;letter-spacing:.04em}
