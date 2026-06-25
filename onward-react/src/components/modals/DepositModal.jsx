@@ -3,6 +3,8 @@ import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { deposit as depositRequest } from '../../services/playersService';
 import api from '../../services/api';
+import useWelcomePromo from '../../hooks/useWelcomePromo';
+import { resolvePromoBanner } from '../../utils/promoTerms';
 
 /*
  * Rich deposit modal — two columns: payment methods (left) and the bonus +
@@ -76,6 +78,14 @@ export default function DepositModal() {
   const [showDetails, setShowDetails] = useState(true);
   const [bonusOn, setBonusOn] = useState(true);
   const [busy, setBusy] = useState(false);
+
+  // Same promotion artwork as the Promotions page: the welcome / first-deposit
+  // promo banner sits behind the bonus box (text stays overlaid + readable).
+  const welcomePromo = useWelcomePromo();
+  const promoBanner = resolvePromoBanner(welcomePromo || {}, currency?.code || profile?.currency);
+  const bonusBgStyle = promoBanner
+    ? { backgroundImage: `linear-gradient(90deg, rgba(12,19,40,.82) 0%, rgba(12,19,40,.5) 55%, rgba(12,19,40,.2) 100%), url(${promoBanner})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    : undefined;
 
   useEffect(() => {
     if (!open) return;
@@ -159,7 +169,7 @@ export default function DepositModal() {
           {/* ---------- RIGHT: bonus + amount + receive ---------- */}
           <div className="dep2-right">
             {bonusOn ? (
-              <div className="dep2-bonus">
+              <div className="dep2-bonus" style={bonusBgStyle}>
                 <div className="dep2-bonus-top">{BONUS.label} | FROM {money(BONUS.min)}</div>
                 <div className="dep2-bonus-main">{BONUS.pctLabel} UP TO <span style={{ color: 'var(--green,#34c759)' }}>{sym}{shortAmt(BONUS.max)}</span></div>
                 <div className="dep2-bonus-fs">+{BONUS.fs} FREE SPINS</div>

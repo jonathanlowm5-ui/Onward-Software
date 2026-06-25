@@ -4,6 +4,8 @@ import { useLocation } from 'react-router-dom';
 import { useUI } from '../context/UIContext';
 import { useAuth } from '../context/AuthContext';
 import useSectionNav from '../hooks/useSectionNav';
+import useWelcomePromo from '../hooks/useWelcomePromo';
+import { resolvePromoBanner } from '../utils/promoTerms';
 import * as playersService from '../services/playersService';
 
 /* ── Sample data mirroring the original inline JS ── */
@@ -115,6 +117,13 @@ const curSym = (c) => CUR_SYM[c] || c || '₱';
 export default function Profile() {
   const { openModal, toast } = useUI();
   const { profile, isLoggedIn, loading, logout, updateProfile } = useAuth();
+  // Same promotion artwork as the deposit modal / Promotions page sits behind
+  // the "activated bonus" card.
+  const welcomePromo = useWelcomePromo();
+  const welcomeBonusBanner = resolvePromoBanner(welcomePromo || {}, profile?.currency);
+  const bonusCardStyle = welcomeBonusBanner
+    ? { backgroundImage: `linear-gradient(90deg, rgba(12,19,40,.86) 0%, rgba(12,19,40,.55) 55%, rgba(12,19,40,.25) 100%), url(${welcomeBonusBanner})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    : undefined;
   const avatarRef = useRef(null);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const onAvatarPick = async (e) => {
@@ -253,7 +262,7 @@ export default function Profile() {
           </div>
 
           {/* Active bonus card */}
-          <div className="prof-bonus-card">
+          <div className="prof-bonus-card" style={bonusCardStyle}>
             <div className="prof-bonus-activated" data-i18n="promo_activated">ACTIVATED</div>
             <div className="prof-bonus-title" data-i18n="prof_bonus_1st">1ST DEPOSIT BONUS</div>
             <div className="prof-bonus-sub">125% UP TO 61.51K ₱<br />+100 FREE SPINS</div>
