@@ -90,6 +90,41 @@ module.exports = function seed() {
     console.log(`Seeded ${promos.length} demo promotions (1 intentionally expired)`);
   }
 
+  // ---- one-time: add the built-in showcase bonuses/reloads as REAL, editable
+  // promotions so admins can manage them and upload banners. Guarded by a flag
+  // so deleting one in the admin won't make it come back; also skips any title
+  // that already exists to avoid duplicates. ----
+  const _ps = store.getSettings();
+  if (!_ps.showcasePromosSeededV1) {
+    const SHOWCASE = [
+      { title: '1st Deposit Bonus', type: 'deposit', description: '125% UP TO ₱3,970\n+100 FREE SPINS', bonus: '125%', maxBonus: '₱3,970', minDeposit: '₱500', wager: '30x', turnover: '0x' },
+      { title: '2nd Deposit Bonus', type: 'deposit', description: '100% UP TO ₱1,980\n+25 FREE SPINS', bonus: '100%', maxBonus: '₱1,980', minDeposit: '₱500', wager: '30x', turnover: '0x' },
+      { title: '3rd Deposit Bonus', type: 'deposit', description: '75% UP TO ₱5,950\n+50 FREE SPINS', bonus: '75%', maxBonus: '₱5,950', minDeposit: '₱500', wager: '35x', turnover: '0x' },
+      { title: '4th Deposit Bonus', type: 'deposit', description: '200% UP TO ₱7,940\n+25 FREE SPINS', bonus: '200%', maxBonus: '₱7,940', minDeposit: '₱1,000', wager: '40x', turnover: '0x' },
+      { title: 'Weekend Reload', type: 'deposit', description: '50% UP TO ₱5,000\n+55 FREE SPINS', bonus: '50%', maxBonus: '₱5,000', minDeposit: '₱500', wager: '25x', turnover: '0x' },
+      { title: 'Weekly Cashback', type: 'cashback', description: '10% CASHBACK\nEVERY WEEK', bonus: '10%', maxBonus: '₱20,000', minDeposit: '₱0', wager: '5x', turnover: '0x' },
+      { title: 'Monday Reload', type: 'reload', description: '50% UP TO ₱3,000\n+30 FREE SPINS', bonus: '50%', maxBonus: '₱3,000', minDeposit: '₱300', wager: '30x', turnover: '0x' },
+      { title: 'Daily Reload', type: 'reload', description: '30% UP TO ₱2,000\nEVERY DAY', bonus: '30%', maxBonus: '₱2,000', minDeposit: '₱200', wager: '25x', turnover: '0x' },
+      { title: 'Weekend Special', type: 'reload', description: '75% UP TO ₱8,000\nSAT & SUN ONLY', bonus: '75%', maxBonus: '₱8,000', minDeposit: '₱500', wager: '35x', turnover: '0x' },
+    ];
+    const have = store.list('promotions');
+    let order = have.length;
+    let added = 0;
+    SHOWCASE.forEach((p) => {
+      const dup = have.some((x) => String(x.title || '').trim().toLowerCase() === p.title.toLowerCase());
+      if (dup) return;
+      store.insert('promotions', {
+        image: '', banners: {}, currency: '', country: '',
+        startDate: '', endDate: '', status: 'active',
+        buttonText: 'Claim Now', buttonLink: '/deposit',
+        sortOrder: order++, ...p,
+      });
+      added += 1;
+    });
+    store.saveSettings({ showcasePromosSeededV1: true });
+    console.log(`Seeded ${added} showcase promotions into backend`);
+  }
+
   // ---- one-time wipe of all demo/test players ----
   // Requested clean slate before real test players are created. Deletes every
   // player and their related records, once (guarded by a flag), then future

@@ -195,7 +195,7 @@ function PromoEditModal({ initial, onClose, onSaved }) {
         <div className="pm-body">
           <div className="pm-grid">
             <div className="pm-fld" style={{ gridColumn: '1 / -1' }}><label>Title <span style={{ color: 'var(--red)' }}>*</span></label><input value={f.title} onChange={set('title')} placeholder="200% Welcome Bonus" /></div>
-            <div className="pm-fld"><label>Type</label><select value={f.type} onChange={set('type')}><option value="welcome">welcome</option><option value="deposit">deposit</option><option value="referral">referral</option><option value="cashback">cashback</option><option value="freespin">freespin</option></select></div>
+            <div className="pm-fld"><label>Type</label><select value={f.type} onChange={set('type')}><option value="welcome">welcome</option><option value="deposit">deposit</option><option value="reload">reload</option><option value="cashback">cashback</option><option value="freespin">freespin</option><option value="referral">referral</option><option value="tournament">tournament</option></select></div>
             <div className="pm-fld"><label>Country</label><select value={f.country} onChange={onCountry}><option value="">All countries</option>{PROMO_COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
             <div className="pm-fld"><label>Currency</label><select value={f.currency} onChange={set('currency')}><option value="">Auto (player's currency)</option>{PROMO_CURRENCIES.map((c) => <option key={c} value={c}>{c} only</option>)}</select></div>
             <div className="pm-fld"><label>Bonus</label><input value={f.bonus} onChange={set('bonus')} placeholder="200% / ₱500 / 100 spins" /></div>
