@@ -2362,13 +2362,17 @@ footer{
     transform:translateX(-100%);
     box-shadow:4px 0 24px rgba(0,0,0,.5);
     z-index:200;
+    overflow-y:auto;            /* the drawer itself scrolls */
+    -webkit-overflow-scrolling:touch;
   }
   #sidebar-nav.open{transform:translateX(0)}
   #sidebar-nav .sb-inner{
     position:static;
     top:auto;
     max-height:none;
-    height:100vh;
+    height:auto;                /* size to content, no forced 100vh gap */
+    overflow:visible;
+    padding-bottom:90px;        /* clear the mobile bottom nav */
   }
   #sb-overlay{
     display:none;
