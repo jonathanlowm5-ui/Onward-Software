@@ -91,6 +91,90 @@ function LangSwitcher() {
   );
 }
 
+// Self-contained currency switcher — mirrors LangSwitcher so it opens reliably
+// on mobile (the shared dropdown wiring had a flash-then-close bug). Lets the
+// player switch the DISPLAY currency; the real wallet stays in their account
+// currency, so each row shows the balance converted into that currency.
+const CURRENCIES = [
+  { code: 'PHP', symbol: '₱', flag: '🇵🇭', name: 'Philippine Peso' },
+  { code: 'USD', symbol: '$', flag: '🇺🇸', name: 'US Dollar' },
+  { code: 'EUR', symbol: '€', flag: '🇪🇺', name: 'Euro' },
+  { code: 'MYR', symbol: 'RM', flag: '🇲🇾', name: 'Malaysian Ringgit' },
+  { code: 'THB', symbol: '฿', flag: '🇹🇭', name: 'Thai Baht' },
+  { code: 'IDR', symbol: 'Rp', flag: '🇮🇩', name: 'Indonesian Rupiah' },
+  { code: 'VND', symbol: '₫', flag: '🇻🇳', name: 'Vietnamese Dong' },
+  { code: 'INR', symbol: '₹', flag: '🇮🇳', name: 'Indian Rupee' },
+  { code: 'CNY', symbol: '¥', flag: '🇨🇳', name: 'Chinese Yuan' },
+  { code: 'JPY', symbol: '¥', flag: '🇯🇵', name: 'Japanese Yen' },
+];
+
+function CurrencySwitcher() {
+  const { currency, setCurrency, accountCurrency, fxConvert } = useUI();
+  const { isLoggedIn, profile } = useAuth();
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+  const bal = Number(profile?.balance || 0);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => {
+      const t = e.target;
+      if (wrapRef.current && wrapRef.current.contains(t)) return; // the button
+      if (t.closest && t.closest('[data-curmenu]')) return;       // inside the menu
+      setOpen(false);
+    };
+    const id = setTimeout(() => document.addEventListener('pointerdown', onDown), 0);
+    return () => { clearTimeout(id); document.removeEventListener('pointerdown', onDown); };
+  }, [open]);
+
+  return (
+    <div ref={wrapRef} style={{ display: 'inline-flex' }}>
+      <button className="hdr-icon-btn" id="currency-btn" title="Currency" onClick={() => setOpen((o) => !o)}>
+        <span style={{ fontSize: '13px', fontWeight: 700 }} id="selected-currency-symbol">{currency.symbol}</span>
+      </button>
+      {open && createPortal(
+        <div data-curmenu role="menu" style={{
+          position: 'fixed', top: 64, right: 14, zIndex: 99999,
+          background: 'var(--surface, #131a2c)', border: '1px solid var(--border, #243049)',
+          borderRadius: 12, padding: 8, minWidth: 250, maxHeight: '72vh', overflowY: 'auto',
+          boxShadow: '0 20px 60px rgba(0,0,0,.6)',
+        }}>
+          <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.09em', color: 'var(--text-muted, #8898b8)', padding: '6px 10px' }}>Display Currency</div>
+          {isLoggedIn && (
+            <div style={{ fontSize: 11, color: 'var(--text-muted, #8898b8)', padding: '0 10px 8px' }}>
+              ≈ approximate. Your wallet stays in <b style={{ color: 'var(--gold, #f0c040)' }}>{accountCurrency}</b>.
+            </div>
+          )}
+          {CURRENCIES.map((c) => {
+            const active = currency.code === c.code;
+            return (
+              <button
+                key={c.code}
+                onClick={() => { setCurrency({ code: c.code, symbol: c.symbol }); setOpen(false); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left',
+                  background: active ? 'rgba(240,192,64,.12)' : 'none', border: 'none',
+                  color: active ? 'var(--gold, #f0c040)' : 'var(--text, #fff)',
+                  padding: '11px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600,
+                }}
+              >
+                <span style={{ width: 24, fontSize: 18 }}>{c.flag}</span>
+                <span style={{ width: 28, fontWeight: 800 }}>{c.symbol}</span>
+                <span>{c.code}</span>
+                {isLoggedIn
+                  ? <span style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 700, color: c.code === accountCurrency ? 'var(--text,#fff)' : 'var(--text-muted,#8898b8)' }}>{c.code === accountCurrency ? '' : '≈ '}{c.symbol}{fxConvert(bal, accountCurrency || 'PHP', c.code).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                  : <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-muted,#8898b8)' }}>{c.name}</span>}
+                {active && <span style={{ marginLeft: isLoggedIn ? 8 : 'auto', color: 'var(--gold,#f0c040)' }}>✓</span>}
+              </button>
+            );
+          })}
+        </div>,
+        document.body,
+      )}
+    </div>
+  );
+}
+
 // Top navigation pills used by both header variants. Emoji is kept separate
 // from the translatable text so switching language never wipes the icon.
 const NAV = [
@@ -103,7 +187,7 @@ const NAV = [
 ];
 
 export default function Header() {
-  const { toggleSidebar, openModal, setSearchQuery, searchQuery, toggleDropdown, currency, accountCurrency, fxConvert } = useUI();
+  const { toggleSidebar, openModal, setSearchQuery, searchQuery, currency, accountCurrency, fxConvert } = useUI();
   const { isLoggedIn, profile, logout } = useAuth();
   const go = useSectionNav();
   const navigate = useNavigate();
@@ -218,9 +302,7 @@ export default function Header() {
             </button>
           </div>
           <div className="hdr-row1-right">
-            <button className="hdr-icon-btn" id="currency-btn" title="Currency" onClick={(e) => { e.stopPropagation(); toggleDropdown('currency'); }}>
-              <span style={{ fontSize: '13px', fontWeight: 700 }} id="selected-currency-symbol">{currency.symbol}</span>
-            </button>
+            <CurrencySwitcher />
             <LangSwitcher />
             <button className="hdr-icon-btn" title="Notifications">
               🔔
