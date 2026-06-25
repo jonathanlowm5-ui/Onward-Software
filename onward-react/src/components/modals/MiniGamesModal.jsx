@@ -137,12 +137,13 @@ function FortuneWheel({ config, onClose }) {
         {isLoggedIn && <span style={chip}>Balance: <b style={{ color: 'var(--gold)' }}>{sym}{Number(profile?.balance || 0).toLocaleString()}</b></span>}
       </div>
 
-      {/* Themed stage — background, title banner, gold light-bulb rim */}
+      {/* Stage — only shows a panel when a background image is uploaded; otherwise
+          the wheel sits transparently on the modal (no dark box / border). */}
       <div style={{
-        position: 'relative', width: '100%', maxWidth: size + 80, borderRadius: 18, overflow: 'hidden',
+        position: 'relative', width: '100%', maxWidth: size + 80,
+        borderRadius: theme.bgImage ? 18 : 0, overflow: 'visible',
         padding: '16px 14px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
-        background: theme.bgImage ? `url(${theme.bgImage}) center/cover no-repeat` : 'radial-gradient(120% 90% at 50% 0%, #3a2a14, #190f04 72%)',
-        border: `1px solid ${rimColor}55`, boxShadow: 'inset 0 0 70px rgba(0,0,0,.6)',
+        background: theme.bgImage ? `url(${theme.bgImage}) center/cover no-repeat` : 'transparent',
       }}>
         {/* title */}
         {theme.titleImage
