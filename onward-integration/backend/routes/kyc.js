@@ -16,7 +16,7 @@
  */
 const express = require('express');
 const store = require('../store');
-const { requireAuth } = require('../auth');
+const { requireAuth, requirePlayer } = require('../auth');
 const { requirePerm } = require('../permissions');
 
 const router = express.Router();
@@ -63,12 +63,16 @@ function giveKycBonus(player) {
   return bonus;
 }
 
-// ---- submit (frontend) ----
-router.post('/', (req, res) => {
+// ---- submit (player) ----
+// Must be the logged-in player; the playerId is taken from the token (never the
+// client body) so a submission can't be spoofed for another account.
+router.post('/', requirePlayer, (req, res) => {
   const b = req.body || {};
+  const playerId = req.auth.sub;
+  const player = store.get(PLAYERS, playerId);
   const rec = store.insert(COLLECTION, {
-    playerId: b.playerId || null,
-    username: b.username || '',
+    playerId,
+    username: (player && player.username) || b.username || '',
     docType: b.docType || 'id',
     frontUrl: b.frontUrl || '',
     backUrl: b.backUrl || '',
@@ -76,7 +80,7 @@ router.post('/', (req, res) => {
     status: 'pending',
     note: '',
   });
-  setPlayerKyc(rec.playerId, 'pending');
+  setPlayerKyc(playerId, 'pending');
   res.status(201).json(rec);
 });
 

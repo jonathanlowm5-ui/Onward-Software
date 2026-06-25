@@ -102,7 +102,13 @@ export default function Promotions() {
   const claimWelcome = async (i) => {
     if (i !== welcomeClaimed) return;                 // only the active tier
     if (!isLoggedIn) { openModal('login'); return; }   // guests log in first
-    try { await api.post('/player/welcome/claim'); await refreshProfile?.(); } catch { /* ignore */ }
+    try {
+      await api.post('/player/welcome/claim');
+      await refreshProfile?.();
+    } catch (e) {
+      toast('❌ Could not claim: ' + (e?.response?.data?.error || e?.message || 'try again'), 'error');
+      return; // don't advance to deposit on a failed claim
+    }
     openModal('deposit');
   };
 

@@ -34,10 +34,14 @@ function FortuneWheel({ config, onClose }) {
   const { toast, openModal, currency } = useUI();
   const { isLoggedIn, profile, refreshProfile } = useAuth();
   const wheel = config?.wheel || {};
-  // Ordered by the Sequence column — must match the backend's active order so
-  // the returned win index lands on the correct slice.
+  // Ordered by the Sequence column AND filtered exactly like the backend
+  // (enabled + not sold out) so the returned win index lands on the correct
+  // slice. If this diverges from the backend pool the wheel lands wrong.
   const active = useMemo(
-    () => (wheel.slices || []).filter((s) => s.on).slice().sort((a, b) => (Number(a.seq) || 0) - (Number(b.seq) || 0)),
+    () => (wheel.slices || [])
+      .filter((s) => s.on && (Number(s.qty) <= 0 || Number(s.claimed || 0) < Number(s.qty)))
+      .slice()
+      .sort((a, b) => (Number(a.seq) || 0) - (Number(b.seq) || 0)),
     [wheel.slices],
   );
   const { gradient, centers } = useMemo(() => wheelGeometry(active), [active]);

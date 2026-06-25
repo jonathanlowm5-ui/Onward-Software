@@ -74,6 +74,7 @@ export function UIProvider({ children }) {
   const [fx, setFx] = useState({ base: 'PHP', rates: {} });
   useEffect(() => { api.get('/currency-rates').then((r) => setFx(r.data || { base: 'PHP', rates: {} })).catch(() => {}); }, []);
   const fxConvert = useCallback((amount, from, to) => {
+    if (from === to) return Number(amount) || 0; // no conversion needed
     const r = fx.rates || {};
     const rf = Number(r[from]) > 0 ? Number(r[from]) : 1;
     const rt = Number(r[to]) > 0 ? Number(r[to]) : 1;
