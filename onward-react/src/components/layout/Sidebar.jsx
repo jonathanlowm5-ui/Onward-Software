@@ -72,8 +72,6 @@ export default function Sidebar() {
           <SbItem icon="🎟️" label="Use Code" i18n="nav_use_code" onClick={openUseCodeModal} />
           <SbItem icon="👑" label="Jackpots" i18n="nav_jackpots" badge={{ cls: 'hot', text: '₱128M' }} onClick={() => go('jackpots')} />
           <SbItem icon="🤝" label="Referral" i18n="nav_referral" onClick={() => go('referral')} />
-          <SbItem icon="🧑‍💼" label="Agent" i18n="nav_agent" onClick={() => go('agent')} />
-          <SbItem icon="📣" label="Follow Us" i18n="nav_follow" onClick={() => go('follow')} />
 
           <div className="sb-divider"></div>
 
