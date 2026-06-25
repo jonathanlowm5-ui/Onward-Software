@@ -25,6 +25,7 @@ const CURRENCIES = ['PHP', 'USD', 'EUR', 'INR', 'THB', 'VND', 'IDR', 'MYR', 'CNY
 const REQUIREMENTS = ['Deposit (T/O)', 'Deposit (Winover)', 'Product (T/O)', 'Product (Winover)', 'Multi-Product (T/O)', 'Multi-Product (Winover)'];
 const BONUS_TYPES = ['Bonus', 'Free Credit', 'Referral Share', 'Register Bonus'];
 const REFRESH_CYCLES = ['Everytime', 'Once', 'Hourly', 'Daily', 'Weekly', 'Monthly'];
+const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 const num = (x, d = 0) => { const n = parseFloat(x); return Number.isFinite(n) ? n : d; };
 const truthy = (v) => v === true || v === 1 || v === 'yes' || v === 'true' || v === '1' || v === 'on';
 const pickOne = (v, list, d) => (list.includes(v) ? v : d);
@@ -63,6 +64,7 @@ function clean(body) {
     turnover: String(body.turnover || '').trim(),
     startDate: body.startDate || '',
     endDate: body.endDate || '',
+    days: Array.isArray(body.days) ? body.days.filter((d) => DAYS.includes(d)) : [],
     status: body.status === 'inactive' ? 'inactive' : 'active',
     buttonText: body.buttonText || '',
     buttonLink: body.buttonLink || '',

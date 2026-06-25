@@ -106,15 +106,21 @@ const EMPTY_PROMO = {
   isExclusive: 'no', hidden: 'no', isAccumulate: 'no', promoDeductOnWithdraw: 'no',
   claimLimitDaily: 0, minDepositAmt: 0, depositCount: 0, maxClaimAmount: 0,
   maxWinningMultiply: 0, percentage: 0, multiply: 1, sequence: 0, minBalance: 0, freeSpins: 0,
+  days: [],
   // step 2 — allow lists
   allowProducts: [], allowPlayerGroups: [], allowBanks: [], allowRiskGroups: [],
 };
+const PROMO_DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
 const PROMO_PRODUCTS = ['JDB', 'JILI', 'JOKER', 'KINGMIDAS', 'VICTORY POKER', 'YESBINGO', 'DS88', 'PG SOFT', 'PRAGMATIC', 'EVOLUTION', 'SPRIBE', 'CQ9', 'FA CHAI', 'PLAYTECH', 'HABANERO'];
 const PROMO_PLAYER_GROUPS = ['Normal', 'VIP', 'VVIP', 'High Roller', 'New Player', 'Affiliate'];
 const PROMO_RISK_GROUPS = ['Low Risk', 'Medium Risk', 'High Risk', 'Watch List'];
 
-// A "Select All" + checklist allow-list (used on step 2 of the promo editor).
+// A "Select All" + checklist allow-list. Checkbox width and label casing are
+// forced inline because the global .pm-fld rules stretch inputs to 100% and
+// uppercase labels.
+const AL_CB = { width: 16, height: 16, flexShrink: 0, margin: 0, cursor: 'pointer' };
+const AL_ROW = { display: 'inline-flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 13, fontWeight: 600, color: 'var(--text)', textTransform: 'none', letterSpacing: 'normal', cursor: 'pointer', marginBottom: 0, minWidth: 128 };
 function AllowList({ title, hint, options, selected, onChange }) {
   const sel = Array.isArray(selected) ? selected : [];
   const allSel = options.length > 0 && options.every((o) => sel.includes(o));
@@ -122,18 +128,21 @@ function AllowList({ title, hint, options, selected, onChange }) {
   const toggleAll = () => onChange(allSel ? [] : [...options]);
   return (
     <div className="pm-fld" style={{ gridColumn: '1 / -1' }}>
-      <label>{title} {hint && <span style={{ color: 'var(--muted)', fontWeight: 600 }}>{hint}</span>}</label>
-      <div style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 10, maxHeight: 190, overflowY: 'auto', background: 'var(--bg3,#0b1224)' }}>
-        <label style={alRow}><input type="checkbox" checked={allSel} onChange={toggleAll} /> <b>Select All</b></label>
-        {options.length === 0 && <div style={{ fontSize: 12, color: 'var(--muted)', padding: '4px 2px' }}>No options.</div>}
-        {options.map((o) => (
-          <label key={o} style={alRow}><input type="checkbox" checked={sel.includes(o)} onChange={() => toggle(o)} /> {o}</label>
-        ))}
+      <label>{title} {hint && <span style={{ color: 'var(--muted)', fontWeight: 600, textTransform: 'none', letterSpacing: 'normal' }}>{hint}</span>}</label>
+      <div style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px', maxHeight: 200, overflowY: 'auto', background: 'var(--bg3,#0b1224)' }}>
+        <label style={{ ...AL_ROW, display: 'flex', borderBottom: '1px solid var(--border)', paddingBottom: 7, marginBottom: 5 }}>
+          <input type="checkbox" style={AL_CB} checked={allSel} onChange={toggleAll} /> Select All
+        </label>
+        {options.length === 0 && <div style={{ fontSize: 12, color: 'var(--muted)', padding: '4px 0' }}>No options.</div>}
+        <div style={{ display: 'flex', flexWrap: 'wrap', columnGap: 18, rowGap: 2 }}>
+          {options.map((o) => (
+            <label key={o} style={AL_ROW}><input type="checkbox" style={AL_CB} checked={sel.includes(o)} onChange={() => toggle(o)} /> {o}</label>
+          ))}
+        </div>
       </div>
     </div>
   );
 }
-const alRow = { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 2px', fontSize: 13, color: 'var(--text)', cursor: 'pointer' };
 
 const PROMO_REQUIREMENTS = ['Deposit (T/O)', 'Deposit (Winover)', 'Product (T/O)', 'Product (Winover)', 'Multi-Product (T/O)', 'Multi-Product (Winover)'];
 const PROMO_BONUS_TYPES = ['Bonus', 'Free Credit', 'Referral Share', 'Register Bonus'];
@@ -248,6 +257,7 @@ function PromoEditModal({ initial, onClose, onSaved }) {
             <div className="pm-fld"><label>Status</label><select value={f.status} onChange={set('status')}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
             <div className="pm-fld"><label>Start Date</label><input type="date" value={f.startDate} onChange={set('startDate')} /></div>
             <div className="pm-fld"><label>End Date (expiry)</label><input type="date" value={f.endDate} onChange={set('endDate')} /></div>
+            <AllowList title="Day (List)" hint="(days the promo is active — empty = every day)" options={PROMO_DAYS} selected={f.days} onChange={setMulti('days')} />
             <div className="pm-fld" style={{ gridColumn: '1 / -1' }}>
               <label>Description <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(one line per row — shows under the title)</span></label>
               <textarea value={f.description} onChange={set('description')} rows={2}
