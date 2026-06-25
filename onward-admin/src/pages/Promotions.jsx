@@ -102,6 +102,7 @@ const EMPTY_PROMO = {
   title: '', type: 'welcome', currency: '', country: '', bonus: '', maxBonus: '', minDeposit: '', wager: '', turnover: '',
   description: '', image: '', banners: {}, startDate: '', endDate: '', status: 'active', buttonText: '', buttonLink: '',
   customTerms: '',
+  i18n: {},
   // promotion rules / eligibility logic
   requirement: 'Deposit (T/O)', bonusType: 'Bonus', refreshCycle: 'Once',
   isExclusive: 'no', hidden: 'no', isAccumulate: 'no', promoDeductOnWithdraw: 'no',
@@ -149,6 +150,8 @@ const PROMO_REQUIREMENTS = ['Deposit (T/O)', 'Deposit (Winover)', 'Product (T/O)
 const PROMO_BONUS_TYPES = ['Bonus', 'Free Credit', 'Referral Share', 'Register Bonus'];
 const PROMO_REFRESH = ['Everytime', 'Once', 'Hourly', 'Daily', 'Weekly', 'Monthly'];
 const yn = (v) => (v === true || v === 'yes' || v === 1 || v === '1') ? 'yes' : 'no';
+// Languages for per-language Title / Description / Terms ('' = default/base).
+const PROMO_LANGS = [['', '🌐 Default'], ['zh', '中文'], ['ms', 'MS'], ['id', 'ID'], ['th', 'ไทย'], ['vi', 'VI'], ['hi', 'HI'], ['ko', '한국어'], ['ja', '日本語'], ['es', 'ES'], ['pt', 'PT']];
 
 const PROMO_CURRENCIES = ['PHP', 'USD', 'EUR', 'INR', 'THB', 'VND', 'IDR', 'MYR', 'CNY', 'JPY'];
 const PROMO_COUNTRIES = ['Philippines', 'Malaysia', 'Singapore', 'Thailand', 'Indonesia', 'Vietnam'];
@@ -174,6 +177,15 @@ function PromoEditModal({ initial, onClose, onSaved }) {
   }, []);
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
   const setMulti = (k) => (arr) => setF((p) => ({ ...p, [k]: arr }));
+  // Translatable fields (title/description/customTerms): '' tab edits the base,
+  // a language tab edits f.i18n[lang][field].
+  const [langTab, setLangTab] = useState('');
+  const tval = (field) => (langTab ? ((f.i18n && f.i18n[langTab] && f.i18n[langTab][field]) || '') : (f[field] || ''));
+  const tset = (field) => (val) => {
+    const v = typeof val === 'object' ? val.target.value : val;
+    if (!langTab) { setF((p) => ({ ...p, [field]: v })); return; }
+    setF((p) => ({ ...p, i18n: { ...(p.i18n || {}), [langTab]: { ...((p.i18n || {})[langTab] || {}), [field]: v } } }));
+  };
   // Picking a country auto-fills the matching currency (only when currency is
   // still on Auto) so country + currency promos stay consistent.
   const onCountry = (e) => {
@@ -251,7 +263,22 @@ function PromoEditModal({ initial, onClose, onSaved }) {
         <div className="pm-body">
           <div style={{ display: step === 1 ? 'block' : 'none' }}>
           <div className="pm-grid">
-            <div className="pm-fld" style={{ gridColumn: '1 / -1' }}><label>Title <span style={{ color: 'var(--red)' }}>*</span></label><input value={f.title} onChange={set('title')} placeholder="200% Welcome Bonus" /></div>
+            <div className="pm-fld" style={{ gridColumn: '1 / -1' }}>
+              <label>Language <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(translate Title / Description / Terms · Default is the fallback)</span></label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {PROMO_LANGS.map(([code, label]) => {
+                  const has = code && f.i18n && f.i18n[code] && (f.i18n[code].title || f.i18n[code].description || f.i18n[code].customTerms);
+                  return (
+                    <button key={code || 'def'} type="button" onClick={() => setLangTab(code)}
+                      style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid var(--border)', cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                        background: langTab === code ? 'var(--gold)' : 'var(--bg3,#0b1224)', color: langTab === code ? '#06091a' : 'var(--text)' }}>
+                      {label}{has ? ' ✓' : ''}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="pm-fld" style={{ gridColumn: '1 / -1' }}><label>Title {!langTab && <span style={{ color: 'var(--red)' }}>*</span>} {langTab && <span style={{ color: 'var(--gold)', fontWeight: 700 }}>· {langTab.toUpperCase()}</span>}</label><input value={tval('title')} onChange={tset('title')} placeholder={langTab ? `Title in ${langTab.toUpperCase()} (empty = use Default)` : '200% Welcome Bonus'} /></div>
             <div className="pm-fld"><label>Section</label><select value={f.type} onChange={set('type')}><option value="welcome">Welcome</option><option value="deposit">Deposit</option><option value="reload">Reload</option><option value="cashback">Cashback</option><option value="freespin">Freespin</option><option value="referral">Referral</option><option value="tournament">Tournament</option><option value="custom">Custom (Special)</option></select><div className="pm-hint">Which page section it appears in. (Bonus type, %, amounts & limits are set in Promotion Rules below.)</div></div>
             <div className="pm-fld"><label>Country</label><select value={f.country} onChange={onCountry}><option value="">All countries</option>{PROMO_COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
             <div className="pm-fld"><label>Currency</label><select value={f.currency} onChange={set('currency')}><option value="">Auto (player's currency)</option>{PROMO_CURRENCIES.map((c) => <option key={c} value={c}>{c} only</option>)}</select></div>
@@ -260,9 +287,9 @@ function PromoEditModal({ initial, onClose, onSaved }) {
             <div className="pm-fld"><label>End Date (expiry)</label><input type="date" value={f.endDate} onChange={set('endDate')} /></div>
             <AllowList title="Day (List)" hint="(days the promo is active — empty = every day)" options={PROMO_DAYS} selected={f.days} onChange={setMulti('days')} />
             <div className="pm-fld" style={{ gridColumn: '1 / -1' }}>
-              <label>Description <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(one line per row — shows under the title)</span></label>
-              <textarea value={f.description} onChange={set('description')} rows={2}
-                placeholder={'100% UP TO ₱2,060\n+25 FREE SPINS'}
+              <label>Description {langTab && <span style={{ color: 'var(--gold)', fontWeight: 700 }}>· {langTab.toUpperCase()}</span>} <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(one line per row — shows under the title)</span></label>
+              <textarea value={tval('description')} onChange={tset('description')} rows={2}
+                placeholder={langTab ? `Description in ${langTab.toUpperCase()} (empty = use Default)` : '100% UP TO ₱2,060\n+25 FREE SPINS'}
                 style={{ width: '100%', resize: 'vertical', padding: '9px 12px', borderRadius: 8, background: 'var(--bg3,#0b1224)', color: 'var(--text,#fff)', border: '1px solid var(--border,#243049)', fontFamily: 'inherit', fontSize: 14, lineHeight: 1.5 }} />
             </div>
             <div className="pm-fld"><label>Button Text</label><input value={f.buttonText} onChange={set('buttonText')} placeholder="Deposit Now" /></div>
@@ -370,19 +397,22 @@ function PromoEditModal({ initial, onClose, onSaved }) {
               player Promo Detail modal — no manual typing needed. */}
           <div style={{ marginTop: 16, borderTop: '1px dashed var(--border)', paddingTop: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text)' }}>✏️ CUSTOM TERMS &amp; CONDITIONS <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(override — one line per row)</span></div>
-              <button type="button" className="mini-btn" style={{ marginLeft: 'auto' }} onClick={() => setF((p) => ({ ...p, customTerms: buildPromoTerms({ ...p, customTerms: '' }).join('\n') }))}>⬇ Load auto terms to edit</button>
-              {f.customTerms && f.customTerms.trim() && <button type="button" className="mini-btn" onClick={() => setF((p) => ({ ...p, customTerms: '' }))}>↺ Reset to auto</button>}
+              <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text)' }}>✏️ CUSTOM TERMS &amp; CONDITIONS {langTab && <span style={{ color: 'var(--gold)' }}>· {langTab.toUpperCase()}</span>} <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(override — one line per row)</span></div>
+              <button type="button" className="mini-btn" style={{ marginLeft: 'auto' }} onClick={() => tset('customTerms')(buildPromoTerms({ ...f, customTerms: '' }).join('\n'))}>⬇ Load auto terms to edit</button>
+              {tval('customTerms') && tval('customTerms').trim() && <button type="button" className="mini-btn" onClick={() => tset('customTerms')('')}>↺ Reset to auto</button>}
             </div>
-            <textarea value={f.customTerms} onChange={set('customTerms')} rows={4}
-              placeholder="Leave empty to use the auto-generated terms shown below. Or type your own (one line per row) for a special promotion."
+            <textarea value={tval('customTerms')} onChange={tset('customTerms')} rows={4}
+              placeholder={langTab ? `Custom terms in ${langTab.toUpperCase()} — empty = auto-translated terms` : 'Leave empty to use the auto-generated terms shown below. Or type your own (one line per row) for a special promotion.'}
               style={{ width: '100%', resize: 'vertical', padding: '9px 12px', borderRadius: 8, background: 'var(--bg3,#0b1224)', color: 'var(--text,#fff)', border: '1px solid var(--border,#243049)', fontFamily: 'inherit', fontSize: 13, lineHeight: 1.5 }} />
-            <div style={{ fontSize: 11, color: f.customTerms && f.customTerms.trim() ? 'var(--gold)' : 'var(--muted)', margin: '8px 0 6px', fontWeight: 700 }}>
-              {f.customTerms && f.customTerms.trim() ? 'Preview — using your CUSTOM terms (shown to members):' : 'Preview — auto-generated terms (shown to members). Lines 1–6 fill from the package; 7–12 are fixed:'}
+            <div style={{ fontSize: 11, color: tval('customTerms') && tval('customTerms').trim() ? 'var(--gold)' : 'var(--muted)', margin: '8px 0 6px', fontWeight: 700 }}>
+              {tval('customTerms') && tval('customTerms').trim() ? 'Preview — using your CUSTOM terms (shown to members):' : `Preview — auto terms${langTab ? ` (members see them auto-translated to ${langTab.toUpperCase()})` : ''}. Lines 1–6 fill from the package; 7–12 are fixed:`}
             </div>
             <ol style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 5, maxHeight: 180, overflowY: 'auto' }}>
-              {buildPromoTerms(f).map((t, i) => (
-                <li key={i} style={{ fontSize: 11.5, lineHeight: 1.45, color: (f.customTerms && f.customTerms.trim()) || i < 6 ? 'var(--text)' : 'var(--muted)' }}>{t}</li>
+              {(tval('customTerms') && tval('customTerms').trim()
+                ? tval('customTerms').split('\n').map((s) => s.trim()).filter(Boolean)
+                : buildPromoTerms({ ...f, customTerms: '' })
+              ).map((t, i) => (
+                <li key={i} style={{ fontSize: 11.5, lineHeight: 1.45, color: (tval('customTerms') && tval('customTerms').trim()) || i < 6 ? 'var(--text)' : 'var(--muted)' }}>{t}</li>
               ))}
             </ol>
           </div>

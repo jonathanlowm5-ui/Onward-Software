@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
-import { resolvePromoBanner } from '../../utils/promoTerms';
+import { resolvePromoBanner, localizePromo } from '../../utils/promoTerms';
 import { fetchPromotions } from '../../services/gamesService';
 
 /*
@@ -16,7 +16,7 @@ import { fetchPromotions } from '../../services/gamesService';
  * Recommended source image: 1200 × 425, under 4 MB.
  */
 export default function BannerCarousel({ promos, className = '' }) {
-  const { openModal } = useUI();
+  const { openModal, lang } = useUI();
   const { profile } = useAuth();
   const navigate = useNavigate();
 
@@ -51,7 +51,7 @@ export default function BannerCarousel({ promos, className = '' }) {
     (!p.country || !country || p.country === country);
   const slides = [...source]
     .sort((a, b) => (matchesViewer(b) ? 1 : 0) - (matchesViewer(a) ? 1 : 0))
-    .map((p) => ({ p, img: resolvePromoBanner(p, profile?.currency) }))
+    .map((p) => ({ p: localizePromo(p, lang), img: resolvePromoBanner(p, profile?.currency) }))
     .filter((s) => s.img);
 
   const [idx, setIdx] = useState(0);

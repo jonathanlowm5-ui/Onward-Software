@@ -26,6 +26,22 @@ const REQUIREMENTS = ['Deposit (T/O)', 'Deposit (Winover)', 'Product (T/O)', 'Pr
 const BONUS_TYPES = ['Bonus', 'Free Credit', 'Referral Share', 'Register Bonus'];
 const REFRESH_CYCLES = ['Everytime', 'Once', 'Hourly', 'Daily', 'Weekly', 'Monthly'];
 const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+const SUPPORTED_LANGS = ['en', 'zh', 'id', 'ms', 'th', 'vi', 'hi', 'ko', 'ja', 'es', 'pt'];
+// Per-language overrides: { [lang]: { title, description, customTerms } }.
+function cleanI18n(src) {
+  const out = {};
+  const obj = src && typeof src === 'object' ? src : {};
+  for (const lang of SUPPORTED_LANGS) {
+    const t = obj[lang];
+    if (!t || typeof t !== 'object') continue;
+    const e = {};
+    if (typeof t.title === 'string' && t.title.trim()) e.title = t.title.trim().slice(0, 200);
+    if (typeof t.description === 'string' && t.description.trim()) e.description = t.description.slice(0, 1000);
+    if (typeof t.customTerms === 'string' && t.customTerms.trim()) e.customTerms = t.customTerms.slice(0, 4000);
+    if (Object.keys(e).length) out[lang] = e;
+  }
+  return out;
+}
 const num = (x, d = 0) => { const n = parseFloat(x); return Number.isFinite(n) ? n : d; };
 const truthy = (v) => v === true || v === 1 || v === 'yes' || v === 'true' || v === '1' || v === 'on';
 const pickOne = (v, list, d) => (list.includes(v) ? v : d);
@@ -70,6 +86,8 @@ function clean(body) {
     buttonLink: body.buttonLink || '',
     // Custom T&C override (one line per row). Empty = use auto-generated terms.
     customTerms: String(body.customTerms || '').slice(0, 4000),
+    // Per-language overrides for title / description / customTerms.
+    i18n: cleanI18n(body.i18n),
     // ---- Promotion rules / eligibility logic (admin-configured) ----
     requirement: pickOne(body.requirement, REQUIREMENTS, 'Deposit (T/O)'),
     bonusType: pickOne(body.bonusType, BONUS_TYPES, 'Bonus'),

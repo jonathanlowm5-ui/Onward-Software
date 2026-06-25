@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useUI } from '../context/UIContext';
 import { useAuth } from '../context/AuthContext';
 import useSectionNav from '../hooks/useSectionNav';
-import { resolvePromoBanner } from '../utils/promoTerms';
+import { resolvePromoBanner, localizePromo } from '../utils/promoTerms';
 import usePageBanner from '../hooks/usePageBanner';
 import api from '../services/api';
 // Uploaded welcome-tier icons (coin → bag → chest → crown).
@@ -66,7 +66,7 @@ const SHOW_MAP = {
 };
 
 export default function Promotions() {
-  const { openModal, toast } = useUI();
+  const { openModal, toast, lang } = useUI();
   const { profile, isLoggedIn, refreshProfile } = useAuth();
   const go = useSectionNav();
   const [promoCode, setPromoCode] = useState('');
@@ -154,7 +154,8 @@ export default function Promotions() {
 
   // One renderer for a backend promo card (banner image with the title +
   // description overlaid, or plain text when there's no banner).
-  const renderApiCard = (p, i, highlighted) => {
+  const renderApiCard = (raw, i, highlighted) => {
+    const p = localizePromo(raw, lang);
     const banner = resolvePromoBanner(p, viewerCur);
     const lines = p.description
       ? String(p.description).split('\n').map((l, j) => <span key={j}>{l}<br /></span>)

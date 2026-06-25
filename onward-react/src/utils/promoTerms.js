@@ -10,6 +10,8 @@
  */
 
 // Pull the first numeric value out of a free-text field (e.g. "₱500" -> "500").
+import { TERMS_I18N } from './promoTermsI18n';
+
 function digits(value, fallback) {
   const m = String(value ?? '').match(/\d[\d,]*(?:\.\d+)?/);
   return m ? m[0].replace(/,/g, '') : String(fallback);
@@ -18,35 +20,35 @@ function digits(value, fallback) {
 // viewerCurrency = the currency of the player viewing the promo. A promo pinned
 // to a specific currency uses that; otherwise the terms follow the viewer's
 // own currency (defaulting to PHP).
-export function buildPromoTerms(promo = {}, viewerCurrency) {
+export function buildPromoTerms(promo = {}, viewerCurrency, lang = 'en') {
   const p = promo || {};
-  // Admin override: custom terms (one line per row) replace the auto terms.
-  if (p.customTerms && String(p.customTerms).trim()) {
-    return String(p.customTerms).split('\n').map((l) => l.trim()).filter(Boolean);
+  // Admin override: per-language custom terms, then base custom terms.
+  const custom = (p.i18n && p.i18n[lang] && p.i18n[lang].customTerms) || p.customTerms;
+  if (custom && String(custom).trim()) {
+    return String(custom).split('\n').map((l) => l.trim()).filter(Boolean);
   }
   const minDep = digits(p.minDeposit ?? p.md, 100);
   const currency = String(p.currency || viewerCurrency || 'PHP').toUpperCase();
   const rollover = digits(p.wager ?? p.rollover, 15);
   const firstDepositOnly = /welcome|first/i.test(String(p.type || '')) || p.firstDepositOnly;
+  const T = TERMS_I18N[lang] || TERMS_I18N.en;
+  const fill = (s) => String(s).replace(/\{min\}/g, minDep).replace(/\{cur\}/g, currency).replace(/\{x\}/g, rollover);
+  const out = T.lines.map(fill);
+  if (firstDepositOnly) out[3] = fill(T.s4first);
+  return out;
+}
 
-  return [
-    // 1–6 — auto-filled from the promotion package
-    'THIS PROMOTION IS AVAILABLE FOR ALL ONWARD MEMBERS.',
-    `A MINIMUM DEPOSIT OF ${minDep} ${currency} IS REQUIRED FOR THIS PROMOTION.`,
-    `THIS PROMOTION IS AVAILABLE FOR ${currency} CURRENCY MEMBERS ONLY.`,
-    firstDepositOnly
-      ? 'MEMBERS CAN RECEIVE THIS SPECIAL PROMOTION ONLY WHEN MAKING THEIR FIRST DEPOSIT. PLEASE SELECT THE PRODUCT PACKAGE THAT YOU WANT TO PLAY TO REQUEST.'
-      : 'PLEASE SELECT THE PRODUCT PACKAGE THAT YOU WANT TO PLAY TO REQUEST.',
-    `BONUS CREDITS REQUIRE A ${rollover}X ROLLOVER.`,
-    'BONUS CREDITS ARE ONLY APPLICABLE FOR SLOT GAMES ONLY.',
-    // 7–12 — fixed legal terms
-    "REBATES WILL NOT BE CALCULATED TOGETHER WITH THE ROLLOVER AMOUNT GENERATED FROM THIS BONUS. HOWEVER, THE ROLLOVER REQUIREMENT WILL BE CONSIDERED COMPLETED IF THE MEMBER'S ACCOUNT BALANCE IS $1 OR LESS. PLEASE CONTACT CUSTOMER SERVICE TO CANCEL YOUR ROLLOVER CONDITIONS.",
-    'MEMBERS CAN ONLY RECEIVE ONE BONUS PER ACCOUNT. REQUESTS FOR ADDITIONAL BONUSES ARE ONLY POSSIBLE IF ALL PREVIOUS REQUIREMENTS HAVE BEEN MET.',
-    'IF ANY PLAYER DOES NOT RECEIVE THE BONUS CREDIT, PLEASE CONTACT OUR CUSTOMER SERVICE PROMPTLY.',
-    'BONUSES AND WINNINGS WILL BE VOID IF THE BETTING AND BONUS REQUIREMENTS ARE NOT FULFILLED WITHIN 30 DAYS OF RECEIVING THE BONUS.',
-    'ONLY ONE IP ADDRESS IS ALLOWED TO CLAIM THIS BONUS. IF MORE THAN ONE ACCOUNT IS FOUND USING THE SAME IP ADDRESS, ALL BONUS CREDITS MAY BE CONFISCATED. ONWARD RESERVES THE RIGHT TO WITHHOLD AND CANCEL ALL WINNINGS.',
-    'ONWARD RESERVES THE RIGHT TO MODIFY, CHANGE, OR TERMINATE THIS PROMOTION WITHOUT PRIOR NOTICE.',
-  ];
+// Localize a promo's title/description for a viewer's language. Admins provide
+// translations in p.i18n[lang]; otherwise the base (default) text is shown.
+export function localizePromo(promo = {}, lang = 'en') {
+  const p = promo || {};
+  const tr = (p.i18n && p.i18n[lang]) || {};
+  const pick = (a, b) => (a && String(a).trim() ? a : b);
+  return {
+    ...p,
+    title: pick(tr.title, p.title),
+    description: pick(tr.description, p.description),
+  };
 }
 
 // Pick the banner image to show a viewer: the per-currency banner for their own

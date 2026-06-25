@@ -1,14 +1,14 @@
 import { useNavigate } from 'react-router-dom';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
-import { resolvePromoBanner } from '../../utils/promoTerms';
+import { resolvePromoBanner, localizePromo } from '../../utils/promoTerms';
 
 // Mirrors renderPromoCard(). Supports both bundled promos ({tag,title,desc,amount})
 // and API promos ({title,description,image,banners,buttonText,buttonLink}).
 export default function PromoCard({ promo, index, onOpen }) {
-  const p = promo;
-  const { openModal } = useUI();
+  const { openModal, lang } = useUI();
   const { profile } = useAuth();
+  const p = localizePromo(promo, lang);
   const navigate = useNavigate();
   const desc = p.desc || p.description || '';
   const lines = String(desc).split('\n');
