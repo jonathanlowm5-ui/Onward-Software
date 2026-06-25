@@ -75,7 +75,7 @@ export default function AllPlayers() {
   const [players, setPlayers] = useState([]);
   const [, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('filter');
-  const [filterMin, setFilterMin] = useState(false);
+  const [filterMin, setFilterMin] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 768);
   const [advOpen, setAdvOpen] = useState(false);
   const [quick, setQuick] = useState('');
   const [filters, setFilters] = useState({}); // detailed filter form values
