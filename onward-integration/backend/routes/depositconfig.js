@@ -12,7 +12,7 @@ const store = require('../store');
 const { requireAuth } = require('../auth');
 
 const router = express.Router();
-const DEFAULTS = [500, 1000, 2000, 5000, 10000, 20000];
+const DEFAULTS = [730, 1000, 2500, 5000, 10000, 25000, 50000, 60770];
 
 function current() {
   const a = store.getSettings().depositQuickAmounts;

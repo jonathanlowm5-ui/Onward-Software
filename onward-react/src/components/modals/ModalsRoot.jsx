@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import AuthModal from './AuthModal.jsx';
+import DepositModal from './DepositModal.jsx';
 import WithdrawModal from './WithdrawModal.jsx';
 import GameModal from './GameModal.jsx';
 import BankSetupModal from './BankSetupModal.jsx';
@@ -35,6 +36,7 @@ export default function ModalsRoot() {
     <>
       <BankGate />
       <AuthModal />
+      <DepositModal />
       <WithdrawModal />
       <GameModal />
       <BankSetupModal />

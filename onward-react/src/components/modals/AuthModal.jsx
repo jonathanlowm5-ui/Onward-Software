@@ -39,7 +39,8 @@ export default function AuthModal() {
     }
   };
 
-  const open = activeModal === 'login' || activeModal === 'register' || activeModal === 'deposit';
+  // Deposit now has its own rich modal (DepositModal); AuthModal handles auth.
+  const open = activeModal === 'login' || activeModal === 'register';
   const [tab, setTab] = useState('login');
   const [busy, setBusy] = useState(false);
 
@@ -51,7 +52,7 @@ export default function AuthModal() {
 
   useEffect(() => {
     if (open) {
-      setTab(activeModal === 'deposit' ? 'deposit' : activeModal);
+      setTab(activeModal);
       setError('');
     }
   }, [open, activeModal, setError]);
