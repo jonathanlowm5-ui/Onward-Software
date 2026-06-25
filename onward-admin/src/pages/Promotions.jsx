@@ -205,14 +205,9 @@ function PromoEditModal({ initial, onClose, onSaved }) {
         <div className="pm-body">
           <div className="pm-grid">
             <div className="pm-fld" style={{ gridColumn: '1 / -1' }}><label>Title <span style={{ color: 'var(--red)' }}>*</span></label><input value={f.title} onChange={set('title')} placeholder="200% Welcome Bonus" /></div>
-            <div className="pm-fld"><label>Type</label><select value={f.type} onChange={set('type')}><option value="welcome">welcome</option><option value="deposit">deposit</option><option value="reload">reload</option><option value="cashback">cashback</option><option value="freespin">freespin</option><option value="referral">referral</option><option value="tournament">tournament</option></select></div>
+            <div className="pm-fld"><label>Section</label><select value={f.type} onChange={set('type')}><option value="welcome">welcome</option><option value="deposit">deposit</option><option value="reload">reload</option><option value="cashback">cashback</option><option value="freespin">freespin</option><option value="referral">referral</option><option value="tournament">tournament</option></select><div className="pm-hint">Which page section it appears in. (Bonus type, %, amounts & limits are set in Promotion Rules below.)</div></div>
             <div className="pm-fld"><label>Country</label><select value={f.country} onChange={onCountry}><option value="">All countries</option>{PROMO_COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
             <div className="pm-fld"><label>Currency</label><select value={f.currency} onChange={set('currency')}><option value="">Auto (player's currency)</option>{PROMO_CURRENCIES.map((c) => <option key={c} value={c}>{c} only</option>)}</select></div>
-            <div className="pm-fld"><label>Bonus</label><input value={f.bonus} onChange={set('bonus')} placeholder="200% / ₱500 / 100 spins" /></div>
-            <div className="pm-fld"><label>Max Bonus</label><input value={f.maxBonus} onChange={set('maxBonus')} placeholder="₱10,000" /></div>
-            <div className="pm-fld"><label>Min Deposit</label><input value={f.minDeposit} onChange={set('minDeposit')} placeholder="₱500" /></div>
-            <div className="pm-fld"><label>Wager</label><input value={f.wager} onChange={set('wager')} placeholder="30x" /></div>
-            <div className="pm-fld"><label>Turnover</label><input value={f.turnover} onChange={set('turnover')} placeholder="0x" /></div>
             <div className="pm-fld"><label>Start Date</label><input type="date" value={f.startDate} onChange={set('startDate')} /></div>
             <div className="pm-fld"><label>End Date (expiry)</label><input type="date" value={f.endDate} onChange={set('endDate')} /></div>
             <div className="pm-fld"><label>Status</label><select value={f.status} onChange={set('status')}><option value="active">active</option><option value="inactive">inactive</option></select></div>

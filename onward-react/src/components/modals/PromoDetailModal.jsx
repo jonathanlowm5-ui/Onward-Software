@@ -31,14 +31,19 @@ export default function PromoDetailModal() {
   const lines = String(desc).split('\n').filter(Boolean);
   const extras = Array.isArray(p.lines) ? p.lines : [];
 
-  // The detail rows — only the ones that carry a value are shown.
+  // The detail rows — only the ones that carry a value are shown. Falls back to
+  // the structured Promotion Rules fields when the legacy display strings are
+  // empty (those editor inputs were removed in favour of the rules section).
+  const pct = p.percentage ? `${p.percentage}%` : '';
+  const mult = Number(p.multiply) > 0 ? `${p.multiply}x` : '';
   const rows = [
-    ['Bonus', p.bonus],
-    ['Max Bonus', p.maxBonus || p.max],
-    ['Min Deposit', p.minDeposit || p.md],
-    ['Wager Requirement', p.wager],
-    ['Turnover', p.turnover],
-    ['Type', p.type],
+    ['Bonus', p.bonus || pct],
+    ['Max Bonus', p.maxBonus || p.max || (p.maxClaimAmount ? p.maxClaimAmount : '')],
+    ['Min Deposit', p.minDeposit || p.md || (p.minDepositAmt ? p.minDepositAmt : '')],
+    ['Wager Requirement', p.wager || (p.requirement && p.requirement.includes('T/O') ? mult : '')],
+    ['Winover', p.requirement && p.requirement.includes('Winover') ? mult : ''],
+    ['Refresh', p.refreshCycle && p.refreshCycle !== 'Once' ? p.refreshCycle : ''],
+    ['Type', p.bonusType || p.type],
   ].filter(([, v]) => v != null && String(v).trim() !== '');
 
   const starts = fmtDate(p.startDate);
@@ -67,15 +72,15 @@ export default function PromoDetailModal() {
           <img src={banner} alt={title} className="promo-detail-banner" />
         ) : (
           <div className="promo-detail-banner promo-detail-banner--gradient">
-            {(p.deco || p.bonus) && <span className="promo-detail-deco">{p.deco || p.bonus}</span>}
+            {(p.deco || p.bonus || pct) && <span className="promo-detail-deco">{p.deco || p.bonus || pct}</span>}
             <span className="promo-detail-banner-title">{title}</span>
           </div>
         )}
 
         {/* Bonus headline */}
-        {p.bonus && (
+        {(p.bonus || pct) && (
           <div style={{ display: 'flex', justifyContent: 'center', margin: '14px 0 6px' }}>
-            <span style={{ fontSize: 26, fontWeight: 900, color: 'var(--gold,#f0c040)', letterSpacing: '.02em' }}>{p.bonus}</span>
+            <span style={{ fontSize: 26, fontWeight: 900, color: 'var(--gold,#f0c040)', letterSpacing: '.02em' }}>{p.bonus || pct}</span>
           </div>
         )}
 
