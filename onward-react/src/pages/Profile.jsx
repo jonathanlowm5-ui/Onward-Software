@@ -121,9 +121,6 @@ export default function Profile() {
   // the "activated bonus" card.
   const welcomePromo = useWelcomePromo();
   const welcomeBonusBanner = resolvePromoBanner(welcomePromo || {}, profile?.currency);
-  const bonusCardStyle = welcomeBonusBanner
-    ? { backgroundImage: `linear-gradient(90deg, rgba(12,19,40,.86) 0%, rgba(12,19,40,.55) 55%, rgba(12,19,40,.25) 100%), url(${welcomeBonusBanner})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-    : undefined;
   const avatarRef = useRef(null);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const onAvatarPick = async (e) => {
@@ -261,12 +258,25 @@ export default function Profile() {
             </div>
           </div>
 
-          {/* Active bonus card */}
-          <div className="prof-bonus-card" style={bonusCardStyle}>
-            <div className="prof-bonus-activated" data-i18n="promo_activated">ACTIVATED</div>
-            <div className="prof-bonus-title" data-i18n="prof_bonus_1st">1ST DEPOSIT BONUS</div>
-            <div className="prof-bonus-sub">125% UP TO 61.51K ₱<br />+100 FREE SPINS</div>
-            <div className="prof-bonus-deco">125%</div>
+          {/* Active bonus card — banner region matches the promotions banner
+              proportion (1200/425); the MORE INFO button stays below it. */}
+          <div className="prof-bonus-card">
+            {welcomeBonusBanner ? (
+              <div className="prof-bonus-banner" style={{ backgroundImage: `url(${welcomeBonusBanner})` }}>
+                <div className="prof-bonus-banner-text">
+                  <div className="prof-bonus-activated" data-i18n="promo_activated">ACTIVATED</div>
+                  <div className="prof-bonus-title" data-i18n="prof_bonus_1st">1ST DEPOSIT BONUS</div>
+                  <div className="prof-bonus-sub">125% UP TO 61.51K ₱<br />+100 FREE SPINS</div>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="prof-bonus-activated" data-i18n="promo_activated">ACTIVATED</div>
+                <div className="prof-bonus-title" data-i18n="prof_bonus_1st">1ST DEPOSIT BONUS</div>
+                <div className="prof-bonus-sub">125% UP TO 61.51K ₱<br />+100 FREE SPINS</div>
+                <div className="prof-bonus-deco">125%</div>
+              </>
+            )}
             <button className="prof-bonus-more" onClick={() => go('promos')} data-i18n="ui_more_info">MORE INFO</button>
           </div>
 

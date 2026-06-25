@@ -83,8 +83,18 @@ export default function DepositModal() {
   // promo banner sits behind the bonus box (text stays overlaid + readable).
   const welcomePromo = useWelcomePromo();
   const promoBanner = resolvePromoBanner(welcomePromo || {}, currency?.code || profile?.currency);
+  // Match the promotions banner proportion (1200/425) so the uploaded artwork
+  // shows at the same shape as on the Promotions page (no odd cropping).
   const bonusBgStyle = promoBanner
-    ? { backgroundImage: `linear-gradient(90deg, rgba(12,19,40,.82) 0%, rgba(12,19,40,.5) 55%, rgba(12,19,40,.2) 100%), url(${promoBanner})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    ? {
+        backgroundImage: `linear-gradient(90deg, rgba(12,19,40,.82) 0%, rgba(12,19,40,.5) 55%, rgba(12,19,40,.2) 100%), url(${promoBanner})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        aspectRatio: '1200 / 425',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+      }
     : undefined;
 
   useEffect(() => {
