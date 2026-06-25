@@ -208,9 +208,9 @@ function PromoEditModal({ initial, onClose, onSaved }) {
             <div className="pm-fld"><label>Section</label><select value={f.type} onChange={set('type')}><option value="welcome">Welcome</option><option value="deposit">Deposit</option><option value="reload">Reload</option><option value="cashback">Cashback</option><option value="freespin">Freespin</option><option value="referral">Referral</option><option value="tournament">Tournament</option></select><div className="pm-hint">Which page section it appears in. (Bonus type, %, amounts & limits are set in Promotion Rules below.)</div></div>
             <div className="pm-fld"><label>Country</label><select value={f.country} onChange={onCountry}><option value="">All countries</option>{PROMO_COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
             <div className="pm-fld"><label>Currency</label><select value={f.currency} onChange={set('currency')}><option value="">Auto (player's currency)</option>{PROMO_CURRENCIES.map((c) => <option key={c} value={c}>{c} only</option>)}</select></div>
+            <div className="pm-fld"><label>Status</label><select value={f.status} onChange={set('status')}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
             <div className="pm-fld"><label>Start Date</label><input type="date" value={f.startDate} onChange={set('startDate')} /></div>
             <div className="pm-fld"><label>End Date (expiry)</label><input type="date" value={f.endDate} onChange={set('endDate')} /></div>
-            <div className="pm-fld"><label>Status</label><select value={f.status} onChange={set('status')}><option value="active">active</option><option value="inactive">inactive</option></select></div>
             <div className="pm-fld" style={{ gridColumn: '1 / -1' }}>
               <label>Description <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(one line per row — shows under the title)</span></label>
               <textarea value={f.description} onChange={set('description')} rows={2}
