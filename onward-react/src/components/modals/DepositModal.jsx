@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { deposit as depositRequest } from '../../services/playersService';
+import { fetchPromotions } from '../../services/gamesService';
 import api from '../../services/api';
 import useWelcomePromo from '../../hooks/useWelcomePromo';
-import { resolvePromoBanner } from '../../utils/promoTerms';
+import { resolvePromoBanner, localizePromo } from '../../utils/promoTerms';
 
 /*
  * Rich deposit modal — two columns: payment methods (left) and the bonus +
@@ -22,7 +23,28 @@ function shortAmt(n) {
   if (v >= 1000) { const k = v / 1000; return (Number.isInteger(k) ? k : +k.toFixed(2)) + 'K'; }
   return String(v);
 }
-const calcBonus = (amt) => (amt >= BONUS.min ? Math.min(amt * BONUS.pct, BONUS.max) : 0);
+// Build a bonus model (percent / cap / min deposit / free spins) from a live
+// promotion, falling back to the default first-deposit numbers.
+function bonusModelFromPromo(p) {
+  if (!p) return BONUS;
+  const pct = Number(p.percentage) > 0 ? Number(p.percentage) / 100 : BONUS.pct;
+  const max = Number(p.maxClaimAmount) > 0 ? Number(p.maxClaimAmount) : BONUS.max;
+  const min = Number(p.minDepositAmt) > 0 ? Number(p.minDepositAmt) : BONUS.min;
+  const fs = Number(p.freeSpins) || 0;
+  return {
+    pct,
+    max,
+    min,
+    fs,
+    spins: BONUS.spins,
+    label: String(p.title || BONUS.label).toUpperCase(),
+    pctLabel: `${Math.round(pct * 100)}%`,
+  };
+}
+
+// A promotion is offered in the deposit bonus dropdown if it's a deposit-style
+// reward (welcome / deposit / reload / bonus) or carries a match percentage.
+const isDepositPromo = (p) => /welcome|deposit|reload|bonus/i.test(String(p?.type || '')) || Number(p?.percentage) > 0;
 
 // Three method groups. Each maps to a bank_channels type.
 const TABS = [
@@ -66,7 +88,7 @@ function methodIcon(name) {
 }
 
 export default function DepositModal() {
-  const { activeModal, closeModal, toast, currency } = useUI();
+  const { activeModal, closeModal, toast, currency, lang } = useUI();
   const { isLoggedIn, profile, refreshProfile } = useAuth();
   const open = activeModal === 'deposit';
 
@@ -76,13 +98,33 @@ export default function DepositModal() {
   const [quick, setQuick] = useState(DEFAULT_QUICK);
   const [channels, setChannels] = useState([]);
   const [showDetails, setShowDetails] = useState(true);
-  const [bonusOn, setBonusOn] = useState(true);
   const [busy, setBusy] = useState(false);
+  // Bonus selection: null = use the default welcome promo, 'none' = No bonus,
+  // otherwise a specific promotion id picked from the dropdown.
+  const [selPromoId, setSelPromoId] = useState(null);
+  const [bonusMenuOpen, setBonusMenuOpen] = useState(false);
+  const [allPromos, setAllPromos] = useState([]);
 
-  // Same promotion artwork as the Promotions page: the welcome / first-deposit
-  // promo banner sits behind the bonus box (text stays overlaid + readable).
   const welcomePromo = useWelcomePromo();
-  const promoBanner = resolvePromoBanner(welcomePromo || {}, currency?.code || profile?.currency);
+
+  // Eligible deposit promotions (localized), welcome / lowest-sequence first.
+  const eligiblePromos = useMemo(() => {
+    const src = allPromos.length ? allPromos : (welcomePromo ? [welcomePromo] : []);
+    return src
+      .filter(isDepositPromo)
+      .map((p) => localizePromo(p, lang))
+      .sort((a, b) => Number(a.sequence || 0) - Number(b.sequence || 0));
+  }, [allPromos, welcomePromo, lang]);
+
+  const defaultPromo = (welcomePromo ? localizePromo(welcomePromo, lang) : null) || eligiblePromos[0] || null;
+  const bonusOn = selPromoId !== 'none';
+  const selectedPromo = !bonusOn ? null
+    : selPromoId ? (eligiblePromos.find((p) => String(p.id) === String(selPromoId)) || defaultPromo)
+      : defaultPromo;
+  const model = bonusModelFromPromo(selectedPromo);
+
+  // The selected promo's banner sits behind the bonus box (text stays overlaid).
+  const promoBanner = resolvePromoBanner(selectedPromo || {}, currency?.code || profile?.currency);
   // Match the promotions banner proportion (1200/425) so the uploaded artwork
   // shows at the same shape as on the Promotions page (no odd cropping).
   const bonusBgStyle = promoBanner
@@ -105,6 +147,7 @@ export default function DepositModal() {
     api.get('/bank-channels?active=1')
       .then((r) => { if (Array.isArray(r.data)) setChannels(r.data.filter((c) => c.dep && c.on)); })
       .catch(() => {});
+    fetchPromotions().then((p) => { if (Array.isArray(p)) setAllPromos(p); }).catch(() => {});
   }, [open]);
 
   // Methods for the active tab: admin-configured channels of that type, else
@@ -122,8 +165,9 @@ export default function DepositModal() {
 
   const sym = currency?.symbol || '₱';
   const amt = Number(String(amount).replace(/[^0-9.]/g, '')) || 0;
-  const bonus = useMemo(() => (bonusOn ? calcBonus(amt) : 0), [amt, bonusOn]);
-  const fs = bonusOn && amt >= BONUS.min ? BONUS.fs : 0;
+  const calc = (a) => (a >= model.min ? Math.min(a * model.pct, model.max) : 0);
+  const bonus = bonusOn ? calc(amt) : 0;
+  const fs = bonusOn && amt >= model.min ? model.fs : 0;
   const receive = amt + bonus;
   const money = (n) => `${sym}${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -180,10 +224,10 @@ export default function DepositModal() {
           <div className="dep2-right">
             {bonusOn ? (
               <div className="dep2-bonus" style={bonusBgStyle}>
-                <div className="dep2-bonus-top">{BONUS.label} | FROM {money(BONUS.min)}</div>
-                <div className="dep2-bonus-main">{BONUS.pctLabel} UP TO <span style={{ color: 'var(--green,#34c759)' }}>{sym}{shortAmt(BONUS.max)}</span></div>
-                <div className="dep2-bonus-fs">+{BONUS.fs} FREE SPINS</div>
-                <div className="dep2-bonus-pct">{BONUS.pctLabel}</div>
+                <div className="dep2-bonus-top">{model.label} | FROM {money(model.min)}</div>
+                <div className="dep2-bonus-main">{model.pctLabel} UP TO <span style={{ color: 'var(--green,#34c759)' }}>{sym}{shortAmt(model.max)}</span></div>
+                {model.fs > 0 && <div className="dep2-bonus-fs">+{model.fs} FREE SPINS</div>}
+                <div className="dep2-bonus-pct">{model.pctLabel}</div>
               </div>
             ) : (
               <div className="dep2-bonus dep2-nobonus">
@@ -191,7 +235,52 @@ export default function DepositModal() {
                 <div className="dep2-bonus-main">Play with your real balance only — no wagering required.</div>
               </div>
             )}
-            <button className="dep2-changebonus" onClick={() => setBonusOn((b) => !b)}>🔄 Click to change bonus {bonusOn ? '— switch to No bonus' : '— switch to 125% bonus'}</button>
+
+            {/* Bonus selector — dropdown of eligible promotions + No bonus */}
+            <div className="dep2-bonussel">
+              <button className="dep2-changebonus" onClick={() => setBonusMenuOpen((o) => !o)}>
+                🔄 {bonusOn ? `Bonus: ${model.label}` : 'No bonus selected'} — click to change {bonusMenuOpen ? '▲' : '▾'}
+              </button>
+              {bonusMenuOpen && (
+                <>
+                  <div className="dep2-bonusmenu-back" onClick={() => setBonusMenuOpen(false)} />
+                  <div className="dep2-bonusmenu" role="menu">
+                    <div className="dep2-bonusmenu-head">Eligible promotions</div>
+                    {eligiblePromos.length ? eligiblePromos.map((p) => {
+                      const m = bonusModelFromPromo(p);
+                      const active = bonusOn && String(selectedPromo?.id) === String(p.id);
+                      return (
+                        <button
+                          key={p.id}
+                          className={`dep2-bonusopt${active ? ' active' : ''}`}
+                          onClick={() => { setSelPromoId(String(p.id)); setBonusMenuOpen(false); }}
+                        >
+                          <span className="dep2-bonusopt-ic">🎁</span>
+                          <span className="dep2-bonusopt-txt">
+                            <span className="dep2-bonusopt-title">{p.title}</span>
+                            <span className="dep2-bonusopt-sub">{m.pctLabel} up to {sym}{shortAmt(m.max)}{m.fs > 0 ? ` · +${m.fs} FS` : ''}</span>
+                          </span>
+                          {active && <span className="dep2-bonusopt-check">✓</span>}
+                        </button>
+                      );
+                    }) : (
+                      <div className="dep2-bonusopt-empty">No eligible promotions right now.</div>
+                    )}
+                    <button
+                      className={`dep2-bonusopt dep2-bonusopt-none${!bonusOn ? ' active' : ''}`}
+                      onClick={() => { setSelPromoId('none'); setBonusMenuOpen(false); }}
+                    >
+                      <span className="dep2-bonusopt-ic">🚫</span>
+                      <span className="dep2-bonusopt-txt">
+                        <span className="dep2-bonusopt-title">No bonus</span>
+                        <span className="dep2-bonusopt-sub">Play with your real balance only</span>
+                      </span>
+                      {!bonusOn && <span className="dep2-bonusopt-check">✓</span>}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
 
             <div className="dep2-sumlabel">Enter your sum</div>
             <div className="dep2-suminput">
@@ -201,7 +290,7 @@ export default function DepositModal() {
 
             <div className="dep2-chips">
               {quick.map((v) => {
-                const b = bonusOn ? calcBonus(Number(v)) : 0;
+                const b = bonusOn ? calc(Number(v)) : 0;
                 return (
                   <button key={v} className={`dep2-chip${amt === Number(v) ? ' active' : ''}`} onClick={() => setAmount(String(v))}>
                     {b > 0 && <span className="dep2-chip-bonus">+{shortAmt(b)}</span>}
@@ -221,7 +310,7 @@ export default function DepositModal() {
                   <div><div className="dep2-rk">Your sum</div><div className="dep2-rv">{money(amt)}</div></div>
                   <div><div className="dep2-rk">Bonus</div><div className="dep2-rv" style={{ color: 'var(--green,#34c759)' }}>+ {money(bonus)}</div></div>
                   <div><div className="dep2-rk">FS</div><div className="dep2-rv">{fs}FS</div></div>
-                  <div><div className="dep2-rk">Rainbow Spin Wheel</div><div className="dep2-rv">{BONUS.spins} Spin</div></div>
+                  <div><div className="dep2-rk">Rainbow Spin Wheel</div><div className="dep2-rv">{bonusOn ? model.spins : 0} Spin</div></div>
                 </div>
               )}
             </div>
