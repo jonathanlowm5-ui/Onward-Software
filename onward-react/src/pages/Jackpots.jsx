@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useUI } from '../context/UIContext';
 import useSectionNav from '../hooks/useSectionNav';
+import PageBanner from '../components/common/PageBanner.jsx';
 import { JP_WINNINGS, JP_FAV_GAMES } from '../services/data/gameData';
 
 const TIER_ICONS = { Bronze: '🥉', Silver: '🥈', Golden: '🥇', Imperial: '👑' };
@@ -47,19 +48,21 @@ export default function Jackpots() {
     <div id="view-jackpots">
       <div className="jp-page">
 
-        {/* ORNATE HEADER */}
+        {/* ORNATE HEADER (uploadable banner falls back to the built-in hero) */}
         <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '16px 20px 0' }}>
-          <div className="jp-header">
-            <div className="jp-header-ornament">
-              <span>🏆</span><span>💰</span><span>🎰</span><span>💎</span>
-              <span>👑</span><span>🪙</span><span>🎲</span><span>🎁</span>
+          <PageBanner pageKey="jackpots">
+            <div className="jp-header">
+              <div className="jp-header-ornament">
+                <span>🏆</span><span>💰</span><span>🎰</span><span>💎</span>
+                <span>👑</span><span>🪙</span><span>🎲</span><span>🎁</span>
+              </div>
+              <div style={{ position: 'relative', zIndex: 2, maxWidth: '400px' }}>
+                <div className="jp-header-eyebrow" data-i18n="jp_exclusive">Exclusive</div>
+                <div className="jp-header-title" data-i18n="jp_title">Onward Jackpots</div>
+                <div className="jp-header-desc">Four internal progressive jackpots. All games are included. Play any games you like, place a bet of at least RM0.01. No extra effort from your side, no wager from us.</div>
+              </div>
             </div>
-            <div style={{ position: 'relative', zIndex: 2, maxWidth: '400px' }}>
-              <div className="jp-header-eyebrow" data-i18n="jp_exclusive">Exclusive</div>
-              <div className="jp-header-title" data-i18n="jp_title">Onward Jackpots</div>
-              <div className="jp-header-desc">Four internal progressive jackpots. All games are included. Play any games you like, place a bet of at least RM0.01. No extra effort from your side, no wager from us.</div>
-            </div>
-          </div>
+          </PageBanner>
         </div>
 
         {/* MEGA TOTAL COUNTER */}

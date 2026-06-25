@@ -1,4 +1,5 @@
 import { useUI } from '../context/UIContext';
+import PageBanner from '../components/common/PageBanner.jsx';
 
 const REF_LINK = 'https://legox.com/ref/PLAYER123';
 
@@ -35,14 +36,16 @@ export default function Referral() {
       <div className="ref-page">
         <div className="ref-inner">
 
-          {/* Hero */}
-          <div className="ref-hero">
-            <div className="ref-hero-icon">🤝</div>
-            <div className="ref-hero-content">
-              <div className="ref-hero-title">Refer Friends &<br /><span data-i18n="ref_earn_together">Earn Together</span></div>
-              <div className="ref-hero-sub">Invite your friends to Onward and earn ₱500 for every friend who registers and makes their first deposit. No limits — the more you refer, the more you earn!</div>
+          {/* Hero (uploadable banner falls back to the built-in hero) */}
+          <PageBanner pageKey="referral">
+            <div className="ref-hero">
+              <div className="ref-hero-icon">🤝</div>
+              <div className="ref-hero-content">
+                <div className="ref-hero-title">Refer Friends &<br /><span data-i18n="ref_earn_together">Earn Together</span></div>
+                <div className="ref-hero-sub">Invite your friends to Onward and earn ₱500 for every friend who registers and makes their first deposit. No limits — the more you refer, the more you earn!</div>
+              </div>
             </div>
-          </div>
+          </PageBanner>
 
           {/* Stats */}
           <div className="ref-stats">

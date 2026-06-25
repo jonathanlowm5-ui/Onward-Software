@@ -59,6 +59,7 @@ app.use('/api/bank-channels', require('./routes/bankchannels'));
 app.use('/api/mini-games', require('./routes/minigames'));
 app.use('/api/announcement', require('./routes/announcement'));
 app.use('/api/deposit-config', require('./routes/depositconfig'));
+app.use('/api/page-banners', require('./routes/pagebanners'));
 
 app.get('/api/health', (req, res) => res.json({ ok: true, service: 'onward-api' }));
 

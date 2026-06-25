@@ -1,5 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useUI } from '../context/UIContext';
+import { uploadImage } from '../services/uploadService';
+import { getPageBanners, savePageBanners } from '../services/pageBannerService';
+
+const PAGE_BANNER_LIST = [
+  { key: 'jackpots', label: '👑 Jackpots' },
+  { key: 'vip', label: '💎 VIP Club' },
+  { key: 'referral', label: '🤝 Referral' },
+  { key: 'agent', label: '🧑‍💼 Agent' },
+  { key: 'follow', label: '📣 Follow Us' },
+];
 
 // Original WEBDESIGN defaults.
 const DEFAULT_WD = {
@@ -30,6 +40,29 @@ export default function WebDesign() {
 
   const save = () => toast('Website design saved ✔ — applied to front-end');
 
+  // Page hero banners (uploadable, consistent size on the player site).
+  const [pageBanners, setPageBanners] = useState({});
+  const [pbUploading, setPbUploading] = useState('');
+  useEffect(() => { getPageBanners().then((d) => setPageBanners(d || {})).catch(() => {}); }, []);
+  const uploadPageBanner = (key) => async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) { toast('⚠ Image too large — keep it under 4 MB'); return; }
+    setPbUploading(key);
+    try {
+      const { url } = await uploadImage(file);
+      const next = await savePageBanners({ [key]: url });
+      setPageBanners(next || {});
+      toast('Banner uploaded ✔ — live on the page');
+    } catch (err) { toast('⚠ ' + (err.message || 'Upload failed')); }
+    finally { setPbUploading(''); }
+  };
+  const clearPageBanner = async (key) => {
+    try { const next = await savePageBanners({ [key]: '' }); setPageBanners(next || {}); toast('Banner removed'); }
+    catch (err) { toast('⚠ ' + (err.message || 'Failed')); }
+  };
+
   return (
     <>
       <div className="page-head">
@@ -38,6 +71,29 @@ export default function WebDesign() {
           <div className="hero-sub">Customize the player-facing front-end look — logo, colors, cards &amp; banners.</div>
         </div>
         <button className="btn-pm-save" onClick={save}>💾 Save Design</button>
+      </div>
+
+      {/* Page hero banners — uploadable, one consistent size */}
+      <div className="card" style={{ marginBottom: 'var(--pad)' }}>
+        <div className="card-title">🖼 Page Hero Banners</div>
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>Upload a banner for each page — all render at the same size (recommended <b style={{ color: 'var(--text)' }}>1200 × 320 px</b>, 16:9-ish wide, under 4 MB). Leave empty to keep the built-in hero.</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 14 }}>
+          {PAGE_BANNER_LIST.map((p) => (
+            <div key={p.key} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 12 }}>
+              <div style={{ fontWeight: 800, marginBottom: 8 }}>{p.label}</div>
+              <div style={{ width: '100%', aspectRatio: '1200 / 320', borderRadius: 8, overflow: 'hidden', background: 'var(--panel-3,#1b2541)', border: '1px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
+                {pageBanners[p.key]
+                  ? <img src={pageBanners[p.key]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : <span style={{ fontSize: 12, color: 'var(--muted)' }}>No banner — built-in hero</span>}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <input type="file" accept="image/*" onChange={uploadPageBanner(p.key)} />
+                {pbUploading === p.key && <span style={{ color: 'var(--gold)' }}>…</span>}
+                {pageBanners[p.key] && <button className="del-btn" onClick={() => clearPageBanner(p.key)}>🗑</button>}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="wd-grid">

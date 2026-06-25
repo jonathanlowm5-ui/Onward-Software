@@ -1,6 +1,7 @@
 // VIP page — faithful conversion of the original #view-vip markup + interactions.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useUI } from '../context/UIContext';
+import PageBanner from '../components/common/PageBanner.jsx';
 import useSectionNav from '../hooks/useSectionNav';
 import api from '../services/api';
 
@@ -236,16 +237,18 @@ export default function VIP() {
         <div className="vip-inner">
 
           {/* Hero banner */}
-          <div className="vip-hero" style={{ marginBottom: 40 }}>
-            <div className="vip-hero-coins">
-              <span>🪙</span><span>💰</span><span>🏆</span><span>💎</span>
-              <span>🎰</span><span>🃏</span><span>💵</span><span>🎁</span>
+          <PageBanner pageKey="vip">
+            <div className="vip-hero" style={{ marginBottom: 40 }}>
+              <div className="vip-hero-coins">
+                <span>🪙</span><span>💰</span><span>🏆</span><span>💎</span>
+                <span>🎰</span><span>🃏</span><span>💵</span><span>🎁</span>
+              </div>
+              <div className="vip-hero-content">
+                <div className="vip-hero-title"><span data-i18n="vip_hero_title">Become a member of the Onward VIP Club</span></div>
+                <div className="vip-hero-sub" data-i18n="vip_hero_sub">Experience the highest level of service, exclusive bonuses and other benefits</div>
+              </div>
             </div>
-            <div className="vip-hero-content">
-              <div className="vip-hero-title"><span data-i18n="vip_hero_title">Become a member of the Onward VIP Club</span></div>
-              <div className="vip-hero-sub" data-i18n="vip_hero_sub">Experience the highest level of service, exclusive bonuses and other benefits</div>
-            </div>
-          </div>
+          </PageBanner>
 
           {/* Benefits section (removed in v10.55 per request) */}
           <div className="vip-benefits" style={{ display: 'none' }}>
