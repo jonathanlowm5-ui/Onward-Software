@@ -511,11 +511,40 @@ function MgWheel({ slices, setSlices, wheelCfg = {}, setWheelCfg, onSave, saving
       <div>
         <div className="card"><div className="card-title" style={{ textAlign: 'center' }}>Live Preview</div>
           <div className="wheel-wrap">
-            <div className="wheel-disc" style={wheelCfg.image
-              ? { backgroundImage: `url(${wheelCfg.image})`, backgroundSize: 'cover', backgroundPosition: 'center', transform: `rotate(${rot}deg)` }
-              : { background: wheelGrad(slices), transform: `rotate(${rot}deg)` }}>
-              {!wheelCfg.image && <span className="wheel-hub">🎡</span>}
-            </div>
+            {(() => {
+              const act = slices.filter((s) => s.on);
+              const n = act.length || 1;
+              const seg = 360 / n;
+              const D = 250;          // disc diameter
+              const R = D / 2;
+              const pt = (deg, rad) => { const a = (deg - 90) * (Math.PI / 180); return { x: R + rad * Math.cos(a), y: R + rad * Math.sin(a) }; };
+              return (
+                <div style={{ position: 'relative', width: D, height: D, margin: '0 auto 8px' }}>
+                  {/* disc */}
+                  <div style={{
+                    position: 'absolute', inset: 0, borderRadius: '50%',
+                    ...(wheelCfg.image
+                      ? { backgroundImage: `url(${wheelCfg.image})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                      : { background: wheelGrad(slices) }),
+                    transform: `rotate(${rot}deg)`, transition: 'transform 2.2s cubic-bezier(.17,.67,.27,1)',
+                    border: '6px solid #f4b223', boxShadow: '0 0 0 3px rgba(0,0,0,.45), inset 0 0 26px rgba(0,0,0,.45)',
+                  }}>
+                    {!wheelCfg.image && act.map((s, i) => {
+                      const c = (i + 0.5) * seg;
+                      const p = pt(c, R * 0.6);
+                      return <span key={i} style={{ position: 'absolute', left: p.x, top: p.y, transform: `translate(-50%,-50%) rotate(${c}deg)`, fontSize: 11, fontWeight: 800, color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,.85)', whiteSpace: 'nowrap', pointerEvents: 'none' }}>{s.l}</span>;
+                    })}
+                  </div>
+                  {/* hub */}
+                  <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 30, height: 30, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, #fff2c0, #f4b223)', border: '2px solid rgba(0,0,0,.35)', zIndex: 2 }} />
+                  {/* sequence badges 1..n around the clock (1 at top, clockwise) */}
+                  {act.map((s, i) => {
+                    const p = pt(i * seg, R + 4);
+                    return <span key={`b${i}`} style={{ position: 'absolute', left: p.x, top: p.y, transform: 'translate(-50%,-50%)', width: 22, height: 22, borderRadius: '50%', background: '#0b1224', color: '#fff', border: '2px solid #f4b223', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3, boxShadow: '0 2px 5px rgba(0,0,0,.5)' }}>{i + 1}</span>;
+                  })}
+                </div>
+              );
+            })()}
             <button className="spin-btn" onClick={spinTest}>▶ Spin Test</button>
           </div>
           {/* Custom wheel image (PNG) — overrides the generated colour wheel */}
