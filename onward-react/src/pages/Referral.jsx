@@ -39,7 +39,10 @@ export default function Referral() {
         <div className="ref-inner">
 
           {/* Hero (uploadable banner falls back to the built-in hero) */}
-          <PageBanner pageKey="referral">
+          <PageBanner pageKey="referral"
+            title={hero.title || 'Refer Friends & Earn Together'}
+            desc={hero.desc || 'Invite your friends to Onward and earn ₱500 for every friend who registers and makes their first deposit. No limits — the more you refer, the more you earn!'}
+          >
             <div className="ref-hero">
               <div className="ref-hero-icon">🤝</div>
               <div className="ref-hero-content">

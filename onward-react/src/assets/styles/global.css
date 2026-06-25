@@ -915,6 +915,19 @@ body::before{
   margin-bottom:20px;
   background:#0c1626;
 }
+/* Uploaded hero banner with the eyebrow/title/description overlaid on the left. */
+.page-banner-box{
+  position:relative;display:flex;align-items:center;
+  background-size:cover;background-position:center;overflow:hidden;
+}
+.page-banner-box::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,rgba(8,13,26,.86) 0%,rgba(8,13,26,.5) 42%,rgba(8,13,26,.06) 66%,transparent 100%);
+}
+.page-banner-text{position:relative;z-index:1;max-width:58%;padding:0 5%}
+.page-banner-eyebrow{font-size:clamp(10px,1.4vw,13px);letter-spacing:.25em;font-weight:800;color:rgba(255,255,255,.72);text-transform:uppercase;margin-bottom:8px}
+.page-banner-title{font-size:clamp(20px,4vw,42px);font-weight:900;color:#fff;line-height:1.1;text-shadow:0 2px 12px rgba(0,0,0,.45)}
+.page-banner-desc{margin-top:clamp(6px,1.2vw,14px);font-size:clamp(11px,1.6vw,16px);color:rgba(255,255,255,.92);font-weight:500;line-height:1.5;text-shadow:0 1px 8px rgba(0,0,0,.45)}
 @media(max-width:600px){ .page-banner{border-radius:12px;margin-bottom:14px} }
 
 /* ===== Rich deposit modal ===== */

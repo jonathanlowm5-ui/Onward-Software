@@ -52,7 +52,11 @@ export default function Jackpots() {
 
         {/* ORNATE HEADER (uploadable banner falls back to the built-in hero) */}
         <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '16px 20px 0' }}>
-          <PageBanner pageKey="jackpots">
+          <PageBanner pageKey="jackpots"
+            eyebrow={hero.eyebrow || 'Exclusive'}
+            title={hero.title || 'Onward Jackpots'}
+            desc={hero.desc || 'Four internal progressive jackpots. All games are included. Play any games you like, place a bet of at least RM0.01. No extra effort from your side, no wager from us.'}
+          >
             <div className="jp-header">
               <div className="jp-header-ornament">
                 <span>🏆</span><span>💰</span><span>🎰</span><span>💎</span>

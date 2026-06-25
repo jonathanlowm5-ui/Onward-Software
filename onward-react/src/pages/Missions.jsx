@@ -24,7 +24,10 @@ export default function Missions() {
       <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '24px 16px 60px' }}>
         <button onClick={() => go('lobby')} style={{ background: 'rgba(255,255,255,.06)', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '8px 16px', borderRadius: '9px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }} data-i18n="mission_back">← BACK</button>
         <div style={{ marginTop: 16, marginBottom: 22 }}>
-          <PageBanner pageKey="missions">
+          <PageBanner pageKey="missions"
+            title={hero.title || 'Complete Missions & Earn Rewards'}
+            desc={hero.desc || 'Finish daily and weekly tasks to unlock bonuses, free spins and cash — the more you play, the more you earn!'}
+          >
             <div className="ref-hero" style={{ marginBottom: 0 }}>
               <div className="ref-hero-icon">🎯</div>
               <div className="ref-hero-content">

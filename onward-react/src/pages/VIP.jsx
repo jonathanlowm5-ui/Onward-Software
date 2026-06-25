@@ -239,7 +239,10 @@ export default function VIP() {
         <div className="vip-inner">
 
           {/* Hero banner */}
-          <PageBanner pageKey="vip">
+          <PageBanner pageKey="vip"
+            title={hero.title || 'Become a member of the Onward VIP Club'}
+            desc={hero.desc || 'Experience the highest level of service, exclusive bonuses and other benefits'}
+          >
             <div className="vip-hero" style={{ marginBottom: 40 }}>
               <div className="vip-hero-coins">
                 <span>🪙</span><span>💰</span><span>🏆</span><span>💎</span>
