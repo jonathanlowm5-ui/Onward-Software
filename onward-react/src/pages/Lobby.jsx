@@ -117,7 +117,7 @@ export default function Lobby() {
           <button className="see-all" onClick={() => navigate('/promotions')} data-i18n="ui_see_all">See All</button>
         </div>
         <div className="promo-grid" id="promo-grid-home">
-          {promos.slice(0, 3).map((p, i) => <PromoCard key={p.id ?? i} promo={p} index={i} onOpen={() => navigate('/promotions')} />)}
+          {promos.slice(0, 8).map((p, i) => <PromoCard key={p.id ?? i} promo={p} index={i} onOpen={() => navigate('/promotions')} />)}
         </div>
       </div>
 
