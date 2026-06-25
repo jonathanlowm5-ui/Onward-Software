@@ -21,9 +21,17 @@ export default function Missions() {
     <div id="view-missions">
       <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '24px 16px 60px' }}>
         <button onClick={() => go('lobby')} style={{ background: 'rgba(255,255,255,.06)', border: '1px solid var(--border)', color: 'var(--text-muted)', padding: '8px 16px', borderRadius: '9px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }} data-i18n="mission_back">← BACK</button>
-        <div style={{ marginTop: 16 }}><PageBanner pageKey="missions" /></div>
-        <h2 style={{ fontFamily: "'Cinzel',serif", fontSize: '26px', color: 'var(--text)', margin: '18px 0 4px' }} data-i18n="mission_title">Missions</h2>
-        <div style={{ color: 'var(--text-muted)', fontSize: '14px', marginBottom: '22px' }} data-i18n="mission_subtitle">Complete tasks to earn rewards</div>
+        <div style={{ marginTop: 16, marginBottom: 22 }}>
+          <PageBanner pageKey="missions">
+            <div className="ref-hero" style={{ marginBottom: 0 }}>
+              <div className="ref-hero-icon">🎯</div>
+              <div className="ref-hero-content">
+                <div className="ref-hero-title">Complete Missions &amp;<br /><span data-i18n="mission_earn">Earn Rewards</span></div>
+                <div className="ref-hero-sub" data-i18n="mission_subtitle">Finish daily and weekly tasks to unlock bonuses, free spins and cash — the more you play, the more you earn!</div>
+              </div>
+            </div>
+          </PageBanner>
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(290px,1fr))', gap: '16px' }}>
           {MISSIONS.map((m, i) => (
             <div key={i} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '13px' }}>
