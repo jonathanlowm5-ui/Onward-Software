@@ -6269,3 +6269,20 @@ img{ -webkit-user-drag:none; user-drag:none; }
   .srch-left{ border-right:none; border-bottom:1px solid var(--border,#243049); }
   .srch-grid{ grid-template-columns:repeat(3,1fr); max-height:300px; }
 }
+
+/* ===== Promotions page — mobile fix =====
+   The bonus / reload grids were forced to 3 columns by a late !important rule,
+   which shrank each card so its banner + overlaid title/description got cropped
+   ("UP TO", "week on", stray numbers). On phones drop to a single column so each
+   promo banner is full-width and its overlaid text stays readable like desktop.
+   This block is last in the file so it wins source-order against earlier rules. */
+@media(max-width:640px){
+  .promo-bonus-grid{ grid-template-columns:1fr !important; gap:12px !important; }
+  .promo-bonus-grid .pb-card{ min-height:0 !important; padding:14px !important; }
+  .promo-bonus-grid .pb-banner-box{ aspect-ratio:1200 / 425 !important; margin-bottom:10px !important; }
+  .promo-bonus-grid .pb-banner-text{ max-width:62% !important; padding:0 14px !important; }
+  .promo-bonus-grid .pb-banner-text .pb-title{ font-size:16px !important; margin-bottom:6px !important; }
+  .promo-bonus-grid .pb-banner-text .pb-detail{ font-size:11px !important; line-height:1.45 !important; }
+  .promo-bonus-grid .pb-card .wh-tier-btn{ font-size:13px !important; padding:11px !important; margin-top:10px !important; }
+  .promo-bonus-grid .pb-region{ font-size:9px !important; }
+}
