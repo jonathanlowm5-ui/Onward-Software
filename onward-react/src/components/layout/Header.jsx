@@ -103,7 +103,7 @@ const NAV = [
 ];
 
 export default function Header() {
-  const { toggleSidebar, openModal, setSearchQuery, searchQuery, toggleDropdown, currency } = useUI();
+  const { toggleSidebar, openModal, setSearchQuery, searchQuery, toggleDropdown, currency, accountCurrency, fxConvert } = useUI();
   const { isLoggedIn, profile, logout } = useAuth();
   const go = useSectionNav();
   const navigate = useNavigate();
@@ -125,8 +125,17 @@ export default function Header() {
   const activeId =
     NAV.find((n) => sectionMatch(n.id, location.pathname))?.id || 'lobby';
 
-  const balance = profile?.balance != null ? Number(profile.balance).toFixed(2) : '0.00';
-  const bonus = profile?.bonus != null ? Number(profile.bonus).toFixed(2) : '500.00';
+  // The wallet is in the player's account currency; convert for display when a
+  // different display currency is selected (shown with a ≈ indicator).
+  const converted = currency.code !== accountCurrency;
+  const approx = converted ? '≈ ' : '';
+  const fmt = (raw, fallback) => {
+    if (raw == null) return fallback;
+    const v = converted ? fxConvert(Number(raw), accountCurrency, currency.code) : Number(raw);
+    return v.toFixed(2);
+  };
+  const balance = fmt(profile?.balance, '0.00');
+  const bonus = fmt(profile?.bonus, '500.00');
 
   return (
     <>
@@ -178,11 +187,11 @@ export default function Header() {
         <div className="wallet-inner">
           <div className="wallet-balance">
             <span className="wallet-label" data-i18n="ui_balance">Balance</span>
-            <span className="wallet-amount" id="wallet-amount">{currency.symbol} {balance}</span>
+            <span className="wallet-amount" id="wallet-amount">{approx}{currency.symbol} {balance}</span>
           </div>
           <div className="wallet-balance">
             <span className="wallet-label" data-i18n="ui_bonus">Bonus</span>
-            <span className="wallet-amount" style={{ color: 'var(--cyan)' }} id="bonus-amount">{currency.symbol} {bonus}</span>
+            <span className="wallet-amount" style={{ color: 'var(--cyan)' }} id="bonus-amount">{approx}{currency.symbol} {bonus}</span>
           </div>
           <div className="wallet-actions">
             <button className="btn btn-primary btn-sm" onClick={() => openModal('deposit')} data-i18n="ui_deposit_btn">＋ Deposit</button>
@@ -250,7 +259,7 @@ export default function Header() {
                   <span className="hdr-bonus-dot">!</span>
                 </button>
                 <div className="hdr-balance">
-                  <span className="hdr-bal-amount" id="hdr-bal-amount">{balance} {currency.code}</span>
+                  <span className="hdr-bal-amount" id="hdr-bal-amount">{approx}{balance} {currency.code}</span>
                 </div>
                 <button className="hdr-deposit-btn" onClick={() => openModal('deposit')}>DEPOSIT</button>
                 <div className="hdr-avatar-wrap" onClick={(e) => { e.stopPropagation(); setAcctOpen((o) => !o); }} style={{ cursor: 'pointer' }}>

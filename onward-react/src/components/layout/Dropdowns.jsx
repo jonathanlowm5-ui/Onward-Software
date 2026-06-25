@@ -28,8 +28,10 @@ const LANGS = [
 ];
 
 export default function Dropdowns() {
-  const { dropdown, closeDropdown, setCurrency, currency, setLang, lang, openModal } = useUI();
+  const { dropdown, closeDropdown, setCurrency, currency, accountCurrency, fxConvert, setLang, lang, openModal } = useUI();
   const { isLoggedIn, logout, profile } = useAuth();
+  const bal = Number(profile?.balance || 0);
+  const conv = (code) => fxConvert(bal, accountCurrency || 'PHP', code);
   const go = useSectionNav();
   const navigate = useNavigate();
   // Open the profile page already drilled into a specific section.
@@ -45,14 +47,21 @@ export default function Dropdowns() {
       {/* CURRENCY */}
       {dropdown === 'currency' && (
         <div id="currency-dropdown" style={panel}>
-          <div style={panelTitle}>Currency</div>
+          <div style={panelTitle}>Display Currency · Converter</div>
+          {isLoggedIn && (
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', padding: '0 10px 8px' }}>
+              ≈ approximate. Your wallet stays in <b style={{ color: 'var(--gold)' }}>{accountCurrency}</b>.
+            </div>
+          )}
           {CURRENCIES.map((c) => (
             <button key={c.code} style={{ ...row, color: currency.code === c.code ? 'var(--gold)' : 'var(--text)' }}
               onClick={() => { setCurrency({ code: c.code, symbol: c.symbol }); closeDropdown(); }}>
               <span style={{ width: 24, fontSize: 18 }}>{c.flag}</span>
               <span style={{ width: 28, fontWeight: 700 }}>{c.symbol}</span>
               <span>{c.code}</span>
-              <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: 12 }}>{c.name}</span>
+              {isLoggedIn
+                ? <span style={{ marginLeft: 'auto', color: c.code === accountCurrency ? 'var(--text)' : 'var(--text-muted)', fontSize: 12, fontWeight: 700 }}>{c.code === accountCurrency ? '' : '≈ '}{c.symbol}{conv(c.code).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                : <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: 12 }}>{c.name}</span>}
             </button>
           ))}
         </div>

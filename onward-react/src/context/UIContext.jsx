@@ -1,11 +1,15 @@
 import { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { applyTranslations, startI18nObserver, getStoredLang, storeLang } from '../i18n';
 import { useAuth } from './AuthContext';
+import api from '../services/api';
 
 const UIContext = createContext(null);
 
 // Modals that require a logged-in player. Guests are sent to the login screen.
 const AUTH_REQUIRED_MODALS = new Set(['deposit', 'withdraw']);
+
+// Currency symbols for the display switcher / converter.
+const CUR_SYMBOLS = { PHP: '₱', USD: '$', EUR: '€', INR: '₹', THB: '฿', VND: '₫', IDR: 'Rp', MYR: 'RM', CNY: '¥', JPY: '¥' };
 
 /**
  * Global UI state that used to live in DOM-manipulating helpers
@@ -41,7 +45,12 @@ export function UIProvider({ children }) {
     const stop = startI18nObserver(() => langRef.current);
     return stop;
   }, []);
-  const [currency, setCurrency] = useState({ code: 'PHP', symbol: '₱' });
+  // `currency` is the DISPLAY currency (for the converter indicator). The real
+  // wallet always stays in the player's account currency.
+  const [currency, setCurrencyState] = useState({ code: 'PHP', symbol: '₱' });
+  const currencyPinned = useRef(false); // true once the user manually picks one
+  const setCurrency = useCallback((c) => { currencyPinned.current = true; setCurrencyState(c); }, []);
+
   const [toasts, setToasts] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   // which top dropdown is open: null | 'currency' | 'lang' | 'profile'
@@ -50,7 +59,27 @@ export function UIProvider({ children }) {
 
   // Read login state so deposit/withdraw can be gated behind registration.
   // AuthProvider wraps UIProvider, so this is always available.
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, profile } = useAuth();
+  const accountCurrency = profile?.currency || 'PHP';
+
+  // Default the display currency to the player's own account currency (until
+  // they manually switch it), so amounts are never mislabelled.
+  useEffect(() => {
+    if (profile?.currency && !currencyPinned.current) {
+      setCurrencyState({ code: profile.currency, symbol: CUR_SYMBOLS[profile.currency] || '' });
+    }
+  }, [profile?.currency]);
+
+  // Conversion rates (admin-configurable). rate[X] = units of X per 1 base unit.
+  const [fx, setFx] = useState({ base: 'PHP', rates: {} });
+  useEffect(() => { api.get('/currency-rates').then((r) => setFx(r.data || { base: 'PHP', rates: {} })).catch(() => {}); }, []);
+  const fxConvert = useCallback((amount, from, to) => {
+    const r = fx.rates || {};
+    const rf = Number(r[from]) > 0 ? Number(r[from]) : 1;
+    const rt = Number(r[to]) > 0 ? Number(r[to]) : 1;
+    return (Number(amount) || 0) * (rt / rf);
+  }, [fx]);
+  const currencySymbol = useCallback((code) => CUR_SYMBOLS[code] || '', []);
 
   const toast = useCallback((message, type = 'info') => {
     const id = ++toastId.current;
@@ -86,12 +115,14 @@ export function UIProvider({ children }) {
       activeModal, modalData, openModal, closeModal,
       lang, setLang,
       currency, setCurrency,
+      accountCurrency, fx, fxConvert, currencySymbol,
       toasts, toast,
       searchQuery, setSearchQuery,
       dropdown, setDropdown, toggleDropdown, closeDropdown,
     }),
-    [sidebarOpen, activeModal, modalData, lang, currency, toasts, searchQuery, dropdown,
-     toggleSidebar, closeSidebar, openModal, closeModal, toast, toggleDropdown, closeDropdown]
+    [sidebarOpen, activeModal, modalData, lang, currency, accountCurrency, fx, fxConvert, currencySymbol,
+     toasts, searchQuery, dropdown,
+     toggleSidebar, closeSidebar, openModal, closeModal, toast, setCurrency, toggleDropdown, closeDropdown]
   );
 
   return <UIContext.Provider value={value}>{children}</UIContext.Provider>;
