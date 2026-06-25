@@ -4,6 +4,11 @@ import { useAuth } from '../context/AuthContext';
 import useSectionNav from '../hooks/useSectionNav';
 import { resolvePromoBanner } from '../utils/promoTerms';
 import api from '../services/api';
+// Uploaded welcome-tier icons (coin → bag → chest → crown).
+import wStep1 from '../assets/welcome/welcome-step1.avif';
+import wStep2 from '../assets/welcome/welcome-step2.avif';
+import wStep3 from '../assets/welcome/welcome-step3.avif';
+import wStep4 from '../assets/welcome/welcome-step4.avif';
 
 const VALID_PROMO_CODES = ['WELCOME100', 'LEGOX', 'VIP500', 'FREESPIN55'];
 
@@ -44,10 +49,10 @@ const SHOWCASE_RELOAD = [
 
 // Which section IDs are visible for each filter tab.
 const WELCOME_TIERS = [
-  { icon: '🪙', pct: '125%', detail: 'UP TO ₱3,970+100FS' },
-  { icon: '💰', pct: '100%', detail: 'UP TO ₱1,980+25FS' },
-  { icon: '🧰', pct: '75%', detail: 'UP TO ₱5,950+50FS' },
-  { icon: '👑', pct: '200%', detail: 'UP TO ₱7,940+25FS' },
+  { icon: '🪙', img: wStep1, pct: '125%', detail: 'UP TO ₱3,970+100FS' },
+  { icon: '💰', img: wStep2, pct: '100%', detail: 'UP TO ₱1,980+25FS' },
+  { icon: '🧰', img: wStep3, pct: '75%', detail: 'UP TO ₱5,950+50FS' },
+  { icon: '👑', img: wStep4, pct: '200%', detail: 'UP TO ₱7,940+25FS' },
 ];
 
 const SHOW_MAP = {
@@ -218,7 +223,7 @@ export default function Promotions() {
                       </span>
                       <span className="wh-tier-num">#{i + 1}</span>
                     </div>
-                    <div className="wh-tier-icon">{t.icon}</div>
+                    <div className="wh-tier-icon">{t.img ? <img src={t.img} alt="" className="wh-tier-img" /> : t.icon}</div>
                     <div className="wh-tier-pct">{t.pct}</div>
                     <div className="wh-tier-detail">{t.detail}</div>
                     {claimed

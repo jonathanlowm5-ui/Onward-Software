@@ -815,6 +815,7 @@ body::before{
   font-size:10px;font-weight:700;color:rgba(255,255,255,.4);
 }
 .wh-tier-icon{font-size:40px;line-height:1;margin:4px 0}
+.wh-tier-img{display:block;margin:0 auto;width:auto;height:64px;object-fit:contain}
 .wh-tier-pct{
   font-size:28px;font-weight:900;color:#fff;
   font-family:'DM Sans',sans-serif;line-height:1;
@@ -5124,6 +5125,7 @@ img{ -webkit-user-drag:none; user-drag:none; }
   .wh-tier-status{ font-size:8px !important; }
   .wh-tier-num{ font-size:9px !important; }
   .wh-tier-icon{ font-size:28px !important; margin:2px 0 !important; }
+  .wh-tier-img{ height:46px !important; }
   .wh-tier-pct{ font-size:22px !important; }
   .wh-tier-detail{ font-size:9px !important; }
   .wh-tier-btn{ font-size:10px !important; padding:7px 0 !important; }
