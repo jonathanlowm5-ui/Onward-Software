@@ -99,7 +99,7 @@ function FortuneWheel({ config, onClose }) {
     }
   };
 
-  const size = 320;
+  const size = 340;
   const theme = wheel.theme || {};
   const rimColor = theme.rimColor || '#f4b223';
   const hubColor = theme.hubColor || '#f4b223';
@@ -111,8 +111,10 @@ function FortuneWheel({ config, onClose }) {
   const buttonImage = theme.buttonImage || '';
   const showBulbs = theme.bulbs !== false && !frameImage; // a frame image supplies its own rim
   // With a frame image the prize disc shrinks to sit INSIDE the frame ring and
-  // renders on top of it, so the frame surrounds the prize instead of covering it.
-  const discInset = frameImage ? Math.round(size * 0.13) : 0;
+  // renders on top of it, so the frame surrounds the prize instead of covering
+  // it. discScale (admin-tunable) is the prize size as a fraction of the frame.
+  const discScale = Math.min(1, Math.max(0.5, Number(theme.discScale) || 0.74));
+  const discInset = frameImage ? Math.round((size * (1 - discScale)) / 2) : 0;
   const discSize = size - discInset * 2;
   const BULB_COUNT = 16;
   const bulbs = Array.from({ length: BULB_COUNT }, (_, i) => {
@@ -147,11 +149,7 @@ function FortuneWheel({ config, onClose }) {
           ? <img src={theme.titleImage} alt="" style={{ maxWidth: '82%', maxHeight: 70, objectFit: 'contain', display: 'block' }} />
           : <div style={fwTitle}>{theme.title || 'WHEEL OF FORTUNE'}</div>}
 
-        <div style={{ position: 'relative', width: size, height: size, maxWidth: '80vw', aspectRatio: '1 / 1' }}>
-          {/* win indicator — small fixed pointer at the top edge (z5) */}
-          <div style={{ position: 'absolute', top: -2, left: '50%', transform: 'translateX(-50%)', zIndex: 5,
-            width: 0, height: 0, borderLeft: '12px solid transparent', borderRight: '12px solid transparent',
-            borderTop: `22px solid ${pointerColor}`, filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.6))' }} />
+        <div style={{ position: 'relative', width: size, height: size, maxWidth: '86vw', aspectRatio: '1 / 1' }}>
           {/* frame — uploaded ring image, else generated gold rim ring (z2) */}
           {frameImage
             ? <img src={frameImage} alt="" style={{ position: 'absolute', inset: -6, width: 'calc(100% + 12px)', height: 'calc(100% + 12px)', objectFit: 'contain', pointerEvents: 'none', zIndex: 2 }} />
@@ -163,16 +161,17 @@ function FortuneWheel({ config, onClose }) {
               width: 7, height: 7, borderRadius: '50%', background: b.on ? '#fff7d6' : '#b98e2c',
               boxShadow: b.on ? '0 0 5px 1px rgba(255,240,180,.9)' : 'inset 0 0 2px rgba(0,0,0,.5)' }} />
           ))}
+          {/* indicator — gold arrow sitting just above the centre gem (z5) */}
+          <div style={{ position: 'absolute', top: `calc(50% - 40px)`, left: '50%', transform: 'translateX(-50%)', zIndex: 5,
+            width: 0, height: 0, borderLeft: '9px solid transparent', borderRight: '9px solid transparent',
+            borderBottom: `16px solid ${pointerColor}`, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,.6))' }} />
           {/* PIN — centre hub gem in the middle of the wheel (z4) */}
           {pinImage
             ? <img src={pinImage} alt="" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 4,
-                width: 66, height: 66, objectFit: 'contain', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,.55))', pointerEvents: 'none' }} />
+                width: 52, height: 52, objectFit: 'contain', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,.55))', pointerEvents: 'none' }} />
             : <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 4,
-                width: 46, height: 46, borderRadius: '50%', background: `radial-gradient(circle at 35% 30%, #fff2c0, ${hubColor})`,
+                width: 44, height: 44, borderRadius: '50%', background: `radial-gradient(circle at 35% 30%, #fff2c0, ${hubColor})`,
                 border: '3px solid rgba(0,0,0,.35)', boxShadow: '0 2px 8px rgba(0,0,0,.55)' }} />}
-          {/* TOKEN — coin at the bottom of the wheel (z4) */}
-          {tokenImage && <img src={tokenImage} alt="" style={{ position: 'absolute', bottom: -10, left: '50%', transform: 'translateX(-50%)', zIndex: 4,
-            width: 54, height: 54, objectFit: 'contain', filter: 'drop-shadow(0 3px 8px rgba(0,0,0,.55))', pointerEvents: 'none' }} />}
           {/* PRIZE disc — sits inside the frame ring, drawn on top so the frame
               can never cover it (z3, above the frame at z2) */}
           <div style={{
@@ -209,20 +208,32 @@ function FortuneWheel({ config, onClose }) {
         </div>
       )}
 
-      {buttonImage
-        ? <button onClick={spin} disabled={spinning} title={isPaid ? `Spin (${sym}${spinCost.toLocaleString()})` : 'Spin to Win'}
-            style={{ background: 'none', border: 'none', padding: 0, cursor: spinning ? 'default' : 'pointer', opacity: spinning ? 0.6 : 1, lineHeight: 0 }}>
-            <img src={buttonImage} alt="Spin" style={{ height: 56, width: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 6px 14px rgba(0,0,0,.4))' }} />
-          </button>
-        : <button onClick={spin} disabled={spinning}
-            style={{
-              padding: '13px 40px', borderRadius: 999, border: 'none', cursor: spinning ? 'default' : 'pointer',
-              fontWeight: 900, fontSize: 16, color: '#1a1205',
-              background: spinning ? '#7a6a32' : 'linear-gradient(180deg,#ffd75e,#f4b223)',
-              boxShadow: '0 8px 20px rgba(244,178,35,.4)', minWidth: 200,
-            }}>
-            {spinning ? 'Spinning…' : isPaid ? `▶ Spin (${sym}${spinCost.toLocaleString()})` : '▶ Spin to Win'}
-          </button>}
+      {/* Bottom controls — SPIN button + token balance badge (like the concept) */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, flexWrap: 'wrap', width: '100%' }}>
+        {buttonImage
+          ? <button onClick={spin} disabled={spinning} title={isPaid ? `Spin (${sym}${spinCost.toLocaleString()})` : 'Spin to Win'}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: spinning ? 'default' : 'pointer', opacity: spinning ? 0.6 : 1, lineHeight: 0 }}>
+              <img src={buttonImage} alt="Spin" style={{ height: 60, width: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 6px 14px rgba(0,0,0,.4))' }} />
+            </button>
+          : <button onClick={spin} disabled={spinning}
+              style={{
+                padding: '13px 40px', borderRadius: 999, border: 'none', cursor: spinning ? 'default' : 'pointer',
+                fontWeight: 900, fontSize: 16, color: '#1a1205',
+                background: spinning ? '#7a6a32' : 'linear-gradient(180deg,#ffd75e,#f4b223)',
+                boxShadow: '0 8px 20px rgba(244,178,35,.4)', minWidth: 200,
+              }}>
+              {spinning ? 'Spinning…' : isPaid ? `▶ Spin (${sym}${spinCost.toLocaleString()})` : '▶ Spin to Win'}
+            </button>}
+        {tokenImage && (
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <img src={tokenImage} alt="" style={{ width: 48, height: 48, objectFit: 'contain', position: 'relative', zIndex: 1, filter: 'drop-shadow(0 3px 6px rgba(0,0,0,.5))' }} />
+            <div style={{ marginLeft: -16, padding: '9px 18px 9px 26px', borderRadius: 999, minWidth: 96,
+              background: 'rgba(38,18,72,.75)', border: '1px solid rgba(244,178,35,.55)', color: 'var(--gold,#f4b223)', fontWeight: 800, fontSize: 14, textAlign: 'right' }}>
+              {isLoggedIn ? `${sym}${Number(profile?.balance || 0).toLocaleString()}` : 'Tokens'}
+            </div>
+          </div>
+        )}
+      </div>
       <div style={{ fontSize: 12, color: 'var(--text-muted,#8898b8)', textAlign: 'center', maxWidth: 360 }}>
         {wheel.freeSpinsPerDay ? `${wheel.freeSpinsPerDay} free spin(s) per day` : 'Paid spins'} ·
         {' '}up to {wheel.maxPerDay || 5} spins/day. Prizes are credited to your wallet instantly.

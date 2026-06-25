@@ -30,7 +30,7 @@ const INITIAL_SLICES = [
   { l: '₱5,000 JACKPOT', type: 'Cash', p: 5000, seq: 8, w: 3, qty: 0, claimed: 0, req: 'T/O', mult: 3, c: '#f7e08b', on: 1 },
 ];
 
-const INITIAL_WHEEL_THEME = { bgImage: '', titleImage: '', frameImage: '', pinImage: '', tokenImage: '', buttonImage: '', title: 'WHEEL OF FORTUNE', rimColor: '#f4b223', hubColor: '#f4b223', pointerColor: '#f4b223', bulbs: true };
+const INITIAL_WHEEL_THEME = { bgImage: '', titleImage: '', frameImage: '', pinImage: '', tokenImage: '', buttonImage: '', title: 'WHEEL OF FORTUNE', rimColor: '#f4b223', hubColor: '#f4b223', pointerColor: '#f4b223', bulbs: true, discScale: 0.74 };
 const INITIAL_WHEEL_CFG = { enabled: true, image: '', theme: { ...INITIAL_WHEEL_THEME }, freeSpinsPerDay: 1, spinCost: 50, maxPerDay: 5 };
 const INITIAL_TICKET_CFG = { enabled: true, drawDate: '', totalTickets: 10000, winnersCount: 50, earnBy: 'Every ₱100 deposited', minDeposit: 100, maxPerPlayer: 50 };
 
@@ -552,6 +552,18 @@ function MgWheel({ slices, setSlices, wheelCfg = {}, setWheelCfg, onSave, saving
             {renderSlot({ key: 'tokenImage', label: 'Token (bottom)', url: theme.tokenImage, apply: (u) => setTheme('tokenImage', u) })}
             {renderSlot({ key: 'buttonImage', label: 'Button', url: theme.buttonImage, apply: (u) => setTheme('buttonImage', u) })}
           </div>
+          {/* Prize fit — how big the prize disc sits inside the frame ring */}
+          {theme.frameImage && (
+            <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 10, background: 'var(--bg3,#0b1224)', border: '1px solid var(--border)' }}>
+              <label className="fld-lbl" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span>Prize size inside frame</span>
+                <b style={{ color: 'var(--gold)' }}>{Math.round((theme.discScale ?? 0.74) * 100)}%</b>
+              </label>
+              <input type="range" min="50" max="100" step="1" value={Math.round((theme.discScale ?? 0.74) * 100)}
+                onChange={(e) => setTheme('discScale', (parseInt(e.target.value, 10) || 74) / 100)} style={{ width: '100%' }} />
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Shrink the prize wheel so it sits neatly inside your frame ring — increase until the gold rim hugs the prize edge.</div>
+            </div>
+          )}
           {/* Fallback colours — used for any element that has no uploaded image */}
           <div style={{ borderTop: '1px solid var(--border)', marginTop: 14, paddingTop: 12 }}>
             <div className="fld-lbl" style={{ marginBottom: 8 }}>Fallback Colours <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(used where no image is uploaded)</span></div>

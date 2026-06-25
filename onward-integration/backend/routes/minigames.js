@@ -54,6 +54,7 @@ function defaultConfig() {
         hubColor: '#f4b223',
         pointerColor: '#f4b223',
         bulbs: true,
+        discScale: 0.74,
       },
       freeSpinsPerDay: 1,
       spinCost: 50,
@@ -121,6 +122,7 @@ function cleanTheme(raw = {}, def = {}) {
     hubColor: str(t.hubColor, def.hubColor || '#f4b223').slice(0, 24) || (def.hubColor || '#f4b223'),
     pointerColor: str(t.pointerColor, def.pointerColor || '#f4b223').slice(0, 24) || (def.pointerColor || '#f4b223'),
     bulbs: bool(t.bulbs, def.bulbs !== undefined ? def.bulbs : true),
+    discScale: Math.min(1, Math.max(0.5, num(t.discScale, def.discScale || 0.74))),
   };
 }
 
