@@ -97,11 +97,8 @@ export default function Promotions() {
   const visible = SHOW_MAP[activeTab] || SHOW_MAP.all;
   const show = (id) => (visible.includes(id) ? {} : { display: 'none' });
 
-  // Welcome card: a promotion with type "welcome" supplies the card photo
-  // (admin-editable). Each player claims the 4 tiers; once all 4 are claimed
-  // the whole card is hidden for that player.
-  const welcomePromo = visiblePromos.find((p) => String(p.type || '').toLowerCase() === 'welcome');
-  const welcomeImg = welcomePromo ? resolvePromoBanner(welcomePromo, viewerCur) : '';
+  // Welcome card: each player claims the 4 tiers; once all 4 are claimed the
+  // whole card is hidden for that player.
   const welcomeClaimed = Math.max(0, Number(profile?.welcomeClaimed || 0));
   const welcomeDone = isLoggedIn && welcomeClaimed >= WELCOME_TIERS.length;
   const claimWelcome = async (i) => {
@@ -201,15 +198,9 @@ export default function Promotions() {
         <div id="promo-section-welcome" style={show('welcome')}>
           <div className="welcome-hero-card">
             <div className="welcome-hero-left">
-              {welcomeImg
-                ? <img src={welcomeImg} alt="Welcome Bonus" className="welcome-hero-img" />
-                : (
-                  <>
-                    <span className="welcome-hero-activated" data-i18n="promo_activated">ACTIVATED</span>
-                    <div className="welcome-hero-title" data-i18n="promo_welcome">WELCOME BONUS</div>
-                    <div className="welcome-hero-amounts">500% UP TO ₱19,850<br />+200 FREE SPINS</div>
-                  </>
-                )}
+              <span className="welcome-hero-activated" data-i18n="promo_activated">ACTIVATED</span>
+              <div className="welcome-hero-title" data-i18n="promo_welcome">WELCOME BONUS</div>
+              <div className="welcome-hero-amounts">500% UP TO ₱19,850<br />+200 FREE SPINS</div>
             </div>
             <div className="welcome-hero-tiers">
               {WELCOME_TIERS.map((t, i) => {
