@@ -39,6 +39,10 @@ function defaultConfig() {
       theme: {
         bgImage: '',
         titleImage: '',
+        frameImage: '',
+        pinImage: '',
+        tokenImage: '',
+        buttonImage: '',
         title: 'WHEEL OF FORTUNE',
         rimColor: '#f4b223',
         hubColor: '#f4b223',
@@ -92,6 +96,10 @@ function cleanTheme(raw = {}, def = {}) {
   return {
     bgImage: str(t.bgImage, '').slice(0, 2048),
     titleImage: str(t.titleImage, '').slice(0, 2048),
+    frameImage: str(t.frameImage, '').slice(0, 2048),
+    pinImage: str(t.pinImage, '').slice(0, 2048),
+    tokenImage: str(t.tokenImage, '').slice(0, 2048),
+    buttonImage: str(t.buttonImage, '').slice(0, 2048),
     title: str(t.title, def.title || 'WHEEL OF FORTUNE').slice(0, 60),
     rimColor: str(t.rimColor, def.rimColor || '#f4b223').slice(0, 24) || (def.rimColor || '#f4b223'),
     hubColor: str(t.hubColor, def.hubColor || '#f4b223').slice(0, 24) || (def.hubColor || '#f4b223'),

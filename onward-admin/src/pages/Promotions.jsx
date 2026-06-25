@@ -28,7 +28,7 @@ const INITIAL_SLICES = [
   { l: '₱5,000 JACKPOT', p: 5000, w: 3, c: '#f7e08b', on: 1 },
 ];
 
-const INITIAL_WHEEL_THEME = { bgImage: '', titleImage: '', title: 'WHEEL OF FORTUNE', rimColor: '#f4b223', hubColor: '#f4b223', pointerColor: '#f4b223', bulbs: true };
+const INITIAL_WHEEL_THEME = { bgImage: '', titleImage: '', frameImage: '', pinImage: '', tokenImage: '', buttonImage: '', title: 'WHEEL OF FORTUNE', rimColor: '#f4b223', hubColor: '#f4b223', pointerColor: '#f4b223', bulbs: true };
 const INITIAL_WHEEL_CFG = { enabled: true, image: '', theme: { ...INITIAL_WHEEL_THEME }, freeSpinsPerDay: 1, spinCost: 50, maxPerDay: 5 };
 const INITIAL_TICKET_CFG = { enabled: true, drawDate: '', totalTickets: 10000, winnersCount: 50, earnBy: 'Every ₱100 deposited', minDeposit: 100, maxPerPlayer: 50 };
 
@@ -372,6 +372,20 @@ function wheelGrad(slices) {
   return 'conic-gradient(' + act.map((x, i) => `${x.c} ${(i * seg).toFixed(1)}deg ${((i + 1) * seg).toFixed(1)}deg`).join(',') + ')';
 }
 
+// Theme image-slot tile styles (the upload grid in the Theme card).
+const slotWrap = { display: 'flex', flexDirection: 'column', gap: 6 };
+const slotLabel = { fontSize: 12, fontWeight: 700, color: 'var(--muted,#8898b8)', textAlign: 'center' };
+const slotBox = {
+  display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+  height: 96, padding: 8, borderRadius: 10, border: '1px dashed var(--border,#243049)',
+  overflow: 'hidden', position: 'relative',
+};
+const slotEmpty = { color: 'var(--muted,#8898b8)', fontSize: 13, fontWeight: 700 };
+const slotDel = {
+  background: 'none', border: 'none', color: 'var(--red,#e8293a)', cursor: 'pointer',
+  fontSize: 12, fontWeight: 700, padding: '2px 0', alignSelf: 'center',
+};
+
 function MgWheel({ slices, setSlices, wheelCfg = {}, setWheelCfg, onSave, saving }) {
   const { toast } = useUI();
   const [rot, setRot] = useState(0);
@@ -404,20 +418,34 @@ function MgWheel({ slices, setSlices, wheelCfg = {}, setWheelCfg, onSave, saving
   const theme = wheelCfg.theme || {};
   const setTheme = (k, v) => setWheelCfg?.((s) => ({ ...s, theme: { ...(s.theme || {}), [k]: v } }));
   const [themeUploading, setThemeUploading] = useState('');
-  const pickThemeImage = (key) => async (e) => {
+  // Generic image-slot uploader: upload, then apply the URL via `apply(url)`.
+  const pickSlotImage = (slotKey, apply) => async (e) => {
     const file = e.target.files && e.target.files[0];
     e.target.value = '';
     if (!file) return;
     if (file.size > 4 * 1024 * 1024) { toast('⚠ Image too large — keep it under 4 MB'); return; }
-    setThemeUploading(key);
+    setThemeUploading(slotKey);
     try {
       const { url } = await uploadImage(file);
-      setTheme(key, url);
+      apply(url);
       toast('Image uploaded ✔');
     } catch (err) {
       toast('⚠ Upload failed: ' + (err.message || 'error'));
     } finally { setThemeUploading(''); }
   };
+  // One upload tile (label, preview, upload, remove) — mirrors the reference grid.
+  const renderSlot = ({ key, label, url, apply, bg }) => (
+    <div style={slotWrap}>
+      <div style={slotLabel}>{label}</div>
+      <label style={{ ...slotBox, background: bg || 'var(--bg3,#0b1224)' }} title={`Upload ${label}`}>
+        {url
+          ? <img src={url} alt={label} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+          : <span style={slotEmpty}>{themeUploading === key ? 'Uploading…' : '＋ Upload'}</span>}
+        <input type="file" accept="image/*" style={{ display: 'none' }} onChange={pickSlotImage(key, apply)} />
+      </label>
+      {url && <button style={slotDel} onClick={(ev) => { ev.preventDefault(); apply(''); }}>🗑 Remove</button>}
+    </div>
+  );
   const spinTest = () => {
     const next = rot + 1080 + Math.floor(Math.random() * 360);
     setRot(next);
@@ -479,38 +507,34 @@ function MgWheel({ slices, setSlices, wheelCfg = {}, setWheelCfg, onSave, saving
           </div>
         </div>
         <div className="card" style={{ marginTop: 'var(--pad)' }}>
-          <div className="card-title">🎨 Wheel Design <span style={{ color: 'var(--muted)', fontSize: 12, fontWeight: 600 }}>(template — change anytime)</span></div>
-          <div className="fld" style={{ marginBottom: 12 }}>
-            <label>Title Text</label>
+          <div className="card-title">🎨 Theme <span style={{ color: 'var(--muted)', fontSize: 12, fontWeight: 600 }}>(upload each element — change anytime)</span></div>
+          <div className="fld" style={{ marginBottom: 14 }}>
+            <label>Title Text <span style={{ color: 'var(--muted)', fontWeight: 600, fontSize: 11 }}>(used when no Title image)</span></label>
             <input value={theme.title || ''} onChange={(e) => setTheme('title', e.target.value)} placeholder="WHEEL OF FORTUNE" />
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-            <div>
-              <label className="fld-lbl">Background Image</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <input type="file" accept="image/*" onChange={pickThemeImage('bgImage')} />
-                {themeUploading === 'bgImage' && <span style={{ color: 'var(--gold)' }}>…</span>}
-                {theme.bgImage && <button className="del-btn" onClick={() => setTheme('bgImage', '')}>🗑</button>}
-              </div>
-            </div>
-            <div>
-              <label className="fld-lbl">Title Image</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <input type="file" accept="image/*" onChange={pickThemeImage('titleImage')} />
-                {themeUploading === 'titleImage' && <span style={{ color: 'var(--gold)' }}>…</span>}
-                {theme.titleImage && <button className="del-btn" onClick={() => setTheme('titleImage', '')}>🗑</button>}
-              </div>
-            </div>
+          {/* Image-slot grid: each wheel element is an uploadable asset */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 12 }}>
+            {renderSlot({ key: 'titleImage', label: 'Title', url: theme.titleImage, apply: (u) => setTheme('titleImage', u) })}
+            {renderSlot({ key: 'bgImage', label: 'Background', url: theme.bgImage, apply: (u) => setTheme('bgImage', u) })}
+            {renderSlot({ key: 'frameImage', label: 'Frame', url: theme.frameImage, apply: (u) => setTheme('frameImage', u) })}
+            {renderSlot({ key: 'pinImage', label: 'Pin', url: theme.pinImage, apply: (u) => setTheme('pinImage', u) })}
+            {renderSlot({ key: 'prizeImage', label: 'Prize Wheel', url: wheelCfg.image, apply: (u) => setWheelCfg?.((s) => ({ ...s, image: u })) })}
+            {renderSlot({ key: 'tokenImage', label: 'Token', url: theme.tokenImage, apply: (u) => setTheme('tokenImage', u) })}
+            {renderSlot({ key: 'buttonImage', label: 'Button', url: theme.buttonImage, apply: (u) => setTheme('buttonImage', u) })}
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-            <div><label className="fld-lbl">Rim Colour</label><input type="color" value={theme.rimColor || '#f4b223'} onChange={(e) => setTheme('rimColor', e.target.value)} style={{ width: '100%', height: 38, borderRadius: 8, background: 'none', border: '1px solid var(--border)' }} /></div>
-            <div><label className="fld-lbl">Hub Colour</label><input type="color" value={theme.hubColor || '#f4b223'} onChange={(e) => setTheme('hubColor', e.target.value)} style={{ width: '100%', height: 38, borderRadius: 8, background: 'none', border: '1px solid var(--border)' }} /></div>
-            <div><label className="fld-lbl">Pointer Colour</label><input type="color" value={theme.pointerColor || '#f4b223'} onChange={(e) => setTheme('pointerColor', e.target.value)} style={{ width: '100%', height: 38, borderRadius: 8, background: 'none', border: '1px solid var(--border)' }} /></div>
+          {/* Fallback colours — used for any element that has no uploaded image */}
+          <div style={{ borderTop: '1px solid var(--border)', marginTop: 14, paddingTop: 12 }}>
+            <div className="fld-lbl" style={{ marginBottom: 8 }}>Fallback Colours <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(used where no image is uploaded)</span></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+              <div><label className="fld-lbl">Rim / Frame</label><input type="color" value={theme.rimColor || '#f4b223'} onChange={(e) => setTheme('rimColor', e.target.value)} style={{ width: '100%', height: 38, borderRadius: 8, background: 'none', border: '1px solid var(--border)' }} /></div>
+              <div><label className="fld-lbl">Hub</label><input type="color" value={theme.hubColor || '#f4b223'} onChange={(e) => setTheme('hubColor', e.target.value)} style={{ width: '100%', height: 38, borderRadius: 8, background: 'none', border: '1px solid var(--border)' }} /></div>
+              <div><label className="fld-lbl">Pointer / Pin</label><input type="color" value={theme.pointerColor || '#f4b223'} onChange={(e) => setTheme('pointerColor', e.target.value)} style={{ width: '100%', height: 38, borderRadius: 8, background: 'none', border: '1px solid var(--border)' }} /></div>
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text)', fontSize: 14, marginTop: 12 }}>
+              <input type="checkbox" checked={theme.bulbs !== false} onChange={(e) => setTheme('bulbs', e.target.checked)} /> Show light-bulb rim
+            </label>
           </div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text)', fontSize: 14, marginTop: 12 }}>
-            <input type="checkbox" checked={theme.bulbs !== false} onChange={(e) => setTheme('bulbs', e.target.checked)} /> Show light-bulb rim
-          </label>
-          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>Design the template here now and restyle it anytime — changes go live on the player wheel after Save Wheel.</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 10 }}>Upload PNGs with transparent backgrounds for Title, Frame, Pin, Token &amp; Button. Changes go live on the player wheel after <b>Save Wheel</b>.</div>
         </div>
         <div className="card" style={{ marginTop: 'var(--pad)' }}><div className="card-title">📊 Wheel Stats</div>
           <div className="wstat-row"><span className="k">Total Spins Today</span><span className="v">911</span></div>

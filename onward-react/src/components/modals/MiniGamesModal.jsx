@@ -99,7 +99,12 @@ function FortuneWheel({ config, onClose }) {
   const rimColor = theme.rimColor || '#f4b223';
   const hubColor = theme.hubColor || '#f4b223';
   const pointerColor = theme.pointerColor || '#f4b223';
-  const showBulbs = theme.bulbs !== false;
+  // Optional uploaded art for each wheel element (override the CSS defaults).
+  const frameImage = theme.frameImage || '';
+  const pinImage = theme.pinImage || '';
+  const tokenImage = theme.tokenImage || '';
+  const buttonImage = theme.buttonImage || '';
+  const showBulbs = theme.bulbs !== false && !frameImage; // a frame image supplies its own rim
   const BULB_COUNT = 16;
   const bulbs = Array.from({ length: BULB_COUNT }, (_, i) => {
     const ang = (i / BULB_COUNT) * 2 * Math.PI;
@@ -110,8 +115,14 @@ function FortuneWheel({ config, onClose }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr)', gap: 16, justifyItems: 'center' }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', width: '100%' }}>
-        <span style={chip}>🎟️ Free today: <b style={{ color: 'var(--gold)' }}>{freeLeft}</b></span>
-        {spinCost > 0 && <span style={chip}>Paid spin: <b style={{ color: 'var(--gold)' }}>{sym}{spinCost.toLocaleString()}</b></span>}
+        <span style={chip}>
+          {tokenImage ? <img src={tokenImage} alt="" style={{ height: 18, width: 18, objectFit: 'contain', verticalAlign: 'middle', marginRight: 4 }} /> : '🎟️ '}
+          Free today: <b style={{ color: 'var(--gold)' }}>{freeLeft}</b>
+        </span>
+        {spinCost > 0 && <span style={chip}>
+          {tokenImage && <img src={tokenImage} alt="" style={{ height: 18, width: 18, objectFit: 'contain', verticalAlign: 'middle', marginRight: 4 }} />}
+          Paid spin: <b style={{ color: 'var(--gold)' }}>{sym}{spinCost.toLocaleString()}</b>
+        </span>}
         {isLoggedIn && <span style={chip}>Balance: <b style={{ color: 'var(--gold)' }}>{sym}{Number(profile?.balance || 0).toLocaleString()}</b></span>}
       </div>
 
@@ -128,10 +139,12 @@ function FortuneWheel({ config, onClose }) {
           : <div style={fwTitle}>{theme.title || 'WHEEL OF FORTUNE'}</div>}
 
         <div style={{ position: 'relative', width: size, height: size, maxWidth: '80vw', aspectRatio: '1 / 1' }}>
-          {/* pointer */}
-          <div style={{ position: 'absolute', top: -2, left: '50%', transform: 'translateX(-50%)', zIndex: 6,
-            width: 0, height: 0, borderLeft: '13px solid transparent', borderRight: '13px solid transparent',
-            borderTop: `24px solid ${pointerColor}`, filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.6))' }} />
+          {/* pointer / pin */}
+          {pinImage
+            ? <img src={pinImage} alt="" style={{ position: 'absolute', top: -16, left: '50%', transform: 'translateX(-50%)', zIndex: 6, height: 56, width: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.6))' }} />
+            : <div style={{ position: 'absolute', top: -2, left: '50%', transform: 'translateX(-50%)', zIndex: 6,
+                width: 0, height: 0, borderLeft: '13px solid transparent', borderRight: '13px solid transparent',
+                borderTop: `24px solid ${pointerColor}`, filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.6))' }} />}
           {/* disc */}
           <div style={{
             width: '100%', height: '100%', borderRadius: '50%',
@@ -157,9 +170,11 @@ function FortuneWheel({ config, onClose }) {
               );
             })}
           </div>
-          {/* gold rim ring */}
-          <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', pointerEvents: 'none', zIndex: 3,
-            boxShadow: `inset 0 0 0 3px rgba(0,0,0,.45), inset 0 0 0 13px ${rimColor}, inset 0 0 0 16px rgba(0,0,0,.4)` }} />
+          {/* frame — uploaded ring image, else generated gold rim ring */}
+          {frameImage
+            ? <img src={frameImage} alt="" style={{ position: 'absolute', inset: -6, width: 'calc(100% + 12px)', height: 'calc(100% + 12px)', objectFit: 'contain', pointerEvents: 'none', zIndex: 3 }} />
+            : <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', pointerEvents: 'none', zIndex: 3,
+                boxShadow: `inset 0 0 0 3px rgba(0,0,0,.45), inset 0 0 0 13px ${rimColor}, inset 0 0 0 16px rgba(0,0,0,.4)` }} />}
           {/* light bulbs */}
           {showBulbs && bulbs.map((b, i) => (
             <span key={i} style={{ position: 'absolute', left: b.x, top: b.y, transform: 'translate(-50%,-50%)', zIndex: 4,
@@ -179,15 +194,20 @@ function FortuneWheel({ config, onClose }) {
         </div>
       )}
 
-      <button onClick={spin} disabled={spinning}
-        style={{
-          padding: '13px 40px', borderRadius: 999, border: 'none', cursor: spinning ? 'default' : 'pointer',
-          fontWeight: 900, fontSize: 16, color: '#1a1205',
-          background: spinning ? '#7a6a32' : 'linear-gradient(180deg,#ffd75e,#f4b223)',
-          boxShadow: '0 8px 20px rgba(244,178,35,.4)', minWidth: 200,
-        }}>
-        {spinning ? 'Spinning…' : isPaid ? `▶ Spin (${sym}${spinCost.toLocaleString()})` : '▶ Spin to Win'}
-      </button>
+      {buttonImage
+        ? <button onClick={spin} disabled={spinning} title={isPaid ? `Spin (${sym}${spinCost.toLocaleString()})` : 'Spin to Win'}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: spinning ? 'default' : 'pointer', opacity: spinning ? 0.6 : 1, lineHeight: 0 }}>
+            <img src={buttonImage} alt="Spin" style={{ height: 56, width: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 6px 14px rgba(0,0,0,.4))' }} />
+          </button>
+        : <button onClick={spin} disabled={spinning}
+            style={{
+              padding: '13px 40px', borderRadius: 999, border: 'none', cursor: spinning ? 'default' : 'pointer',
+              fontWeight: 900, fontSize: 16, color: '#1a1205',
+              background: spinning ? '#7a6a32' : 'linear-gradient(180deg,#ffd75e,#f4b223)',
+              boxShadow: '0 8px 20px rgba(244,178,35,.4)', minWidth: 200,
+            }}>
+            {spinning ? 'Spinning…' : isPaid ? `▶ Spin (${sym}${spinCost.toLocaleString()})` : '▶ Spin to Win'}
+          </button>}
       <div style={{ fontSize: 12, color: 'var(--text-muted,#8898b8)', textAlign: 'center', maxWidth: 360 }}>
         {wheel.freeSpinsPerDay ? `${wheel.freeSpinsPerDay} free spin(s) per day` : 'Paid spins'} ·
         {' '}up to {wheel.maxPerDay || 5} spins/day. Prizes are credited to your wallet instantly.
