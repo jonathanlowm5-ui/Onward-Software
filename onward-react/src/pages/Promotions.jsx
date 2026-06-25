@@ -241,7 +241,7 @@ export default function Promotions() {
                 {p.bonus && <div className="pb-deco">{p.bonus}</div>}
                 <div className="pb-title">{p.title}</div>
                 {p.description && <div className="pb-detail">{String(p.description).split('\n').map((l, j) => <span key={j}>{l}<br /></span>)}</div>}
-                {p.buttonText && <button className="wh-tier-btn primary" style={{ marginTop: 10 }}>{p.buttonText}</button>}
+                <button className="wh-tier-btn primary" style={{ marginTop: 12, width: '100%' }}>{p.buttonText || 'Claim now'}</button>
               </div>
             ))}
 
@@ -252,6 +252,7 @@ export default function Promotions() {
                 <div className="pb-deco">{p.deco}</div>
                 <div className="pb-title" {...(p.i18nKey ? { 'data-i18n': p.i18nKey } : {})}>{p.title}</div>
                 <div className="pb-detail">{p.lines.map((l, j) => <span key={j}>{l}<br /></span>)}</div>
+                <button className="wh-tier-btn primary" style={{ marginTop: 12, width: '100%' }}>Claim now</button>
               </div>
             ))}
 
@@ -267,6 +268,7 @@ export default function Promotions() {
                 <div className="pb-deco">{p.deco}</div>
                 <div className="pb-title" {...(p.i18nKey ? { 'data-i18n': p.i18nKey } : {})}>{p.title}</div>
                 <div className="pb-detail">{p.lines.map((l, j) => <span key={j}>{l}<br /></span>)}</div>
+                <button className="wh-tier-btn primary" style={{ marginTop: 12, width: '100%' }}>Claim now</button>
               </div>
             ))}
           </div>
