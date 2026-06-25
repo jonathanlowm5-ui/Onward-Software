@@ -144,15 +144,32 @@ function FortuneWheel({ config, onClose }) {
           : <div style={fwTitle}>{theme.title || 'WHEEL OF FORTUNE'}</div>}
 
         <div style={{ position: 'relative', width: size, height: size, maxWidth: '80vw', aspectRatio: '1 / 1' }}>
-          {/* pointer / pin */}
+          {/* pointer / pin — PIN layer (z3, above prize + frame) */}
           {pinImage
-            ? <img src={pinImage} alt="" style={{ position: 'absolute', top: -16, left: '50%', transform: 'translateX(-50%)', zIndex: 6, height: 56, width: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.6))' }} />
-            : <div style={{ position: 'absolute', top: -2, left: '50%', transform: 'translateX(-50%)', zIndex: 6,
+            ? <img src={pinImage} alt="" style={{ position: 'absolute', top: -16, left: '50%', transform: 'translateX(-50%)', zIndex: 3, height: 56, width: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.6))' }} />
+            : <div style={{ position: 'absolute', top: -2, left: '50%', transform: 'translateX(-50%)', zIndex: 3,
                 width: 0, height: 0, borderLeft: '13px solid transparent', borderRight: '13px solid transparent',
                 borderTop: `24px solid ${pointerColor}`, filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.6))' }} />}
-          {/* disc */}
+          {/* frame — uploaded ring image, else generated gold rim ring (z2) */}
+          {frameImage
+            ? <img src={frameImage} alt="" style={{ position: 'absolute', inset: -6, width: 'calc(100% + 12px)', height: 'calc(100% + 12px)', objectFit: 'contain', pointerEvents: 'none', zIndex: 2 }} />
+            : <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', pointerEvents: 'none', zIndex: 2,
+                boxShadow: `inset 0 0 0 3px rgba(0,0,0,.45), inset 0 0 0 13px ${rimColor}, inset 0 0 0 16px rgba(0,0,0,.4)` }} />}
+          {/* light bulbs (z2) */}
+          {showBulbs && bulbs.map((b, i) => (
+            <span key={i} style={{ position: 'absolute', left: b.x, top: b.y, transform: 'translate(-50%,-50%)', zIndex: 2,
+              width: 7, height: 7, borderRadius: '50%', background: b.on ? '#fff7d6' : '#b98e2c',
+              boxShadow: b.on ? '0 0 5px 1px rgba(255,240,180,.9)' : 'inset 0 0 2px rgba(0,0,0,.5)' }} />
+          ))}
+          {/* hub / TOKEN centerpiece — TOKEN layer (z4, above pin) */}
+          {tokenImage
+            ? <img src={tokenImage} alt="" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 4,
+                width: 66, height: 66, objectFit: 'contain', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,.55))', pointerEvents: 'none' }} />
+            : <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 4,
+                width: 46, height: 46, borderRadius: '50%', background: `radial-gradient(circle at 35% 30%, #fff2c0, ${hubColor})`,
+                border: '3px solid rgba(0,0,0,.35)', boxShadow: '0 2px 8px rgba(0,0,0,.55)' }} />}
           <div style={{
-            width: '100%', height: '100%', borderRadius: '50%',
+            width: '100%', height: '100%', borderRadius: '50%', zIndex: 1,
             ...(wheelImage
               ? { backgroundImage: `url(${wheelImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }
               : { background: gradient }),
@@ -175,21 +192,6 @@ function FortuneWheel({ config, onClose }) {
               );
             })}
           </div>
-          {/* frame — uploaded ring image, else generated gold rim ring */}
-          {frameImage
-            ? <img src={frameImage} alt="" style={{ position: 'absolute', inset: -6, width: 'calc(100% + 12px)', height: 'calc(100% + 12px)', objectFit: 'contain', pointerEvents: 'none', zIndex: 3 }} />
-            : <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', pointerEvents: 'none', zIndex: 3,
-                boxShadow: `inset 0 0 0 3px rgba(0,0,0,.45), inset 0 0 0 13px ${rimColor}, inset 0 0 0 16px rgba(0,0,0,.4)` }} />}
-          {/* light bulbs */}
-          {showBulbs && bulbs.map((b, i) => (
-            <span key={i} style={{ position: 'absolute', left: b.x, top: b.y, transform: 'translate(-50%,-50%)', zIndex: 4,
-              width: 7, height: 7, borderRadius: '50%', background: b.on ? '#fff7d6' : '#b98e2c',
-              boxShadow: b.on ? '0 0 5px 1px rgba(255,240,180,.9)' : 'inset 0 0 2px rgba(0,0,0,.5)' }} />
-          ))}
-          {/* hub knob */}
-          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 5,
-            width: 46, height: 46, borderRadius: '50%', background: `radial-gradient(circle at 35% 30%, #fff2c0, ${hubColor})`,
-            border: '3px solid rgba(0,0,0,.35)', boxShadow: '0 2px 8px rgba(0,0,0,.55)' }} />
         </div>
       </div>
 

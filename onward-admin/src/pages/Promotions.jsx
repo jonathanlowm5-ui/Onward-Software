@@ -540,15 +540,17 @@ function MgWheel({ slices, setSlices, wheelCfg = {}, setWheelCfg, onSave, saving
             <label>Title Text <span style={{ color: 'var(--muted)', fontWeight: 600, fontSize: 11 }}>(used when no Title image)</span></label>
             <input value={theme.title || ''} onChange={(e) => setTheme('title', e.target.value)} placeholder="WHEEL OF FORTUNE" />
           </div>
-          {/* Image-slot grid: each wheel element is an uploadable asset */}
+          {/* Image-slot grid — ordered by the on-screen layer stack:
+              Background → Title → Prize → Pin → Token → Button (Frame = optional rim overlay) */}
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>Layer stack (back → front): <b style={{ color: 'var(--text)' }}>Background → Title → Prize → Pin → Token → Button</b></div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 12 }}>
-            {renderSlot({ key: 'titleImage', label: 'Title', url: theme.titleImage, apply: (u) => setTheme('titleImage', u) })}
-            {renderSlot({ key: 'bgImage', label: 'Background', url: theme.bgImage, apply: (u) => setTheme('bgImage', u) })}
-            {renderSlot({ key: 'frameImage', label: 'Frame', url: theme.frameImage, apply: (u) => setTheme('frameImage', u) })}
-            {renderSlot({ key: 'pinImage', label: 'Pin', url: theme.pinImage, apply: (u) => setTheme('pinImage', u) })}
-            {renderSlot({ key: 'prizeImage', label: 'Prize Wheel', url: wheelCfg.image, apply: (u) => setWheelCfg?.((s) => ({ ...s, image: u })) })}
-            {renderSlot({ key: 'tokenImage', label: 'Token', url: theme.tokenImage, apply: (u) => setTheme('tokenImage', u) })}
-            {renderSlot({ key: 'buttonImage', label: 'Button', url: theme.buttonImage, apply: (u) => setTheme('buttonImage', u) })}
+            {renderSlot({ key: 'bgImage', label: '1 · Background', url: theme.bgImage, apply: (u) => setTheme('bgImage', u) })}
+            {renderSlot({ key: 'titleImage', label: '2 · Title', url: theme.titleImage, apply: (u) => setTheme('titleImage', u) })}
+            {renderSlot({ key: 'prizeImage', label: '3 · Prize Wheel', url: wheelCfg.image, apply: (u) => setWheelCfg?.((s) => ({ ...s, image: u })) })}
+            {renderSlot({ key: 'pinImage', label: '4 · Pin', url: theme.pinImage, apply: (u) => setTheme('pinImage', u) })}
+            {renderSlot({ key: 'tokenImage', label: '5 · Token', url: theme.tokenImage, apply: (u) => setTheme('tokenImage', u) })}
+            {renderSlot({ key: 'buttonImage', label: '6 · Button', url: theme.buttonImage, apply: (u) => setTheme('buttonImage', u) })}
+            {renderSlot({ key: 'frameImage', label: 'Frame (optional rim)', url: theme.frameImage, apply: (u) => setTheme('frameImage', u) })}
           </div>
           {/* Fallback colours — used for any element that has no uploaded image */}
           <div style={{ borderTop: '1px solid var(--border)', marginTop: 14, paddingTop: 12 }}>
