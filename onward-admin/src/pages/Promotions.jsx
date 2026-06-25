@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useUI } from '../context/UIContext';
 import { Table } from '../components/ui.jsx';
-import { listPromotions, togglePromotion, removePromotion, createPromotion, updatePromotion } from '../services/promotionService';
+import { listPromotions, togglePromotion, removePromotion, createPromotion, updatePromotion, reorderPromotions } from '../services/promotionService';
 import { uploadImage } from '../services/uploadService';
 import { getMiniGames, saveMiniGames } from '../services/minigameService';
 import { buildPromoTerms } from '../utils/promoTerms';
@@ -287,6 +287,20 @@ function PromosTab({ promos, setPromos, loading, onEdit }) {
     }
     toast(`Promotion deleted: ${x.n}`);
   };
+  // Adjust the banner/display sequence — move a promo up or down and persist.
+  const move = async (idx, dir) => {
+    const j = idx + dir;
+    if (j < 0 || j >= promos.length) return;
+    const next = [...promos];
+    [next[idx], next[j]] = [next[j], next[idx]];
+    setPromos(next);
+    const ids = next.map((p) => p.id).filter(Boolean);
+    if (ids.length) {
+      try { await reorderPromotions(ids); toast('Order updated ✔'); }
+      catch (e) { toast('⚠ ' + (e.message || 'Reorder failed')); }
+    }
+  };
+  const reordering = !!typeF || !!query.trim(); // disable arrows while filtered
 
   return (
     <>
@@ -304,9 +318,16 @@ function PromosTab({ promos, setPromos, loading, onEdit }) {
           </span>
         </div>
         <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}><table style={{ minWidth: 1100 }}>
-          <thead><tr><th>Promotion</th><th>Type</th><th>Bonus</th><th>Min Dep</th><th>Wager</th><th>Turnover</th><th>Claims</th><th>Expiry</th><th>Active</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Order</th><th>Promotion</th><th>Type</th><th>Bonus</th><th>Min Dep</th><th>Wager</th><th>Turnover</th><th>Claims</th><th>Expiry</th><th>Active</th><th>Actions</th></tr></thead>
           <tbody>{promos.map((x, i) => (
             <tr key={x.id ?? i} style={{ display: visible(x) ? '' : 'none' }}>
+              <td style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
+                <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 2 }}>
+                  <button className="mini-btn" disabled={reordering || i === 0 || !x.id} title="Move up" style={{ padding: '0 7px', lineHeight: '18px' }} onClick={() => move(i, -1)}>▲</button>
+                  <button className="mini-btn" disabled={reordering || i === promos.length - 1 || !x.id} title="Move down" style={{ padding: '0 7px', lineHeight: '18px' }} onClick={() => move(i, 1)}>▼</button>
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>#{i + 1}</div>
+              </td>
               <td className="promo-cell">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   {(() => {

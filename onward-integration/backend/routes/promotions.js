@@ -67,22 +67,41 @@ function isLive(p, today) {
   return true;
 }
 
+// Sort by the admin-set display order (then newest first as a tiebreaker).
+function bySort(a, b) {
+  const sa = Number.isFinite(+a.sortOrder) ? +a.sortOrder : 9999;
+  const sb = Number.isFinite(+b.sortOrder) ? +b.sortOrder : 9999;
+  if (sa !== sb) return sa - sb;
+  return (b.createdAt || '').localeCompare(a.createdAt || '');
+}
+
 router.get('/', (req, res) => {
   let promos = store.list(COLLECTION);
   if (req.query.active === '1') {
     const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
     promos = promos.filter((p) => isLive(p, today));
   }
+  promos = promos.slice().sort(bySort);
   res.json(promos);
 });
 
 router.post('/', requireAuth, (req, res) => {
   const data = clean(req.body);
   if (!data.title) return res.status(400).json({ error: 'Promotion title is required' });
+  // New promos append to the end of the order.
+  data.sortOrder = store.list(COLLECTION).length;
   res.status(201).json(store.insert(COLLECTION, data));
 });
 
+// Reorder: body { order: [id, id, ...] } -> sets sortOrder = index for each.
+router.post('/reorder', requireAuth, (req, res) => {
+  const order = Array.isArray(req.body && req.body.order) ? req.body.order : [];
+  order.forEach((id, i) => { if (store.get(COLLECTION, id)) store.update(COLLECTION, id, { sortOrder: i }); });
+  res.json(store.list(COLLECTION).slice().sort(bySort));
+});
+
 router.put('/:id', requireAuth, (req, res) => {
+  // clean() omits sortOrder, so store.update preserves the existing order.
   const updated = store.update(COLLECTION, req.params.id, clean(req.body));
   if (!updated) return res.status(404).json({ error: 'Promotion not found' });
   res.json(updated);
