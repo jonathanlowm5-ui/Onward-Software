@@ -43,6 +43,13 @@ const SHOWCASE_RELOAD = [
 ];
 
 // Which section IDs are visible for each filter tab.
+const WELCOME_TIERS = [
+  { icon: '🪙', pct: '125%', detail: 'UP TO ₱3,970+100FS' },
+  { icon: '💰', pct: '100%', detail: 'UP TO ₱1,980+25FS' },
+  { icon: '🧰', pct: '75%', detail: 'UP TO ₱5,950+50FS' },
+  { icon: '👑', pct: '200%', detail: 'UP TO ₱7,940+25FS' },
+];
+
 const SHOW_MAP = {
   all: ['welcome', 'bonuses', 'reload', 'tournaments'],
   bonuses: ['welcome', 'bonuses'],
@@ -54,7 +61,7 @@ const SHOW_MAP = {
 
 export default function Promotions() {
   const { openModal, toast } = useUI();
-  const { profile } = useAuth();
+  const { profile, isLoggedIn, refreshProfile } = useAuth();
   const go = useSectionNav();
   const [promoCode, setPromoCode] = useState('');
   const [activeTab, setActiveTab] = useState('all');
@@ -84,6 +91,20 @@ export default function Promotions() {
 
   const visible = SHOW_MAP[activeTab] || SHOW_MAP.all;
   const show = (id) => (visible.includes(id) ? {} : { display: 'none' });
+
+  // Welcome card: a promotion with type "welcome" supplies the card photo
+  // (admin-editable). Each player claims the 4 tiers; once all 4 are claimed
+  // the whole card is hidden for that player.
+  const welcomePromo = visiblePromos.find((p) => String(p.type || '').toLowerCase() === 'welcome');
+  const welcomeImg = welcomePromo ? resolvePromoBanner(welcomePromo, viewerCur) : '';
+  const welcomeClaimed = Math.max(0, Number(profile?.welcomeClaimed || 0));
+  const welcomeDone = isLoggedIn && welcomeClaimed >= WELCOME_TIERS.length;
+  const claimWelcome = async (i) => {
+    if (i !== welcomeClaimed) return;                 // only the active tier
+    if (!isLoggedIn) { openModal('login'); return; }   // guests log in first
+    try { await api.post('/player/welcome/claim'); await refreshProfile?.(); } catch { /* ignore */ }
+    openModal('deposit');
+  };
 
   function activatePromoCode() {
     const val = promoCode.trim();
@@ -164,63 +185,49 @@ export default function Promotions() {
           </div>
         </div>
 
-        {/* WELCOME BONUS HERO CARD */}
+        {/* WELCOME BONUS HERO CARD — hidden once the player claims all 4 tiers */}
+        {!welcomeDone && (
         <div id="promo-section-welcome" style={show('welcome')}>
           <div className="welcome-hero-card">
             <div className="welcome-hero-left">
-              <span className="welcome-hero-activated" data-i18n="promo_activated">ACTIVATED</span>
-              <div className="welcome-hero-title" data-i18n="promo_welcome">WELCOME BONUS</div>
-              <div className="welcome-hero-amounts">500% UP TO ₱19,850<br />+200 FREE SPINS</div>
+              {welcomeImg
+                ? <img src={welcomeImg} alt="Welcome Bonus" className="welcome-hero-img" />
+                : (
+                  <>
+                    <span className="welcome-hero-activated" data-i18n="promo_activated">ACTIVATED</span>
+                    <div className="welcome-hero-title" data-i18n="promo_welcome">WELCOME BONUS</div>
+                    <div className="welcome-hero-amounts">500% UP TO ₱19,850<br />+200 FREE SPINS</div>
+                  </>
+                )}
             </div>
             <div className="welcome-hero-tiers">
-              {/* Tier 1 */}
-              <div className="wh-tier active">
-                <div className="wh-tier-top">
-                  <span className="wh-tier-status green">ACTIVATED</span>
-                  <span className="wh-tier-num">#1</span>
-                </div>
-                <div className="wh-tier-icon">🪙</div>
-                <div className="wh-tier-pct">125%</div>
-                <div className="wh-tier-detail">UP TO ₱3,970+100FS</div>
-                <button className="wh-tier-btn primary" onClick={() => openModal('deposit')}>DEPOSIT</button>
-                <button className="wh-tier-info" onClick={() => openPromoDetail(SHOWCASE_BONUSES[0])}>ℹ</button>
-              </div>
-              {/* Tier 2 */}
-              <div className="wh-tier">
-                <div className="wh-tier-top">
-                  <span className="wh-tier-status gray">⏳ NOT STARTED</span>
-                  <span className="wh-tier-num">#2</span>
-                </div>
-                <div className="wh-tier-icon">💰</div>
-                <div className="wh-tier-pct">100%</div>
-                <div className="wh-tier-detail">UP TO ₱1,980+25FS</div>
-                <button className="wh-tier-btn" onClick={() => openModal('deposit')} data-i18n="promo_discover">DISCOVER</button>
-              </div>
-              {/* Tier 3 */}
-              <div className="wh-tier">
-                <div className="wh-tier-top">
-                  <span className="wh-tier-status gray">⏳ NOT STARTED</span>
-                  <span className="wh-tier-num">#3</span>
-                </div>
-                <div className="wh-tier-icon">🧰</div>
-                <div className="wh-tier-pct">75%</div>
-                <div className="wh-tier-detail">UP TO ₱5,950+50FS</div>
-                <button className="wh-tier-btn" onClick={() => openModal('deposit')}>DISCOVER</button>
-              </div>
-              {/* Tier 4 */}
-              <div className="wh-tier">
-                <div className="wh-tier-top">
-                  <span className="wh-tier-status gray">⏳ NOT STARTED</span>
-                  <span className="wh-tier-num">#4</span>
-                </div>
-                <div className="wh-tier-icon">👑</div>
-                <div className="wh-tier-pct">200%</div>
-                <div className="wh-tier-detail">UP TO ₱7,940+25FS</div>
-                <button className="wh-tier-btn" onClick={() => openModal('deposit')}>DISCOVER</button>
-              </div>
+              {WELCOME_TIERS.map((t, i) => {
+                const claimed = isLoggedIn && i < welcomeClaimed;
+                const active = !isLoggedIn ? i === 0 : i === welcomeClaimed;
+                return (
+                  <div className={'wh-tier' + (active ? ' active' : '')} key={i}>
+                    <div className="wh-tier-top">
+                      <span className={'wh-tier-status ' + (claimed || active ? 'green' : 'gray')}>
+                        {claimed ? '✔ CLAIMED' : active ? 'ACTIVATED' : '⏳ NOT STARTED'}
+                      </span>
+                      <span className="wh-tier-num">#{i + 1}</span>
+                    </div>
+                    <div className="wh-tier-icon">{t.icon}</div>
+                    <div className="wh-tier-pct">{t.pct}</div>
+                    <div className="wh-tier-detail">{t.detail}</div>
+                    {claimed
+                      ? <button className="wh-tier-btn" disabled style={{ opacity: 0.6, cursor: 'default' }}>CLAIMED</button>
+                      : active
+                        ? <button className="wh-tier-btn primary" onClick={() => claimWelcome(i)}>{isLoggedIn ? 'DEPOSIT' : 'CLAIM'}</button>
+                        : <button className="wh-tier-btn" onClick={() => openPromoDetail(SHOWCASE_BONUSES[i])}>DISCOVER</button>}
+                    {active && SHOWCASE_BONUSES[i] && <button className="wh-tier-info" onClick={() => openPromoDetail(SHOWCASE_BONUSES[i])}>ℹ</button>}
+                  </div>
+                );
+              })}
             </div>
           </div>
-        </div>{/* /promo-section-welcome */}
+        </div>
+        )}{/* /promo-section-welcome */}
 
         {/* BONUSES SECTION */}
         <div id="promo-section-bonuses" style={show('bonuses')}>

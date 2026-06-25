@@ -181,8 +181,17 @@ router.get('/me', requirePlayer, (req, res) => {
   res.json(view(p));
 });
 
-// Players may ONLY change email, mobile and avatar. Player ID, username, first
-// name, last name, registration date and currency are system-fixed (admin only).
+// Welcome-bonus progress. The Promotions page shows a 4-tier welcome card;
+// each tier the player claims bumps this counter. Once all 4 are claimed the
+// card is hidden for good. welcomeClaimed flows into the profile via ...rest.
+router.post('/welcome/claim', requirePlayer, (req, res) => {
+  const p = currentPlayer(req);
+  if (!p) return res.status(404).json({ error: 'Player not found' });
+  const current = Math.max(0, Number(p.welcomeClaimed || 0));
+  if (current >= 4) return res.json(view(p)); // already finished
+  const updated = store.update(PLAYERS, p.id, { welcomeClaimed: current + 1 }) || p;
+  res.json(view(updated));
+});
 router.put('/me', requirePlayer, (req, res) => {
   const p = currentPlayer(req);
   if (!p) return res.status(404).json({ error: 'Player not found' });

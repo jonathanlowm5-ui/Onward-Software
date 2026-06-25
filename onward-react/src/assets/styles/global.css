@@ -769,6 +769,12 @@ body::before{
   font-size:15px;color:rgba(255,255,255,.65);
   line-height:1.6;
 }
+/* Admin-uploaded welcome card photo (from a "welcome" promotion). */
+.welcome-hero-img{
+  display:block;width:260px;max-width:40vw;height:auto;max-height:170px;
+  border-radius:12px;object-fit:cover;
+  box-shadow:0 8px 24px rgba(0,0,0,.35);
+}
 
 /* Tier cards row */
 .welcome-hero-tiers{
@@ -5109,6 +5115,7 @@ img{ -webkit-user-drag:none; user-drag:none; }
   .welcome-hero-activated{ font-size:10px !important; padding:3px 10px !important; margin-bottom:10px !important; }
   .welcome-hero-title{ font-size:20px !important; margin-bottom:8px !important; }
   .welcome-hero-amounts{ font-size:13px !important; line-height:1.5 !important; }
+  .welcome-hero-img{ width:100% !important; max-width:100% !important; max-height:140px !important; }
   .welcome-hero-tiers{ gap:8px !important; }
   .wh-tier{ flex:0 0 132px !important; padding:11px !important; gap:5px !important; }
   .wh-tier-status{ font-size:8px !important; }
