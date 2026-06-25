@@ -22,28 +22,45 @@ function shortAmt(n) {
 }
 const calcBonus = (amt) => (amt >= BONUS.min ? Math.min(amt * BONUS.pct, BONUS.max) : 0);
 
-const TABS = ['Recommended', 'All', 'Cards', 'Gift card', 'Crypto'];
-
-// Payment methods (brand logos approximated with styled badges).
-const METHODS = [
-  { id: 'card', name: 'Credit card #1', star: true, badges: ['visa', 'mc'] },
-  { id: 'giftbuy', name: 'Buy a Giftcard', badges: ['mc', 'visa', 'paypal', 'gpay', 'apple'] },
-  { id: 'giftpay', name: 'Pay by Giftcard', sub: 'paysafecard', badges: ['paypal', 'psc'] },
-  { id: 'crypto', name: 'Crypto', badges: ['usdt'], wide: false },
+// Three method groups. Each maps to a bank_channels type.
+const TABS = [
+  { key: 'Wallet', type: 'ewallet' },
+  { key: 'Bank', type: 'bank' },
+  { key: 'Crypto', type: 'crypto' },
 ];
 
-function Badge({ k }) {
-  const map = {
-    visa: { t: 'VISA', bg: '#fff', c: '#1a1f71' },
-    mc: { t: '●●', bg: '#fff', c: '#eb001b' },
-    paypal: { t: 'PayPal', bg: '#fff', c: '#003087' },
-    gpay: { t: 'GPay', bg: '#fff', c: '#5f6368' },
-    apple: { t: ' Pay', bg: '#fff', c: '#000' },
-    psc: { t: 'paysafe', bg: '#fff', c: '#00a4e0' },
-    usdt: { t: '₮', bg: '#26a17b', c: '#fff' },
-  };
-  const b = map[k] || { t: k, bg: '#fff', c: '#000' };
-  return <span style={{ background: b.bg, color: b.c, fontWeight: 800, fontSize: 10, padding: '2px 5px', borderRadius: 4, lineHeight: 1.2 }}>{b.t}</span>;
+// Default e-wallets per region (used when the admin hasn't configured channels).
+function walletDefaults(country) {
+  const c = String(country || '').toLowerCase();
+  if (c.includes('malays')) return ['Touch ’n Go', 'Alipay', 'WeChat Pay'];
+  if (c.includes('thai')) return ['TrueMoney', 'Alipay', 'WeChat Pay'];
+  if (c.includes('indones')) return ['DANA', 'OVO', 'Alipay'];
+  if (c.includes('vietnam')) return ['MoMo', 'ZaloPay', 'Alipay'];
+  return ['GCash', 'Maya', 'Alipay', 'WeChat Pay']; // Philippines / default
+}
+const BANK_DEFAULTS = ['Bank Transfer'];
+const CRYPTO_DEFAULTS = ['USDT (TRC20)'];
+
+// Brand-ish icon for a method by name.
+function methodIcon(name) {
+  const n = String(name).toLowerCase();
+  if (n.includes('gcash')) return { e: 'G', bg: '#0a7cff' };
+  if (n.includes('maya') || n.includes('paymaya')) return { e: 'M', bg: '#16c79a' };
+  if (n.includes('alipay')) return { e: '支', bg: '#1677ff' };
+  if (n.includes('wechat') || n.includes('we chat')) return { e: '💬', bg: '#2dc100' };
+  if (n.includes('touch') || n.includes('tng') || n.includes('n go') || n.includes('’n go')) return { e: 'TnG', bg: '#1a47b8' };
+  if (n.includes('truemoney')) return { e: 'T', bg: '#f47b20' };
+  if (n.includes('dana')) return { e: 'D', bg: '#118eea' };
+  if (n.includes('ovo')) return { e: 'O', bg: '#4c2a86' };
+  if (n.includes('momo')) return { e: 'M', bg: '#a50064' };
+  if (n.includes('zalo')) return { e: 'Z', bg: '#0068ff' };
+  if (n.includes('grab')) return { e: 'G', bg: '#00b14f' };
+  if (n.includes('usdt') || n.includes('tether')) return { e: '₮', bg: '#26a17b' };
+  if (n.includes('btc') || n.includes('bitcoin')) return { e: '₿', bg: '#f7931a' };
+  if (n.includes('eth')) return { e: 'Ξ', bg: '#627eea' };
+  if (n.includes('crypto')) return { e: '₮', bg: '#26a17b' };
+  if (n.includes('bank')) return { e: '🏦', bg: '#3a4a6a' };
+  return { e: name.charAt(0).toUpperCase(), bg: '#3a4a6a' };
 }
 
 export default function DepositModal() {
@@ -51,10 +68,11 @@ export default function DepositModal() {
   const { isLoggedIn, profile, refreshProfile } = useAuth();
   const open = activeModal === 'deposit';
 
-  const [tab, setTab] = useState('Recommended');
-  const [method, setMethod] = useState('card');
+  const [tab, setTab] = useState('Wallet');
+  const [method, setMethod] = useState('');
   const [amount, setAmount] = useState('1520');
   const [quick, setQuick] = useState(DEFAULT_QUICK);
+  const [channels, setChannels] = useState([]);
   const [showDetails, setShowDetails] = useState(true);
   const [bonusOn, setBonusOn] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -64,7 +82,23 @@ export default function DepositModal() {
     api.get('/deposit-config')
       .then((r) => { if (Array.isArray(r.data?.quickAmounts) && r.data.quickAmounts.length) setQuick(r.data.quickAmounts); })
       .catch(() => {});
+    api.get('/bank-channels?active=1')
+      .then((r) => { if (Array.isArray(r.data)) setChannels(r.data.filter((c) => c.dep && c.on)); })
+      .catch(() => {});
   }, [open]);
+
+  // Methods for the active tab: admin-configured channels of that type, else
+  // region-aware defaults.
+  const activeType = (TABS.find((t) => t.key === tab) || TABS[0]).type;
+  const methods = useMemo(() => {
+    const fromCh = channels.filter((c) => c.type === activeType).map((c) => ({ id: c.id, name: c.n, sub: c.acct || '' }));
+    if (fromCh.length) return fromCh;
+    const defs = activeType === 'ewallet' ? walletDefaults(profile?.country)
+      : activeType === 'bank' ? BANK_DEFAULTS : CRYPTO_DEFAULTS;
+    return defs.map((n, i) => ({ id: `def-${activeType}-${i}`, name: n, sub: '' }));
+  }, [channels, activeType, profile?.country]);
+  const activeMethodId = methods.some((m) => m.id === method) ? method : (methods[0]?.id || '');
+  const activeMethodName = (methods.find((m) => m.id === activeMethodId) || {}).name || '';
 
   const sym = currency?.symbol || '₱';
   const amt = Number(String(amount).replace(/[^0-9.]/g, '')) || 0;
@@ -82,7 +116,7 @@ export default function DepositModal() {
     if (!(amt >= 100)) { toast('Minimum deposit is ₱100', 'error'); return; }
     setBusy(true);
     try {
-      await depositRequest({ amount: amt, method });
+      await depositRequest({ amount: amt, method: activeMethodName || tab });
       await refreshProfile();
       toast(`Deposit request for ${money(amt)} submitted`);
       closeModal();
@@ -105,18 +139,20 @@ export default function DepositModal() {
             <div className="dep2-tabs">
               <button className="dep2-search">🔍</button>
               {TABS.map((t) => (
-                <button key={t} className={`dep2-tab${tab === t ? ' active' : ''}`} onClick={() => setTab(t)}>{t}</button>
+                <button key={t.key} className={`dep2-tab${tab === t.key ? ' active' : ''}`} onClick={() => setTab(t.key)}>{t.key}</button>
               ))}
             </div>
-            <div className="dep2-skins">Skins</div>
             <div className="dep2-methods">
-              {METHODS.map((m) => (
-                <button key={m.id} className={`dep2-method${method === m.id ? ' active' : ''}`} onClick={() => setMethod(m.id)}>
-                  <div className="dep2-badges">{m.badges.map((b, i) => <Badge key={i} k={b} />)}</div>
-                  <div className="dep2-mname">{method === m.id && <span style={{ color: 'var(--green,#34c759)' }}>✓ </span>}{m.name}{m.star && ' ★'}</div>
-                  {m.sub && <div className="dep2-msub">{m.sub}</div>}
-                </button>
-              ))}
+              {methods.map((m) => {
+                const ic = methodIcon(m.name);
+                return (
+                  <button key={m.id} className={`dep2-method${activeMethodId === m.id ? ' active' : ''}`} onClick={() => setMethod(m.id)}>
+                    <span className="dep2-mico" style={{ background: ic.bg }}>{ic.e}</span>
+                    <div className="dep2-mname">{activeMethodId === m.id && <span style={{ color: 'var(--green,#34c759)' }}>✓ </span>}{m.name}</div>
+                    {m.sub && <div className="dep2-msub">{m.sub}</div>}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

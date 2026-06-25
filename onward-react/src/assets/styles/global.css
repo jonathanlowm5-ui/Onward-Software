@@ -878,6 +878,7 @@ body::before{
 .dep2-method:hover{border-color:rgba(255,255,255,.25)}
 .dep2-method.active{border-color:var(--gold,#f0c040);box-shadow:0 0 0 1px var(--gold,#f0c040) inset}
 .dep2-badges{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.dep2-mico{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:#fff;flex-shrink:0}
 .dep2-mname{margin-top:auto;font-weight:800;color:#fff;font-size:13px}
 .dep2-msub{font-size:11px;color:var(--text-muted,#8898b8)}
 /* right column */
