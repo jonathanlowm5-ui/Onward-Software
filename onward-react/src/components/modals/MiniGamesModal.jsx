@@ -145,10 +145,10 @@ function FortuneWheel({ config, onClose }) {
         padding: '16px 14px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
         background: theme.bgImage ? `url(${theme.bgImage}) center/cover no-repeat` : 'transparent',
       }}>
-        {/* title */}
+        {/* title — bigger and centred on the wheel's vertical axis */}
         {theme.titleImage
-          ? <img src={theme.titleImage} alt="" style={{ maxWidth: '82%', maxHeight: 70, objectFit: 'contain', display: 'block' }} />
-          : <div style={fwTitle}>{theme.title || 'WHEEL OF FORTUNE'}</div>}
+          ? <img src={theme.titleImage} alt="" style={{ display: 'block', width: '100%', maxWidth: 460, maxHeight: 128, objectFit: 'contain', margin: '0 auto' }} />
+          : <div style={{ ...fwTitle, textAlign: 'center', width: '100%' }}>{theme.title || 'WHEEL OF FORTUNE'}</div>}
 
         <div style={{ position: 'relative', width: size, height: size, maxWidth: '86vw', aspectRatio: '1 / 1' }}>
           {/* frame — uploaded ring image, else generated gold rim ring (z2) */}
