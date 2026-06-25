@@ -17,15 +17,17 @@ const DEMO_PROMOS = [
 
 const PROMO_TABS = [['promos', '🎁 Promotions'], ['mini', '🎰 Mini Games'], ['bigwins', '⚡ Big Wins'], ['settings', '⚙️ Settings'], ['tier', '👑 Tier Control'], ['kyc', '✅ KYC Bonus']];
 
+const SLICE_TYPES = ['Cash', 'Bonus', 'Free Spin', 'Token', 'Physical', 'None'];
+const SLICE_REQS = ['T/O', 'Deposit', 'None'];
 const INITIAL_SLICES = [
-  { l: '₱50 Cash', p: 50, w: 30, c: '#e8253a', on: 1 },
-  { l: '₱100 Cash', p: 100, w: 20, c: '#f4b223', on: 1 },
-  { l: '₱200 Cash', p: 200, w: 15, c: '#2ecc71', on: 1 },
-  { l: 'Free Spin x3', p: 3, w: 12, c: '#3ab7ff', on: 1 },
-  { l: '₱500 Cash', p: 500, w: 8, c: '#a86dff', on: 1 },
-  { l: '₱1,000 Cash', p: 1000, w: 5, c: '#ff7a1a', on: 1 },
-  { l: 'Try Again', p: 0, w: 7, c: '#14182a', on: 1 },
-  { l: '₱5,000 JACKPOT', p: 5000, w: 3, c: '#f7e08b', on: 1 },
+  { l: '₱50 Cash', type: 'Cash', p: 50, seq: 1, w: 30, qty: 0, claimed: 0, req: 'T/O', mult: 3, c: '#e8253a', on: 1 },
+  { l: '₱100 Cash', type: 'Cash', p: 100, seq: 2, w: 20, qty: 0, claimed: 0, req: 'T/O', mult: 3, c: '#f4b223', on: 1 },
+  { l: '₱200 Cash', type: 'Cash', p: 200, seq: 3, w: 15, qty: 0, claimed: 0, req: 'T/O', mult: 3, c: '#2ecc71', on: 1 },
+  { l: 'Free Spin x3', type: 'Free Spin', p: 3, seq: 4, w: 12, qty: 0, claimed: 0, req: 'None', mult: 0, c: '#3ab7ff', on: 1 },
+  { l: '₱500 Cash', type: 'Cash', p: 500, seq: 5, w: 8, qty: 0, claimed: 0, req: 'T/O', mult: 3, c: '#a86dff', on: 1 },
+  { l: '₱1,000 Cash', type: 'Cash', p: 1000, seq: 6, w: 5, qty: 0, claimed: 0, req: 'T/O', mult: 3, c: '#ff7a1a', on: 1 },
+  { l: 'Try Again', type: 'None', p: 0, seq: 7, w: 7, qty: 0, claimed: 0, req: 'None', mult: 0, c: '#14182a', on: 1 },
+  { l: '₱5,000 JACKPOT', type: 'Cash', p: 5000, seq: 8, w: 3, qty: 0, claimed: 0, req: 'T/O', mult: 3, c: '#f7e08b', on: 1 },
 ];
 
 const INITIAL_WHEEL_THEME = { bgImage: '', titleImage: '', frameImage: '', pinImage: '', tokenImage: '', buttonImage: '', title: 'WHEEL OF FORTUNE', rimColor: '#f4b223', hubColor: '#f4b223', pointerColor: '#f4b223', bulbs: true };
@@ -393,7 +395,7 @@ function MgWheel({ slices, setSlices, wheelCfg = {}, setWheelCfg, onSave, saving
   const tot = slices.filter((x) => x.on).reduce((a, x) => a + x.w, 0);
 
   const update = (idx, key, val) => setSlices((prev) => prev.map((s, i) => (i === idx ? { ...s, [key]: val } : s)));
-  const addSlice = () => { setSlices((prev) => [...prev, { l: 'New Prize', p: 0, w: 5, c: '#3aa0ff', on: 1 }]); toast('Slice added ＋'); };
+  const addSlice = () => { setSlices((prev) => [...prev, { l: 'New Prize', type: 'Cash', p: 0, seq: prev.length + 1, w: 5, qty: 0, claimed: 0, req: 'T/O', mult: 3, c: '#3aa0ff', on: 1 }]); toast('Slice added ＋'); };
   const removeSlice = (idx) => { setSlices((prev) => prev.filter((_, i) => i !== idx)); toast('Slice removed'); };
 
   // Upload a custom wheel PNG. When set, the player wheel shows this image
@@ -465,18 +467,44 @@ function MgWheel({ slices, setSlices, wheelCfg = {}, setWheelCfg, onSave, saving
             <button className="btn-search" onClick={onSave} disabled={saving}>{saving ? 'Saving…' : '💾 Save Wheel'}</button>
           </span>
         </div>
-        <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}><table style={{ minWidth: 520 }}>
-          <thead><tr><th>Label</th><th>Prize</th><th>Win %</th><th>Colour</th><th>Active</th><th>Del</th></tr></thead>
+        <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}><table style={{ minWidth: 900 }}>
+          <thead><tr>
+            <th>#</th><th>Name</th><th>Type</th><th>Prize</th><th>Sequence</th>
+            <th>Percentage</th><th>Quantity</th><th>Claimed Qty</th><th>Requirement</th>
+            <th>Multiply</th><th>Colour</th><th>Active</th><th>Del</th>
+          </tr></thead>
           <tbody>{slices.map((x, i) => (
             <tr key={i}>
+              <td style={{ color: 'var(--muted)', textAlign: 'center' }}>{i + 1}</td>
               <td><input className="slice-in" value={x.l} onChange={(e) => update(i, 'l', e.target.value)} /></td>
+              <td>
+                <select className="slice-in" value={x.type || 'Cash'} onChange={(e) => update(i, 'type', e.target.value)}>
+                  {SLICE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </td>
               <td><input className="slice-in num" style={{ color: 'var(--gold)' }} value={x.p} onChange={(e) => update(i, 'p', parseInt(e.target.value) || 0)} /></td>
-              <td><input className="slice-in num" value={x.w} onChange={(e) => update(i, 'w', parseInt(e.target.value) || 0)} /></td>
-              <td><span className="swatch" style={{ background: x.c }}></span></td>
+              <td><input className="slice-in num" value={x.seq ?? i + 1} onChange={(e) => update(i, 'seq', parseInt(e.target.value) || 0)} /></td>
+              <td><input className="slice-in num" value={x.w} onChange={(e) => update(i, 'w', parseFloat(e.target.value) || 0)} /></td>
+              <td><input className="slice-in num" value={x.qty ?? 0} onChange={(e) => update(i, 'qty', parseInt(e.target.value) || 0)} title="0 = unlimited" /></td>
+              <td style={{ color: 'var(--muted)', textAlign: 'center' }}>{(x.claimed ?? 0).toLocaleString()}</td>
+              <td>
+                <select className="slice-in" value={x.req || 'T/O'} onChange={(e) => update(i, 'req', e.target.value)}>
+                  {SLICE_REQS.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </td>
+              <td><input className="slice-in num" value={x.mult ?? 0} onChange={(e) => update(i, 'mult', parseInt(e.target.value) || 0)} /></td>
+              <td><input type="color" value={x.c || '#3aa0ff'} onChange={(e) => update(i, 'c', e.target.value)} style={{ width: 34, height: 26, padding: 0, border: '1px solid var(--border)', borderRadius: 6, background: 'none', cursor: 'pointer' }} /></td>
               <td><label className="switch"><input type="checkbox" checked={!!x.on} onChange={(e) => update(i, 'on', e.target.checked ? 1 : 0)} /><span className="slider"></span></label></td>
               <td><button className="del-x" onClick={() => removeSlice(i)}>✕</button></td>
             </tr>
           ))}</tbody>
+          <tfoot><tr style={{ borderTop: '2px solid var(--border)' }}>
+            <td colSpan={5} style={{ textAlign: 'right', color: 'var(--muted)', fontWeight: 700, padding: '8px 6px' }}>Totals</td>
+            <td style={{ fontWeight: 800, color: tot === 100 ? 'var(--green)' : 'var(--red)' }}>{tot.toFixed(4)}</td>
+            <td style={{ fontWeight: 800, color: 'var(--green)' }}>{slices.reduce((a, s) => a + (Number(s.qty) || 0), 0).toLocaleString()}</td>
+            <td style={{ fontWeight: 800, color: 'var(--red)' }}>{slices.reduce((a, s) => a + (Number(s.claimed) || 0), 0).toLocaleString()}</td>
+            <td colSpan={4}></td>
+          </tr></tfoot>
         </table></div>
         <div className="tw-row"><span style={{ color: 'var(--muted)' }}>Total Win Chance:</span><span className={tot === 100 ? 'tw-ok' : 'tw-bad'}>{tot}%</span></div>
       </div>

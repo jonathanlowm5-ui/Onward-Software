@@ -34,7 +34,12 @@ function FortuneWheel({ config, onClose }) {
   const { toast, openModal, currency } = useUI();
   const { isLoggedIn, profile, refreshProfile } = useAuth();
   const wheel = config?.wheel || {};
-  const active = useMemo(() => (wheel.slices || []).filter((s) => s.on), [wheel.slices]);
+  // Ordered by the Sequence column — must match the backend's active order so
+  // the returned win index lands on the correct slice.
+  const active = useMemo(
+    () => (wheel.slices || []).filter((s) => s.on).slice().sort((a, b) => (Number(a.seq) || 0) - (Number(b.seq) || 0)),
+    [wheel.slices],
+  );
   const { gradient, centers } = useMemo(() => wheelGeometry(active), [active]);
   // A custom wheel PNG uses equal segments (in slice order) for landing.
   const wheelImage = wheel.image || '';
