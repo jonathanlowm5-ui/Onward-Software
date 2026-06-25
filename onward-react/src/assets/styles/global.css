@@ -1204,6 +1204,22 @@ body::before{
   font-size:22px;font-weight:900;color:#fff;text-transform:uppercase;
   text-align:center;padding:0 16px;z-index:1;text-shadow:0 2px 6px rgba(0,0,0,.5);
 }
+/* Detail banner with the title + description overlaid on its left area. */
+.promo-detail-banner-box{
+  position:relative;display:flex;align-items:center;
+  background-size:cover;background-position:center;background-color:#0c1626;
+  overflow:hidden;
+}
+.promo-detail-banner-box::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,rgba(8,13,26,.86) 0%,rgba(8,13,26,.55) 40%,rgba(8,13,26,.08) 64%,transparent 100%);
+}
+.promo-detail-banner-text{position:relative;z-index:1;max-width:64%;padding:0 18px}
+.promo-detail-banner-text .promo-detail-banner-title{text-align:left;padding:0;font-size:clamp(16px,4.6vw,24px);display:block}
+.promo-detail-banner-desc{
+  margin-top:8px;color:rgba(255,255,255,.93);font-weight:600;
+  font-size:clamp(11px,3vw,14px);line-height:1.5;text-shadow:0 1px 6px rgba(0,0,0,.5);
+}
 .promo-detail-grid{
   display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0;
 }

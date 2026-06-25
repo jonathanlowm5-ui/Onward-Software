@@ -67,9 +67,18 @@ export default function PromoDetailModal() {
         <button className="modal-close" onClick={closeModal}>✕</button>
       </div>
       <div className="modal-body" style={{ paddingTop: 14 }}>
-        {/* Banner — per-currency image, or a gradient header with the bonus deco */}
+        {/* Banner — image with the title + description overlaid, or a gradient header */}
         {banner ? (
-          <img src={banner} alt={title} className="promo-detail-banner" />
+          <div className="promo-detail-banner promo-detail-banner-box" style={{ backgroundImage: `url(${banner})` }}>
+            <div className="promo-detail-banner-text">
+              <span className="promo-detail-banner-title">{title}</span>
+              {(extras.length > 0 || lines.length > 0) && (
+                <div className="promo-detail-banner-desc">
+                  {(extras.length ? extras : lines).map((l, i) => <div key={i}>{l}</div>)}
+                </div>
+              )}
+            </div>
+          </div>
         ) : (
           <div className="promo-detail-banner promo-detail-banner--gradient">
             {(p.deco || p.bonus || pct) && <span className="promo-detail-deco">{p.deco || p.bonus || pct}</span>}
@@ -84,8 +93,9 @@ export default function PromoDetailModal() {
           </div>
         )}
 
-        {/* Headline lines / extras (e.g. "+100 FREE SPINS") */}
-        {(extras.length > 0 || lines.length > 0) && (
+        {/* Headline lines / extras (e.g. "+100 FREE SPINS") — only when there is
+            no banner, since the banner already shows the description. */}
+        {!banner && (extras.length > 0 || lines.length > 0) && (
           <div style={{ textAlign: 'center', color: 'var(--text,#fff)', fontWeight: 700, lineHeight: 1.5, marginBottom: 6 }}>
             {(extras.length ? extras : lines).map((l, i) => <div key={i}>{l}</div>)}
           </div>
