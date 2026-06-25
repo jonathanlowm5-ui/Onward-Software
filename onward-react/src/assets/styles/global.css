@@ -857,6 +857,33 @@ body::before{
 .pb-deco{
   display:none; /* removed the big faded % watermark on promo cards */
 }
+
+/* ===== Follow Us page ===== */
+.follow-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+  gap:14px;margin:8px 0 22px;
+}
+.follow-card{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 16px;border-radius:14px;cursor:pointer;
+  background:var(--surface,#131a2c);border:1px solid var(--border,#243049);
+  transition:transform .18s,border-color .18s,box-shadow .18s;text-align:left;
+}
+.follow-card:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.25);box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.follow-icon{
+  width:46px;height:46px;border-radius:12px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:22px;
+}
+.follow-meta{display:flex;flex-direction:column;flex:1;min-width:0}
+.follow-name{font-weight:800;color:var(--text,#fff);font-size:15px}
+.follow-handle{font-size:12px;color:var(--text-muted,#8898b8)}
+.follow-btn{
+  flex-shrink:0;color:#fff;font-weight:800;font-size:13px;
+  padding:7px 16px;border-radius:999px;
+}
+@media(max-width:600px){
+  .follow-grid{grid-template-columns:1fr;gap:10px}
+}
 .pb-card.tournament .pb-deco{
   font-size:60px;opacity:.15;
   color:rgba(168,85,247,.4);

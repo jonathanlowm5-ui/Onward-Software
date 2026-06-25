@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { resolvePromoBanner } from '../../utils/promoTerms';
@@ -17,6 +18,17 @@ import { fetchPromotions } from '../../services/gamesService';
 export default function BannerCarousel({ promos, className = '' }) {
   const { openModal } = useUI();
   const { profile } = useAuth();
+  const navigate = useNavigate();
+
+  // Clicking a banner navigates to its internal link (e.g. /referral, /agent,
+  // /follow) when set, opens an external link in a new tab, or otherwise shows
+  // the promo detail.
+  const onBannerClick = (p) => {
+    const link = String(p?.buttonLink || '').trim();
+    if (link.startsWith('/')) { navigate(link); return; }
+    if (/^https?:\/\//i.test(link)) { window.open(link, '_blank', 'noopener'); return; }
+    openModal('promo', p);
+  };
 
   // When no promos are passed in, the banner fetches its own (active admin
   // promotions) so it can be dropped onto any page with zero wiring.
@@ -65,7 +77,7 @@ export default function BannerCarousel({ promos, className = '' }) {
             src={s.img}
             alt={s.p.title || 'Promotion'}
             className="onward-banner-img"
-            onClick={() => openModal('promo', s.p)}
+            onClick={() => onBannerClick(s.p)}
           />
         ))}
       </div>
