@@ -50,6 +50,8 @@ export default function Lobby() {
   }, [games, cat, searchQuery]);
 
   const tmScroll = (dir) => tmRef.current?.scrollBy({ left: dir * 400, behavior: 'smooth' });
+  const promoRef = useRef(null);
+  const promoScroll = (dir) => promoRef.current?.scrollBy({ left: dir * 360, behavior: 'smooth' });
 
   return (
     <div id="view-lobby">
@@ -114,9 +116,13 @@ export default function Lobby() {
       <div className="section">
         <div className="section-header">
           <h2 className="section-title" data-i18n="sec_hot_promos">🎁 Hot Promotions</h2>
-          <button className="see-all" onClick={() => navigate('/promotions')} data-i18n="ui_see_all">See All</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button className="tm-nav-btn" onClick={() => promoScroll(-1)} aria-label="Previous">‹</button>
+            <button className="tm-nav-btn" onClick={() => promoScroll(1)} aria-label="Next">›</button>
+            <button className="see-all" onClick={() => navigate('/promotions')} data-i18n="ui_see_all">See All</button>
+          </div>
         </div>
-        <div className="promo-grid" id="promo-grid-home">
+        <div className="promo-grid" id="promo-grid-home" ref={promoRef}>
           {promos.slice(0, 8).map((p, i) => <PromoCard key={p.id ?? i} promo={p} index={i} onOpen={() => navigate('/promotions')} />)}
         </div>
       </div>

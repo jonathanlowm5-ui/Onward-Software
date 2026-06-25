@@ -483,26 +483,31 @@ body::before{
   grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
   gap:14px;
 }
-/* Lobby "Hot Promotions" on mobile: one swipeable row of smaller cards */
+/* Lobby "Hot Promotions": a swipeable carousel (touch swipe + arrow buttons) */
+#promo-grid-home{
+  display:flex !important;
+  grid-template-columns:none !important;
+  flex-wrap:nowrap !important;
+  overflow-x:auto;
+  scroll-snap-type:x mandatory;
+  -webkit-overflow-scrolling:touch;
+  gap:14px !important;
+  padding-bottom:6px;
+  scrollbar-width:none;
+}
+#promo-grid-home::-webkit-scrollbar{display:none}
+#promo-grid-home > .promo-card{
+  flex:0 0 340px;
+  max-width:340px;
+  scroll-snap-align:start;
+}
 @media(max-width:768px){
-  #promo-grid-home{
-    display:flex !important;
-    grid-template-columns:none !important;
-    flex-wrap:nowrap !important;
-    overflow-x:auto;
-    scroll-snap-type:x mandatory;
-    -webkit-overflow-scrolling:touch;
-    gap:10px !important;
-    padding-bottom:4px;
-  }
-  #promo-grid-home::-webkit-scrollbar{display:none}
-  #promo-grid-home{scrollbar-width:none}
   #promo-grid-home > .promo-card{
     flex:0 0 80% !important;
     max-width:80% !important;
     min-height:0 !important;
+    padding:12px !important;
     scroll-snap-align:start;
-    padding:12px 12px 12px !important;
   }
 }
 .promo-card{
