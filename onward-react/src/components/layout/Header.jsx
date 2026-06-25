@@ -1,10 +1,12 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import useSectionNav from '../../hooks/useSectionNav';
 import { IMG0 as LOGO } from '../../assets/images';
+import { POPULAR_GAMES, ALL_SLOTS } from '../../services/data/gameData';
+import { launchGame as resolveLaunch } from '../../services/gamesService';
 
 // Flag + short name shown on the header language button for the active language.
 const LANG_FLAGS = {
@@ -175,6 +177,170 @@ function CurrencySwitcher() {
   );
 }
 
+// Stable pseudo-random "live players" count for a game, derived from its id/name
+// so it never jumps between renders (looks live without needing a real feed).
+function playerCount(g) {
+  const s = String(g.id != null ? g.id : g.name || '');
+  let h = 0;
+  for (let i = 0; i < s.length; i += 1) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return 180 + (h % 9600);
+}
+
+const RECENT_KEY = 'onward_recent_searches';
+function loadRecent() {
+  try { const v = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); return Array.isArray(v) ? v : []; } catch { return []; }
+}
+
+// Self-contained search box + results panel. On focus/click it opens a portalled
+// dropdown showing the player's recent searches (left) and a popular-games grid
+// (right) that live-filters to matches as they type — clicking a game launches
+// it, clicking a recent term re-runs that search. `variant` picks the wrapper
+// markup so both header layouts keep their existing styling.
+function SearchPanel({ variant }) {
+  const { searchQuery, setSearchQuery, openModal } = useUI();
+  const { profile, isLoggedIn } = useAuth();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [recent, setRecent] = useState(loadRecent);
+  const [rect, setRect] = useState(null);
+  const wrapRef = useRef(null);
+
+  const country = profile?.country || 'your region';
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const measure = () => { if (wrapRef.current) setRect(wrapRef.current.getBoundingClientRect()); };
+    measure();
+    window.addEventListener('resize', measure);
+    window.addEventListener('scroll', measure, true);
+    return () => { window.removeEventListener('resize', measure); window.removeEventListener('scroll', measure, true); };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => {
+      const t = e.target;
+      if (wrapRef.current && wrapRef.current.contains(t)) return;
+      if (t.closest && t.closest('[data-searchpanel]')) return;
+      setOpen(false);
+    };
+    const id = setTimeout(() => document.addEventListener('pointerdown', onDown), 0);
+    return () => { clearTimeout(id); document.removeEventListener('pointerdown', onDown); };
+  }, [open]);
+
+  const q = searchQuery.trim().toLowerCase();
+  const popular = useMemo(() => POPULAR_GAMES.slice(0, 12), []);
+  const results = useMemo(() => {
+    if (!q) return popular;
+    return ALL_SLOTS
+      .filter((g) => g.name.toLowerCase().includes(q) || (g.provider || '').toLowerCase().includes(q))
+      .slice(0, 18);
+  }, [q, popular]);
+
+  const saveRecent = (term) => {
+    const t = String(term || '').trim();
+    if (!t) return;
+    const next = [t, ...recent.filter((r) => r.toLowerCase() !== t.toLowerCase())].slice(0, 8);
+    setRecent(next);
+    try { localStorage.setItem(RECENT_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+  };
+  const clearRecent = () => { setRecent([]); try { localStorage.removeItem(RECENT_KEY); } catch { /* ignore */ } };
+
+  const submit = (term) => {
+    const t = String(term != null ? term : searchQuery).trim();
+    setSearchQuery(t);
+    if (t) saveRecent(t);
+    setOpen(false);
+    navigate('/slots');
+  };
+
+  const launch = async (g) => {
+    saveRecent(g.name);
+    setSearchQuery('');
+    setOpen(false);
+    if (!isLoggedIn) { openModal('register'); return; }
+    try {
+      const url = g.id != null ? await resolveLaunch(g.id) : g.launchUrl;
+      if (url) window.open(url, '_blank', 'noopener');
+      else openModal('game', { name: g.name, icon: g.icon });
+    } catch { openModal('game', { name: g.name, icon: g.icon }); }
+  };
+
+  const onKeyDown = (e) => {
+    if (e.key === 'Enter') submit();
+    else if (e.key === 'Escape') setOpen(false);
+  };
+
+  const inputEl = (
+    <input
+      type="text"
+      placeholder={variant === 'topbar' ? 'Search games…' : 'Search'}
+      value={searchQuery}
+      onChange={(e) => { setSearchQuery(e.target.value); setOpen(true); }}
+      onFocus={() => setOpen(true)}
+      onClick={() => setOpen(true)}
+      onKeyDown={onKeyDown}
+    />
+  );
+
+  const W = typeof window !== 'undefined' ? Math.min(760, window.innerWidth - 24) : 760;
+  let left = rect ? rect.left : 12;
+  if (left + W > (typeof window !== 'undefined' ? window.innerWidth : 1200) - 12) {
+    left = (typeof window !== 'undefined' ? window.innerWidth : 1200) - 12 - W;
+  }
+  if (left < 12) left = 12;
+
+  return (
+    <div className={variant === 'topbar' ? 'search-bar' : 'hdr-search'} ref={wrapRef}>
+      {variant !== 'topbar' && <span className="hdr-search-icon">🔍</span>}
+      {inputEl}
+      {open && rect && createPortal(
+        <div data-searchpanel className="srch-panel" style={{ position: 'fixed', top: rect.bottom + 8, left, width: W, zIndex: 99999 }}>
+          <div className="srch-cols">
+            <div className="srch-left">
+              <div className="srch-head">
+                <span>Latest search</span>
+                {recent.length > 0 && <button type="button" className="srch-clear" onClick={clearRecent}>Clear</button>}
+              </div>
+              {recent.length ? (
+                <div className="srch-recent">
+                  {recent.map((r) => (
+                    <button key={r} type="button" className="srch-chip" onClick={() => submit(r)}>
+                      <span className="srch-chip-ic">🕘</span>{r}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="srch-empty">No recent searches yet — try “fortune”.</div>
+              )}
+            </div>
+            <div className="srch-right">
+              <div className="srch-rhead">
+                <span className="srch-rtitle">🔥 Popular in {country}</span>
+                <span className="srch-pill">{q ? 'Results' : 'All'}</span>
+              </div>
+              <div className="srch-grid">
+                {results.length ? results.map((g) => (
+                  <button key={g.id != null ? g.id : g.name} type="button" className="srch-card" onClick={() => launch(g)} title={g.name}>
+                    <div className="srch-card-img" style={g.img ? { backgroundImage: `url(${g.img})` } : { background: `linear-gradient(135deg,${g.color || '#1a2240'},#0c1322)` }}>
+                      {!g.img && <span className="srch-card-emoji">{g.icon || '🎰'}</span>}
+                      <span className="srch-card-players">👤 {playerCount(g).toLocaleString()}</span>
+                    </div>
+                    <div className="srch-card-name">{g.name}</div>
+                  </button>
+                )) : (
+                  <div className="srch-empty" style={{ gridColumn: '1 / -1' }}>No games match “{searchQuery}”.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+    </div>
+  );
+}
+
 // Top navigation pills used by both header variants. Emoji is kept separate
 // from the translatable text so switching language never wipes the icon.
 const NAV = [
@@ -187,7 +353,7 @@ const NAV = [
 ];
 
 export default function Header() {
-  const { toggleSidebar, openModal, setSearchQuery, searchQuery, currency, accountCurrency, fxConvert } = useUI();
+  const { toggleSidebar, openModal, currency, accountCurrency, fxConvert } = useUI();
   const { isLoggedIn, profile, logout } = useAuth();
   const go = useSectionNav();
   const navigate = useNavigate();
@@ -242,14 +408,7 @@ export default function Header() {
               </button>
             ))}
           </nav>
-          <div className="search-bar">
-            <input
-              type="text"
-              placeholder="Search games…"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
+          <SearchPanel variant="topbar" />
           <div className="auth-btns">
             {!isLoggedIn ? (
               <>
@@ -324,10 +483,7 @@ export default function Header() {
             </div>
             <span className="hdr-online-num" id="top-online-count">1,847</span>
           </div>
-          <div className="hdr-search">
-            <span className="hdr-search-icon">🔍</span>
-            <input type="text" placeholder="Search" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
-          </div>
+          <SearchPanel variant="header" />
           <div className="hdr-row2-right">
             {!isLoggedIn ? (
               <div className="hdr-auth-group" id="hdr-auth">
