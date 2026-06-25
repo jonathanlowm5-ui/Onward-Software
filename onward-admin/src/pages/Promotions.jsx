@@ -206,7 +206,22 @@ function PromoEditModal({ initial, onClose, onSaved }) {
             <div className="pm-fld"><label>Start Date</label><input type="date" value={f.startDate} onChange={set('startDate')} /></div>
             <div className="pm-fld"><label>End Date (expiry)</label><input type="date" value={f.endDate} onChange={set('endDate')} /></div>
             <div className="pm-fld"><label>Status</label><select value={f.status} onChange={set('status')}><option value="active">active</option><option value="inactive">inactive</option></select></div>
-            <div className="pm-fld" style={{ gridColumn: '1 / -1' }}><label>Description</label><input value={f.description} onChange={set('description')} placeholder="Get 200% on your first deposit up to ₱10,000" /></div>
+            <div className="pm-fld" style={{ gridColumn: '1 / -1' }}>
+              <label>Description <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(one line per row — shows under the title)</span></label>
+              <textarea value={f.description} onChange={set('description')} rows={2}
+                placeholder={'100% UP TO ₱2,060\n+25 FREE SPINS'}
+                style={{ width: '100%', resize: 'vertical', padding: '9px 12px', borderRadius: 8, background: 'var(--bg3,#0b1224)', color: 'var(--text,#fff)', border: '1px solid var(--border,#243049)', fontFamily: 'inherit', fontSize: 14, lineHeight: 1.5 }} />
+            </div>
+            {/* Live auto-card preview — title on top, description below (no image needed) */}
+            <div className="pm-fld" style={{ gridColumn: '1 / -1' }}>
+              <label>Auto Card Preview <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(title + description build the card automatically)</span></label>
+              <div style={{ maxWidth: 300, background: 'linear-gradient(135deg,#0e1e32 0%,#162038 60%,#1c2842 100%)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 18px 16px', display: 'flex', flexDirection: 'column', minHeight: 172 }}>
+                {f.image && <img src={f.image} alt="" style={{ width: '100%', height: 90, objectFit: 'cover', borderRadius: 10, marginBottom: 12 }} />}
+                <div style={{ fontWeight: 800, fontSize: 17, color: '#fff', textTransform: 'uppercase', lineHeight: 1.2 }}>{f.title || '2ND DEPOSIT BONUS'}</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.55)', marginTop: 8, lineHeight: 1.5, whiteSpace: 'pre-line' }}>{f.description || '100% UP TO ₱2,060\n+25 FREE SPINS'}</div>
+                <button style={{ marginTop: 12, width: '100%', padding: '9px 0', borderRadius: 8, border: 'none', fontWeight: 800, fontSize: 12, letterSpacing: '.06em', textTransform: 'uppercase', color: '#06091a', background: 'linear-gradient(135deg,#f0c040,#d99a00)', cursor: 'default' }}>{f.buttonText || 'Claim now'}</button>
+              </div>
+            </div>
             <div className="pm-fld"><label>Button Text</label><input value={f.buttonText} onChange={set('buttonText')} placeholder="Deposit Now" /></div>
             <div className="pm-fld"><label>Button Link</label><input value={f.buttonLink} onChange={set('buttonLink')} placeholder="/deposit" /></div>
             <div className="pm-fld" style={{ gridColumn: '1 / -1' }}>
