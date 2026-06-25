@@ -883,6 +883,7 @@ body::before{
 }
 /* Push the claim button to the bottom so every card lines up tidily. */
 .pb-card .wh-tier-btn{margin-top:auto !important}
+.promo-card .wh-tier-btn{margin-top:auto !important}
 .pb-card:hover{
   transform:translateY(-3px);
   box-shadow:0 12px 40px rgba(0,0,0,.4);

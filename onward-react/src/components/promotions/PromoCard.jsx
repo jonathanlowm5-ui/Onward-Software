@@ -27,9 +27,20 @@ export default function PromoCard({ promo, index, onOpen }) {
     <div className={`promo-card ${p.highlighted ? 'promo-card-highlighted' : ''}`} onClick={handle}>
       {(p.amount != null) && <div className="promo-watermark">{p.amount}</div>}
       {p.tag && <span className="promo-tag">{p.tag}</span>}
-      {banner && <img src={banner} alt={p.title} className="promo-card-banner" />}
-      <div className="promo-title">{p.title}</div>
-      <div className="promo-desc">{lines.map((l, i) => <div key={i}>{l}</div>)}</div>
+      {banner ? (
+        // Banner image with the title + description overlaid on its left area.
+        <div className="pb-banner-box" style={{ backgroundImage: `url(${banner})` }}>
+          <div className="pb-banner-text">
+            <div className="pb-title">{p.title}</div>
+            {desc && <div className="pb-detail">{lines.map((l, i) => <span key={i}>{l}<br /></span>)}</div>}
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="promo-title">{p.title}</div>
+          <div className="promo-desc">{lines.map((l, i) => <div key={i}>{l}</div>)}</div>
+        </>
+      )}
       <button className="wh-tier-btn primary" style={{ marginTop: 12, width: '100%' }} onClick={claim}>{p.buttonText || 'Claim now'}</button>
     </div>
   );
