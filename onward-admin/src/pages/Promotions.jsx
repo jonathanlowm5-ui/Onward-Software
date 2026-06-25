@@ -101,6 +101,7 @@ function normalizePromo(p) {
 const EMPTY_PROMO = {
   title: '', type: 'welcome', currency: '', country: '', bonus: '', maxBonus: '', minDeposit: '', wager: '', turnover: '',
   description: '', image: '', banners: {}, startDate: '', endDate: '', status: 'active', buttonText: '', buttonLink: '',
+  customTerms: '',
   // promotion rules / eligibility logic
   requirement: 'Deposit (T/O)', bonusType: 'Bonus', refreshCycle: 'Once',
   isExclusive: 'no', hidden: 'no', isAccumulate: 'no', promoDeductOnWithdraw: 'no',
@@ -251,7 +252,7 @@ function PromoEditModal({ initial, onClose, onSaved }) {
           <div style={{ display: step === 1 ? 'block' : 'none' }}>
           <div className="pm-grid">
             <div className="pm-fld" style={{ gridColumn: '1 / -1' }}><label>Title <span style={{ color: 'var(--red)' }}>*</span></label><input value={f.title} onChange={set('title')} placeholder="200% Welcome Bonus" /></div>
-            <div className="pm-fld"><label>Section</label><select value={f.type} onChange={set('type')}><option value="welcome">Welcome</option><option value="deposit">Deposit</option><option value="reload">Reload</option><option value="cashback">Cashback</option><option value="freespin">Freespin</option><option value="referral">Referral</option><option value="tournament">Tournament</option></select><div className="pm-hint">Which page section it appears in. (Bonus type, %, amounts & limits are set in Promotion Rules below.)</div></div>
+            <div className="pm-fld"><label>Section</label><select value={f.type} onChange={set('type')}><option value="welcome">Welcome</option><option value="deposit">Deposit</option><option value="reload">Reload</option><option value="cashback">Cashback</option><option value="freespin">Freespin</option><option value="referral">Referral</option><option value="tournament">Tournament</option><option value="custom">Custom (Special)</option></select><div className="pm-hint">Which page section it appears in. (Bonus type, %, amounts & limits are set in Promotion Rules below.)</div></div>
             <div className="pm-fld"><label>Country</label><select value={f.country} onChange={onCountry}><option value="">All countries</option>{PROMO_COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
             <div className="pm-fld"><label>Currency</label><select value={f.currency} onChange={set('currency')}><option value="">Auto (player's currency)</option>{PROMO_CURRENCIES.map((c) => <option key={c} value={c}>{c} only</option>)}</select></div>
             <div className="pm-fld"><label>Status</label><select value={f.status} onChange={set('status')}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
@@ -368,11 +369,20 @@ function PromoEditModal({ initial, onClose, onSaved }) {
               from the fields above; 7–12 are fixed. Shown to members on the
               player Promo Detail modal — no manual typing needed. */}
           <div style={{ marginTop: 16, borderTop: '1px dashed var(--border)', paddingTop: 12 }}>
-            <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text)', marginBottom: 2 }}>TERMS &amp; CONDITIONS <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(auto-generated — shown to members)</span></div>
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>Lines 1–6 fill from the package above; 7–12 are fixed.{f.currency ? '' : ' Currency is set to Auto — each member sees their own currency (PHP shown as example below).'}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text)' }}>✏️ CUSTOM TERMS &amp; CONDITIONS <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(override — one line per row)</span></div>
+              <button type="button" className="mini-btn" style={{ marginLeft: 'auto' }} onClick={() => setF((p) => ({ ...p, customTerms: buildPromoTerms({ ...p, customTerms: '' }).join('\n') }))}>⬇ Load auto terms to edit</button>
+              {f.customTerms && f.customTerms.trim() && <button type="button" className="mini-btn" onClick={() => setF((p) => ({ ...p, customTerms: '' }))}>↺ Reset to auto</button>}
+            </div>
+            <textarea value={f.customTerms} onChange={set('customTerms')} rows={4}
+              placeholder="Leave empty to use the auto-generated terms shown below. Or type your own (one line per row) for a special promotion."
+              style={{ width: '100%', resize: 'vertical', padding: '9px 12px', borderRadius: 8, background: 'var(--bg3,#0b1224)', color: 'var(--text,#fff)', border: '1px solid var(--border,#243049)', fontFamily: 'inherit', fontSize: 13, lineHeight: 1.5 }} />
+            <div style={{ fontSize: 11, color: f.customTerms && f.customTerms.trim() ? 'var(--gold)' : 'var(--muted)', margin: '8px 0 6px', fontWeight: 700 }}>
+              {f.customTerms && f.customTerms.trim() ? 'Preview — using your CUSTOM terms (shown to members):' : 'Preview — auto-generated terms (shown to members). Lines 1–6 fill from the package; 7–12 are fixed:'}
+            </div>
             <ol style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 5, maxHeight: 180, overflowY: 'auto' }}>
               {buildPromoTerms(f).map((t, i) => (
-                <li key={i} style={{ fontSize: 11.5, lineHeight: 1.45, color: i < 6 ? 'var(--text)' : 'var(--muted)' }}>{t}</li>
+                <li key={i} style={{ fontSize: 11.5, lineHeight: 1.45, color: (f.customTerms && f.customTerms.trim()) || i < 6 ? 'var(--text)' : 'var(--muted)' }}>{t}</li>
               ))}
             </ol>
           </div>
@@ -461,7 +471,7 @@ function PromosTab({ promos, setPromos, loading, onEdit }) {
       <div className="card" style={{ marginTop: 'var(--pad)' }}>
         <div className="page-head" style={{ marginBottom: 12 }}><div className="card-title" style={{ marginBottom: 0 }}>Promotion Packages</div>
           <span className="pr" style={{ display: 'flex', gap: 8 }}>
-            <select className="qsearch" style={{ width: 'auto' }} value={typeF} onChange={(e) => setTypeF(e.target.value)}><option value="">All Types</option><option value="welcome">Welcome</option><option value="deposit">Deposit</option><option value="reload">Reload</option><option value="cashback">Cashback</option><option value="freespin">Freespin</option><option value="referral">Referral</option><option value="tournament">Tournament</option></select>
+            <select className="qsearch" style={{ width: 'auto' }} value={typeF} onChange={(e) => setTypeF(e.target.value)}><option value="">All Types</option><option value="welcome">Welcome</option><option value="deposit">Deposit</option><option value="reload">Reload</option><option value="cashback">Cashback</option><option value="freespin">Freespin</option><option value="referral">Referral</option><option value="tournament">Tournament</option><option value="custom">Custom</option></select>
             <input className="qsearch" placeholder="Search promo…" value={query} onChange={(e) => setQuery(e.target.value)} />
           </span>
         </div>

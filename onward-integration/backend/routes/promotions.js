@@ -68,6 +68,8 @@ function clean(body) {
     status: body.status === 'inactive' ? 'inactive' : 'active',
     buttonText: body.buttonText || '',
     buttonLink: body.buttonLink || '',
+    // Custom T&C override (one line per row). Empty = use auto-generated terms.
+    customTerms: String(body.customTerms || '').slice(0, 4000),
     // ---- Promotion rules / eligibility logic (admin-configured) ----
     requirement: pickOne(body.requirement, REQUIREMENTS, 'Deposit (T/O)'),
     bonusType: pickOne(body.bonusType, BONUS_TYPES, 'Bonus'),

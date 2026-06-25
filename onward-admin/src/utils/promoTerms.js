@@ -19,6 +19,10 @@ function digits(value, fallback) {
 // own currency (defaulting to PHP).
 export function buildPromoTerms(promo = {}, viewerCurrency) {
   const p = promo || {};
+  // Admin override: custom terms (one line per row) replace the auto terms.
+  if (p.customTerms && String(p.customTerms).trim()) {
+    return String(p.customTerms).split('\n').map((l) => l.trim()).filter(Boolean);
+  }
   const minDep = digits(p.minDeposit ?? p.md, 100);
   const currency = String(p.currency || viewerCurrency || 'PHP').toUpperCase();
   const rollover = digits(p.wager ?? p.rollover, 15);
