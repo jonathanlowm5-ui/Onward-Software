@@ -858,6 +858,38 @@ body::before{
   display:none; /* removed the big faded % watermark on promo cards */
 }
 
+/* ===== Emergency announcement ticker ===== */
+.note-ticker{
+  display:flex;align-items:center;gap:10px;
+  height:38px;overflow:hidden;position:relative;z-index:5;
+  padding-left:10px;
+}
+.note-ticker-tag{
+  flex-shrink:0;display:inline-flex;align-items:center;gap:5px;
+  font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;
+  color:#fff;padding:3px 10px;border-radius:999px;
+  background:rgba(0,0,0,.28);border:1px solid;
+}
+.note-ticker-viewport{flex:1;overflow:hidden}
+.note-ticker-track{
+  display:inline-flex;white-space:nowrap;
+  will-change:transform;animation:noteScroll 28s linear infinite;
+}
+.note-ticker:hover .note-ticker-track{animation-play-state:paused}
+.note-ticker-msg{
+  padding:0 44px;font-size:13.5px;font-weight:600;color:#fff;
+}
+@keyframes noteScroll{
+  from{transform:translateX(0)}
+  to{transform:translateX(-33.333%)}
+}
+@media(max-width:600px){
+  .note-ticker{height:34px;gap:8px}
+  .note-ticker-tag{font-size:10px;padding:2px 8px}
+  .note-ticker-msg{font-size:12px;padding:0 30px}
+  .note-ticker-track{animation-duration:20s}
+}
+
 /* ===== Follow Us page ===== */
 .follow-grid{
   display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));

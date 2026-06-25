@@ -6,6 +6,7 @@ import {
   removeNotification,
   sendNotification,
 } from '../services/notificationService';
+import { getAnnouncement, saveAnnouncement } from '../services/announcementService';
 
 // Original static demo data (NOTIFQ) — used as offline fallback.
 const DEMO_NOTIFS = [
@@ -39,6 +40,18 @@ export default function Notification() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editIdx, setEditIdx] = useState(-1);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [ann, setAnn] = useState({ enabled: false, text: '', level: 'info' });
+  const [annSaving, setAnnSaving] = useState(false);
+
+  useEffect(() => { getAnnouncement().then((a) => a && setAnn({ enabled: !!a.enabled, text: a.text || '', level: a.level || 'info' })).catch(() => {}); }, []);
+  const saveAnn = async (patch) => {
+    const next = { ...ann, ...patch };
+    setAnn(next);
+    setAnnSaving(true);
+    try { await saveAnnouncement(next); toast(next.enabled ? 'Announcement live ✔' : 'Announcement saved'); }
+    catch (e) { toast('⚠ ' + (e.message || 'Save failed')); }
+    finally { setAnnSaving(false); }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -165,6 +178,36 @@ export default function Notification() {
           <div className="hero-sub" style={{ marginBottom: 0 }}>Manage in-app and push notifications sent to players</div>
         </div>
         <button className="cms-newbtn" onClick={openNew}>+ New Notification</button>
+      </div>
+
+      {/* Emergency announcement ticker — scrolls at the top of the player site */}
+      <div className="card" style={{ marginBottom: 'var(--pad)', borderTop: '3px solid var(--red,#e8485c)' }}>
+        <div className="page-head" style={{ marginBottom: 12 }}>
+          <div className="card-title" style={{ marginBottom: 0 }}>🚨 Emergency Announcement Ticker</div>
+          <span className="pr" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 13, color: ann.enabled ? 'var(--green)' : 'var(--muted)', fontWeight: 700 }}>{ann.enabled ? '● LIVE on site' : '○ Off'}</span>
+            <label className="switch"><input type="checkbox" checked={!!ann.enabled} onChange={(e) => saveAnn({ enabled: e.target.checked })} /><span className="slider"></span></label>
+          </span>
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>Shows a scrolling message at the very top of every player page. Use for maintenance, emergencies or important notices.</div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+          <div style={{ flex: 1, minWidth: 280 }}>
+            <label className="fld-lbl">Message</label>
+            <input value={ann.text} onChange={(e) => setAnn((s) => ({ ...s, text: e.target.value }))}
+              placeholder="e.g. Scheduled maintenance tonight 2–4 AM. Deposits may be delayed."
+              style={{ width: '100%', padding: '10px 12px', borderRadius: 9, background: 'var(--panel-3,#1b2541)', color: 'var(--text,#fff)', border: '1px solid var(--border,#243049)' }} />
+          </div>
+          <div>
+            <label className="fld-lbl">Level</label>
+            <select value={ann.level} onChange={(e) => setAnn((s) => ({ ...s, level: e.target.value }))}
+              style={{ padding: '10px 12px', borderRadius: 9, background: 'var(--panel-3,#1b2541)', color: 'var(--text,#fff)', border: '1px solid var(--border,#243049)' }}>
+              <option value="info">ℹ️ Info (blue)</option>
+              <option value="warning">⚠️ Warning (amber)</option>
+              <option value="critical">🚨 Critical (red)</option>
+            </select>
+          </div>
+          <button className="btn-search" onClick={() => saveAnn({})} disabled={annSaving}>{annSaving ? 'Saving…' : '💾 Save'}</button>
+        </div>
       </div>
 
       <div className="grid kpi-grid" style={{ gridTemplateColumns: 'repeat(4,1fr)' }}>

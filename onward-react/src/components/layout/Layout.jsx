@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import Header from './Header.jsx';
+import NotificationTicker from './NotificationTicker.jsx';
 import Sidebar from './Sidebar.jsx';
 import Footer from './Footer.jsx';
 import H5BottomNav from './H5BottomNav.jsx';
@@ -22,6 +23,7 @@ export default function Layout() {
       <div id="page-wrapper">
         <Sidebar />
         <div id="page-content">
+          <NotificationTicker />
           <main id="main-content">
             <Outlet />
           </main>
