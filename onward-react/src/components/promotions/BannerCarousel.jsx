@@ -7,12 +7,12 @@ import { fetchPromotions } from '../../services/gamesService';
 /*
  * BannerCarousel — one responsive hero banner reused across the site (front
  * page, promotions page, …). It renders the admin promotions that have a banner
- * image (resolved to the viewer's currency) in a single fixed 16:7 frame, so a
+ * image (resolved to the viewer's currency) in a single fixed 1200x425 frame, so a
  * single uploaded banner looks right everywhere — no need to upload different
  * sizes per page. Auto-rotates, click opens the promo detail. Renders nothing
  * when there are no banner images, so callers keep their existing fallback.
  *
- * Recommended source image: 1200 × 525 (16:7), under 4 MB.
+ * Recommended source image: 1200 × 425, under 4 MB.
  */
 export default function BannerCarousel({ promos, className = '' }) {
   const { openModal } = useUI();
