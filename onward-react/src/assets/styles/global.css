@@ -1110,6 +1110,28 @@ body::before{
   display:block;
   background:#0c1626;
 }
+/* Banner image with the title + description overlaid on its empty (left) area. */
+.pb-banner-box{
+  width:100%;
+  aspect-ratio:1200 / 425;
+  background-size:cover;background-position:center;
+  border-radius:10px;
+  margin-bottom:12px;
+  position:relative;
+  display:flex;align-items:center;
+  overflow:hidden;
+  background-color:#0c1626;
+}
+.pb-banner-box::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,rgba(8,13,26,.88) 0%,rgba(8,13,26,.6) 38%,rgba(8,13,26,.08) 62%,transparent 100%);
+}
+.pb-banner-text{
+  position:relative;z-index:1;
+  padding:0 16px;max-width:64%;
+}
+.pb-banner-text .pb-title{margin-bottom:6px}
+.pb-banner-text .pb-detail{margin:0}
 
 /* ===== Promotion detail modal ===== */
 .promo-detail-banner{

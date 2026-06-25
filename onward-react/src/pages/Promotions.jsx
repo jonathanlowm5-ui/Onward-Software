@@ -255,22 +255,39 @@ export default function Promotions() {
           <div className="promo-bonus-grid" id="promo-bonus-grid">
 
             {/* Live promotions configured in the admin panel (region-targeted) */}
-            {visiblePromos.map((p, i) => (
-              <div
-                className={'pb-card' + (i === 0 ? ' highlighted' : '')}
-                key={p.id ?? 'api-' + i}
-                onClick={() => openPromoDetail(p)}
-              >
-                {(p.country || p.currency) && (
-                  <span className="pb-region">🌏 {[p.country, p.currency].filter(Boolean).join(' · ')}</span>
-                )}
-                {resolvePromoBanner(p, viewerCur) && <img src={resolvePromoBanner(p, viewerCur)} alt="" className="pb-banner" />}
-                {p.bonus && <div className="pb-deco">{p.bonus}</div>}
-                <div className="pb-title">{p.title}</div>
-                {p.description && <div className="pb-detail">{String(p.description).split('\n').map((l, j) => <span key={j}>{l}<br /></span>)}</div>}
-                <button className="wh-tier-btn primary" style={{ marginTop: 12, width: '100%' }}>{p.buttonText || 'Claim now'}</button>
-              </div>
-            ))}
+            {visiblePromos.map((p, i) => {
+              const banner = resolvePromoBanner(p, viewerCur);
+              const lines = p.description
+                ? String(p.description).split('\n').map((l, j) => <span key={j}>{l}<br /></span>)
+                : null;
+              return (
+                <div
+                  className={'pb-card' + (i === 0 ? ' highlighted' : '')}
+                  key={p.id ?? 'api-' + i}
+                  onClick={() => openPromoDetail(p)}
+                >
+                  {(p.country || p.currency) && (
+                    <span className="pb-region">🌏 {[p.country, p.currency].filter(Boolean).join(' · ')}</span>
+                  )}
+                  {banner ? (
+                    // Banner image with the title + description overlaid on it.
+                    <div className="pb-banner-box" style={{ backgroundImage: `url(${banner})` }}>
+                      <div className="pb-banner-text">
+                        <div className="pb-title">{p.title}</div>
+                        {lines && <div className="pb-detail">{lines}</div>}
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {p.bonus && <div className="pb-deco">{p.bonus}</div>}
+                      <div className="pb-title">{p.title}</div>
+                      {lines && <div className="pb-detail">{lines}</div>}
+                    </>
+                  )}
+                  <button className="wh-tier-btn primary" style={{ marginTop: 12, width: '100%' }}>{p.buttonText || 'Claim now'}</button>
+                </div>
+              );
+            })}
 
             {/* Built-in showcase bonuses */}
             {SHOWCASE_BONUSES.map((p, i) => (

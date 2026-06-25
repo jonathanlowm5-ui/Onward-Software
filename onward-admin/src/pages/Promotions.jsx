@@ -216,9 +216,21 @@ function PromoEditModal({ initial, onClose, onSaved }) {
             <div className="pm-fld" style={{ gridColumn: '1 / -1' }}>
               <label>Auto Card Preview <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(title + description build the card automatically)</span></label>
               <div style={{ maxWidth: 300, background: 'linear-gradient(135deg,#0e1e32 0%,#162038 60%,#1c2842 100%)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 18px 16px', display: 'flex', flexDirection: 'column', minHeight: 172 }}>
-                {f.image && <img src={f.image} alt="" style={{ width: '100%', height: 90, objectFit: 'cover', borderRadius: 10, marginBottom: 12 }} />}
-                <div style={{ fontWeight: 800, fontSize: 17, color: '#fff', textTransform: 'uppercase', lineHeight: 1.2 }}>{f.title || '2ND DEPOSIT BONUS'}</div>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.55)', marginTop: 8, lineHeight: 1.5, whiteSpace: 'pre-line' }}>{f.description || '100% UP TO ₱2,060\n+25 FREE SPINS'}</div>
+                {f.image ? (
+                  // Banner with the title + description overlaid on its left area.
+                  <div style={{ width: '100%', aspectRatio: '1200 / 425', backgroundImage: `url(${f.image})`, backgroundSize: 'cover', backgroundPosition: 'center', borderRadius: 10, marginBottom: 12, position: 'relative', display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
+                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg,rgba(8,13,26,.88) 0%,rgba(8,13,26,.6) 38%,rgba(8,13,26,.08) 62%,transparent 100%)' }} />
+                    <div style={{ position: 'relative', zIndex: 1, padding: '0 14px', maxWidth: '64%' }}>
+                      <div style={{ fontWeight: 800, fontSize: 14, color: '#fff', textTransform: 'uppercase', lineHeight: 1.2, marginBottom: 5 }}>{f.title || '2ND DEPOSIT BONUS'}</div>
+                      <div style={{ fontSize: 10, color: 'rgba(255,255,255,.7)', lineHeight: 1.45, whiteSpace: 'pre-line' }}>{f.description || '100% UP TO ₱2,060\n+25 FREE SPINS'}</div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ fontWeight: 800, fontSize: 17, color: '#fff', textTransform: 'uppercase', lineHeight: 1.2 }}>{f.title || '2ND DEPOSIT BONUS'}</div>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,.55)', marginTop: 8, lineHeight: 1.5, whiteSpace: 'pre-line' }}>{f.description || '100% UP TO ₱2,060\n+25 FREE SPINS'}</div>
+                  </>
+                )}
                 <button style={{ marginTop: 12, width: '100%', padding: '9px 0', borderRadius: 8, border: 'none', fontWeight: 800, fontSize: 12, letterSpacing: '.06em', textTransform: 'uppercase', color: '#06091a', background: 'linear-gradient(135deg,#f0c040,#d99a00)', cursor: 'default' }}>{f.buttonText || 'Claim now'}</button>
               </div>
             </div>
