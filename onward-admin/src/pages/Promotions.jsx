@@ -100,7 +100,17 @@ function normalizePromo(p) {
 const EMPTY_PROMO = {
   title: '', type: 'welcome', currency: '', country: '', bonus: '', maxBonus: '', minDeposit: '', wager: '', turnover: '',
   description: '', image: '', banners: {}, startDate: '', endDate: '', status: 'active', buttonText: '', buttonLink: '',
+  // promotion rules / eligibility logic
+  requirement: 'Deposit (T/O)', bonusType: 'Bonus', refreshCycle: 'Once',
+  isExclusive: 'no', hidden: 'no', isAccumulate: 'no', promoDeductOnWithdraw: 'no',
+  claimLimitDaily: 0, minDepositAmt: 0, depositCount: 0, maxClaimAmount: 0,
+  maxWinningMultiply: 0, percentage: 0, multiply: 1, sequence: 0, minBalance: 0,
 };
+
+const PROMO_REQUIREMENTS = ['Deposit (T/O)', 'Deposit (Winover)', 'Product (T/O)', 'Product (Winover)', 'Multi-Product (T/O)', 'Multi-Product (Winover)'];
+const PROMO_BONUS_TYPES = ['Bonus', 'Free Credit', 'Referral Share', 'Register Bonus'];
+const PROMO_REFRESH = ['Everytime', 'Once', 'Hourly', 'Daily', 'Weekly', 'Monthly'];
+const yn = (v) => (v === true || v === 'yes' || v === 1 || v === '1') ? 'yes' : 'no';
 
 const PROMO_CURRENCIES = ['PHP', 'USD', 'EUR', 'INR', 'THB', 'VND', 'IDR', 'MYR', 'CNY', 'JPY'];
 const PROMO_COUNTRIES = ['Philippines', 'Malaysia', 'Singapore', 'Thailand', 'Indonesia', 'Vietnam'];
@@ -236,6 +246,48 @@ function PromoEditModal({ initial, onClose, onSaved }) {
             </div>
             <div className="pm-fld"><label>Button Text</label><input value={f.buttonText} onChange={set('buttonText')} placeholder="Deposit Now" /></div>
             <div className="pm-fld"><label>Button Link</label><input value={f.buttonLink} onChange={set('buttonLink')} placeholder="/deposit" /></div>
+
+            {/* ===== Promotion Rules / eligibility logic ===== */}
+            <div className="pm-fld" style={{ gridColumn: '1 / -1', borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 4 }}>
+              <div style={{ fontWeight: 800, color: 'var(--gold)', fontSize: 14 }}>⚙️ Promotion Rules</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>Eligibility &amp; claim logic. For a multi-step <b>Welcome Bonus</b> (1st/2nd/3rd/4th deposit), create one promo per deposit and set <b>Sequence</b> 1, 2, 3, 4 — the backend uses Sequence to know the deposit step.</div>
+            </div>
+            <div className="pm-fld" style={{ gridColumn: '1 / -1' }}><label>1 · Requirement</label>
+              <select value={f.requirement} onChange={set('requirement')}>{PROMO_REQUIREMENTS.map((r) => <option key={r} value={r}>{r}</option>)}</select>
+              <div className="pm-hint">Eligibility criteria — T/O = turnover, Winover = winover requirement before withdrawal.</div>
+            </div>
+            <div className="pm-fld"><label>2 · Type (bonus)</label>
+              <select value={f.bonusType} onChange={set('bonusType')}>{PROMO_BONUS_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select>
+            </div>
+            <div className="pm-fld"><label>3 · Refresh Cycle</label>
+              <select value={f.refreshCycle} onChange={set('refreshCycle')}>{PROMO_REFRESH.map((c) => <option key={c} value={c}>{c}</option>)}</select>
+              <div className="pm-hint">How often it's claimable (Everytime / Once / Hourly / Daily / Weekly / Monthly).</div>
+            </div>
+            <div className="pm-fld"><label>4 · Is Exclusive</label>
+              <select value={yn(f.isExclusive)} onChange={set('isExclusive')}><option value="no">No</option><option value="yes">Yes</option></select>
+              <div className="pm-hint">Yes = a player can claim only once, ever.</div>
+            </div>
+            <div className="pm-fld"><label>5 · Hidden</label>
+              <select value={yn(f.hidden)} onChange={set('hidden')}><option value="no">No</option><option value="yes">Yes</option></select>
+              <div className="pm-hint">Yes = hidden from players (not shown on the site).</div>
+            </div>
+            <div className="pm-fld"><label>6 · Claim Limit (Daily)</label><input value={f.claimLimitDaily} inputMode="numeric" onChange={set('claimLimitDaily')} placeholder="0" /><div className="pm-hint">Total daily claims for all players. 0 = unlimited.</div></div>
+            <div className="pm-fld"><label>7 · Min Deposit</label><input value={f.minDepositAmt} inputMode="decimal" onChange={set('minDepositAmt')} placeholder="0" /><div className="pm-hint">Minimum deposit to qualify.</div></div>
+            <div className="pm-fld"><label>8 · No. of Deposit</label><input value={f.depositCount} inputMode="numeric" onChange={set('depositCount')} placeholder="0" /><div className="pm-hint">Deposits required to claim. 0 = anytime.</div></div>
+            <div className="pm-fld"><label>9 · Max Claim Amount</label><input value={f.maxClaimAmount} inputMode="decimal" onChange={set('maxClaimAmount')} placeholder="0" /><div className="pm-hint">Max bonus payout.</div></div>
+            <div className="pm-fld"><label>10 · Max Winning Multiply</label><input value={f.maxWinningMultiply} inputMode="decimal" onChange={set('maxWinningMultiply')} placeholder="0" /><div className="pm-hint">+5 = (depo+promo)×5; -50 = fixed max 50; 0 = no forfeit.</div></div>
+            <div className="pm-fld"><label>11 · Is Accumulate</label>
+              <select value={yn(f.isAccumulate)} onChange={set('isAccumulate')}><option value="no">No</option><option value="yes">Yes</option></select>
+              <div className="pm-hint">Deposit bonus → always No.</div>
+            </div>
+            <div className="pm-fld"><label>12 · Promo Deduct on Withdrawal</label>
+              <select value={yn(f.promoDeductOnWithdraw)} onChange={set('promoDeductOnWithdraw')}><option value="no">No</option><option value="yes">Yes</option></select>
+              <div className="pm-hint">Yes = bonus amount deducted from the withdrawal.</div>
+            </div>
+            <div className="pm-fld"><label>13 · Percentage (%)</label><input value={f.percentage} inputMode="decimal" onChange={set('percentage')} placeholder="0" /><div className="pm-hint">Bonus percentage.</div></div>
+            <div className="pm-fld"><label>14 · Multiply (T/O or Winover)</label><input value={f.multiply} inputMode="decimal" onChange={set('multiply')} placeholder="1" /><div className="pm-hint">Turnover/winover multiple. Default 1.</div></div>
+            <div className="pm-fld"><label>15 · Sequence</label><input value={f.sequence} inputMode="numeric" onChange={set('sequence')} placeholder="0" /><div className="pm-hint">Step order (1st=1, 2nd=2, …) for multi-step welcome bonuses.</div></div>
+            <div className="pm-fld"><label>16 · Min Balance</label><input value={f.minBalance} inputMode="decimal" onChange={set('minBalance')} placeholder="0" /><div className="pm-hint">Claim only if wallet ≤ this. 0 = no check.</div></div>
             <div className="pm-fld" style={{ gridColumn: '1 / -1' }}>
               <label>Default Banner <span style={{ color: 'var(--gold)', fontWeight: 700 }}>· recommended 1200 × 425 px</span></label>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

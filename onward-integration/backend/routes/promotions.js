@@ -21,6 +21,14 @@ const router = express.Router();
 const COLLECTION = 'promotions';
 const CURRENCIES = ['PHP', 'USD', 'EUR', 'INR', 'THB', 'VND', 'IDR', 'MYR', 'CNY', 'JPY'];
 
+// ---- Promotion-rules enums (admin-configurable eligibility logic) ----
+const REQUIREMENTS = ['Deposit (T/O)', 'Deposit (Winover)', 'Product (T/O)', 'Product (Winover)', 'Multi-Product (T/O)', 'Multi-Product (Winover)'];
+const BONUS_TYPES = ['Bonus', 'Free Credit', 'Referral Share', 'Register Bonus'];
+const REFRESH_CYCLES = ['Everytime', 'Once', 'Hourly', 'Daily', 'Weekly', 'Monthly'];
+const num = (x, d = 0) => { const n = parseFloat(x); return Number.isFinite(n) ? n : d; };
+const truthy = (v) => v === true || v === 1 || v === 'yes' || v === 'true' || v === '1' || v === 'on';
+const pickOne = (v, list, d) => (list.includes(v) ? v : d);
+
 // Per-currency banner images: { PHP: url, MYR: url, ... }. A player sees the
 // banner for their own currency; otherwise the default `image` is used.
 function cleanBanners(src) {
@@ -58,11 +66,29 @@ function clean(body) {
     status: body.status === 'inactive' ? 'inactive' : 'active',
     buttonText: body.buttonText || '',
     buttonLink: body.buttonLink || '',
+    // ---- Promotion rules / eligibility logic (admin-configured) ----
+    requirement: pickOne(body.requirement, REQUIREMENTS, 'Deposit (T/O)'),
+    bonusType: pickOne(body.bonusType, BONUS_TYPES, 'Bonus'),
+    refreshCycle: pickOne(body.refreshCycle, REFRESH_CYCLES, 'Once'),
+    isExclusive: truthy(body.isExclusive),
+    hidden: truthy(body.hidden),
+    claimLimitDaily: Math.max(0, num(body.claimLimitDaily, 0)),
+    minDepositAmt: Math.max(0, num(body.minDepositAmt, 0)),
+    depositCount: Math.max(0, num(body.depositCount, 0)),
+    maxClaimAmount: Math.max(0, num(body.maxClaimAmount, 0)),
+    maxWinningMultiply: num(body.maxWinningMultiply, 0), // may be negative (fixed) or 0 (no forfeit)
+    isAccumulate: truthy(body.isAccumulate),
+    promoDeductOnWithdraw: truthy(body.promoDeductOnWithdraw),
+    percentage: Math.max(0, num(body.percentage, 0)),
+    multiply: Math.max(0, num(body.multiply, 1)),
+    sequence: Math.max(0, num(body.sequence, 0)),
+    minBalance: Math.max(0, num(body.minBalance, 0)),
   };
 }
 
 function isLive(p, today) {
   if (p.status !== 'active') return false;
+  if (p.hidden) return false; // admin chose to hide it from players
   if (p.startDate && p.startDate > today) return false; // not started yet
   if (p.endDate && p.endDate < today) return false; // expired
   return true;
