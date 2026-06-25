@@ -105,7 +105,7 @@ const EMPTY_PROMO = {
   requirement: 'Deposit (T/O)', bonusType: 'Bonus', refreshCycle: 'Once',
   isExclusive: 'no', hidden: 'no', isAccumulate: 'no', promoDeductOnWithdraw: 'no',
   claimLimitDaily: 0, minDepositAmt: 0, depositCount: 0, maxClaimAmount: 0,
-  maxWinningMultiply: 0, percentage: 0, multiply: 1, sequence: 0, minBalance: 0,
+  maxWinningMultiply: 0, percentage: 0, multiply: 1, sequence: 0, minBalance: 0, freeSpins: 0,
   // step 2 — allow lists
   allowProducts: [], allowPlayerGroups: [], allowBanks: [], allowRiskGroups: [],
 };
@@ -298,6 +298,7 @@ function PromoEditModal({ initial, onClose, onSaved }) {
             <div className="pm-fld"><label>14 · Multiply (T/O or Winover)</label><input value={f.multiply} inputMode="decimal" onChange={set('multiply')} placeholder="1" /><div className="pm-hint">Turnover/winover multiple. Default 1.</div></div>
             <div className="pm-fld"><label>15 · Sequence</label><input value={f.sequence} inputMode="numeric" onChange={set('sequence')} placeholder="0" /><div className="pm-hint">Step order (1st=1, 2nd=2, …) for multi-step welcome bonuses.</div></div>
             <div className="pm-fld"><label>16 · Min Balance</label><input value={f.minBalance} inputMode="decimal" onChange={set('minBalance')} placeholder="0" /><div className="pm-hint">Claim only if wallet ≤ this. 0 = no check.</div></div>
+            <div className="pm-fld"><label>17 · Free Spins (FS)</label><input value={f.freeSpins} inputMode="numeric" onChange={set('freeSpins')} placeholder="0" /><div className="pm-hint">Number of free spins granted. 0 = none.</div></div>
 
             {/* Live auto-card preview — title on top, description below (no image needed) */}
             <div className="pm-fld" style={{ gridColumn: '1 / -1', borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 4 }}>

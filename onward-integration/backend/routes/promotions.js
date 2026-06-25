@@ -83,6 +83,7 @@ function clean(body) {
     multiply: Math.max(0, num(body.multiply, 1)),
     sequence: Math.max(0, num(body.sequence, 0)),
     minBalance: Math.max(0, num(body.minBalance, 0)),
+    freeSpins: Math.max(0, num(body.freeSpins, 0)),
     // ---- Allow lists (step 2): which products/groups/banks the promo covers ----
     allowProducts: Array.isArray(body.allowProducts) ? body.allowProducts.map(String).slice(0, 300) : [],
     allowPlayerGroups: Array.isArray(body.allowPlayerGroups) ? body.allowPlayerGroups.map(String).slice(0, 100) : [],
