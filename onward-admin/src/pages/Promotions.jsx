@@ -208,15 +208,17 @@ function PromoEditModal({ initial, onClose, onSaved }) {
             <div className="pm-fld"><label>Button Text</label><input value={f.buttonText} onChange={set('buttonText')} placeholder="Deposit Now" /></div>
             <div className="pm-fld"><label>Button Link</label><input value={f.buttonLink} onChange={set('buttonLink')} placeholder="/deposit" /></div>
             <div className="pm-fld" style={{ gridColumn: '1 / -1' }}>
-              <label>Default Banner</label>
+              <label>Default Banner <span style={{ color: 'var(--gold)', fontWeight: 700 }}>· recommended 1200 × 525 px (16:7)</span></label>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <input type="file" accept="image/*" onChange={pickImage} />
                 {uploading && <span style={{ color: 'var(--gold)' }}>uploading…</span>}
                 {f.image && <img src={f.image} alt="" style={{ height: 40, borderRadius: 6 }} />}
               </div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5 }}>Size: <b style={{ color: 'var(--text)' }}>1200 × 525 px</b> (16:7 ratio) · PNG or JPG · keep under 4 MB. Used on the lobby banner and promo cards.</div>
             </div>
             <div className="pm-fld" style={{ gridColumn: '1 / -1' }}>
               <label>Currency Banners <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(optional — players see the banner for their own currency, e.g. an MYR banner with RM amounts)</span></label>
+              <div style={{ fontSize: 11, color: 'var(--gold)', fontWeight: 700, marginBottom: 6 }}>Same size: 1200 × 525 px (16:7)</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <select value={bannerCur} onChange={(e) => setBannerCur(e.target.value)} style={{ padding: '8px 10px', borderRadius: 8, background: 'var(--panel-3,#1b2541)', color: 'var(--text,#fff)', border: '1px solid var(--border,#243049)' }}>
                   {PROMO_CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
