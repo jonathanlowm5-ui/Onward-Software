@@ -23,12 +23,6 @@ const CATS = [
   { key: 'crash', label: '🚀 Crash', i18n: 'cat_crash' },
 ];
 
-const HERO_CARDS = [
-  { pct: '200%', bg: 'linear-gradient(135deg,#0c2a10,#0e1e0e)', tag: 'Awaits Deposit', title: '1st Deposit Bonus', detail: ['200% UP TO RM820', '+100 FREE SPINS'] },
-  { pct: '100%', bg: 'linear-gradient(135deg,#0d1428,#111e38)', title: '2nd Deposit Bonus', detail: ['100% UP TO RM163', '+25 FREE SPINS'] },
-  { pct: '75%', bg: 'linear-gradient(135deg,#0d1428,#111e38)', title: '3rd Deposit Bonus', detail: ['75% UP TO RM488', '+50 FREE SPINS'] },
-];
-
 export default function Lobby() {
   const { openModal, searchQuery } = useUI();
   const navigate = useNavigate();
@@ -63,22 +57,6 @@ export default function Lobby() {
       <div className="section" style={{ paddingTop: 20, paddingBottom: 0 }}>
         <BannerCarousel promos={promos} />
       </div>
-
-      {/* HERO BANNER GRID */}
-      <section id="hero">
-        <div id="hero-bonus-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '12px' }}>
-          {HERO_CARDS.map((c) => (
-            <div key={c.title} style={{ background: c.bg, border: '1px solid rgba(255,255,255,.08)', borderRadius: '14px', padding: '20px 20px 18px', position: 'relative', overflow: 'hidden', cursor: 'pointer', minHeight: '130px' }} onClick={() => openModal('register')}>
-              <div style={{ position: 'absolute', right: '16px', bottom: '8px', fontSize: '64px', fontWeight: 900, color: 'rgba(255,255,255,.06)', lineHeight: 1, pointerEvents: 'none', userSelect: 'none' }}>{c.pct}</div>
-              {c.tag && <span style={{ background: 'rgba(56,189,248,.2)', color: '#38bdf8', borderRadius: '4px', padding: '2px 8px', fontSize: '10px', fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase' }} data-i18n="sec_awaits_deposit">{c.tag}</span>}
-              <div style={{ fontSize: '15px', fontWeight: 900, color: '#fff', margin: c.tag ? '8px 0 6px' : '4px 0 6px', lineHeight: 1.2, textTransform: 'uppercase' }}>{c.title}</div>
-              <div className="pb-detail" style={{ fontSize: '12px', color: 'rgba(255,255,255,.5)', lineHeight: 1.6 }}>
-                {c.detail.map((d, i) => <div key={i}>{d}</div>)}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
 
       {/* BIG WINS STRIP */}
       <BigWinsStrip />
