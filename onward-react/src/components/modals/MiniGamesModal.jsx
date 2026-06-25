@@ -110,6 +110,10 @@ function FortuneWheel({ config, onClose }) {
   const tokenImage = theme.tokenImage || '';
   const buttonImage = theme.buttonImage || '';
   const showBulbs = theme.bulbs !== false && !frameImage; // a frame image supplies its own rim
+  // With a frame image the prize disc shrinks to sit INSIDE the frame ring and
+  // renders on top of it, so the frame surrounds the prize instead of covering it.
+  const discInset = frameImage ? Math.round(size * 0.13) : 0;
+  const discSize = size - discInset * 2;
   const BULB_COUNT = 16;
   const bulbs = Array.from({ length: BULB_COUNT }, (_, i) => {
     const ang = (i / BULB_COUNT) * 2 * Math.PI;
@@ -169,21 +173,24 @@ function FortuneWheel({ config, onClose }) {
           {/* TOKEN — coin at the bottom of the wheel (z4) */}
           {tokenImage && <img src={tokenImage} alt="" style={{ position: 'absolute', bottom: -10, left: '50%', transform: 'translateX(-50%)', zIndex: 4,
             width: 54, height: 54, objectFit: 'contain', filter: 'drop-shadow(0 3px 8px rgba(0,0,0,.55))', pointerEvents: 'none' }} />}
+          {/* PRIZE disc — sits inside the frame ring, drawn on top so the frame
+              can never cover it (z3, above the frame at z2) */}
           <div style={{
-            width: '100%', height: '100%', borderRadius: '50%', zIndex: 1,
+            position: 'absolute', top: discInset, left: discInset, width: discSize, height: discSize,
+            borderRadius: '50%', zIndex: 3,
             ...(wheelImage
               ? { backgroundImage: `url(${wheelImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }
               : { background: gradient }),
             transform: `rotate(${rot}deg)`,
             transition: spinning ? 'transform 4s cubic-bezier(.17,.67,.27,1)' : 'none',
-            boxShadow: 'inset 0 0 30px rgba(0,0,0,.45)', position: 'relative',
+            boxShadow: 'inset 0 0 30px rgba(0,0,0,.45)',
           }}>
             {/* slice labels — only for the generated colour wheel */}
             {!wheelImage && active.map((s, i) => {
               const a = (centers[i] - 90) * (Math.PI / 180); // -90 → 0deg at top
-              const r = size * 0.33;
-              const x = size / 2 + r * Math.cos(a);
-              const y = size / 2 + r * Math.sin(a);
+              const r = discSize * 0.33;
+              const x = discSize / 2 + r * Math.cos(a);
+              const y = discSize / 2 + r * Math.sin(a);
               return (
                 <span key={i} style={{
                   position: 'absolute', left: x, top: y, transform: `translate(-50%,-50%) rotate(${centers[i]}deg)`,
