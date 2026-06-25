@@ -1239,8 +1239,35 @@ function GameHistoryPanel({ show }) {
 
 /* ════════════ AGENT PANEL ════════════ */
 function AgentPanel({ show, toast }) {
+  const { profile } = useAuth();
   const [status, setStatus] = useState('none'); // none | pending | approved
   const code = 'AGENT88';
+
+  // Agent details & referral link are gated behind a verified account: the
+  // player must have an APPROVED KYC before they can apply, view, or share any
+  // agent information. Until then we show a locked notice that points them to
+  // the Identity Verification (KYC) section.
+  const kycApproved = (profile?.kyc_status || 'unverified') === 'approved';
+
+  if (!kycApproved) {
+    return (
+      <div id="prof-agent-panel" style={{ display: show ? 'block' : 'none', flex: 1, minWidth: 0, background: 'var(--surface)', borderRadius: 16, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '56px 32px', textAlign: 'center', minHeight: 420 }}>
+          <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(240,192,64,.12)', border: '2px solid rgba(240,192,64,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, marginBottom: 20 }}>🔒</div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', marginBottom: 8 }} data-i18n="agent_locked_title">Agent Program Locked</div>
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,.45)', maxWidth: 360, lineHeight: 1.6, marginBottom: 24 }} data-i18n="agent_locked_desc">
+            Complete and pass identity verification (KYC) before you can apply for the Agent program or view your agent details and referral link.
+          </div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.4)' }}>
+            <span data-i18n="agent_locked_status">KYC status:</span>{' '}
+            <b style={{ color: profile?.kyc_status === 'pending' ? 'var(--gold,#f0c040)' : profile?.kyc_status === 'rejected' ? 'var(--red,#e8293a)' : 'rgba(255,255,255,.6)' }}>
+              {(profile?.kyc_status || 'unverified').toUpperCase()}
+            </b>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div id="prof-agent-panel" style={{ display: show ? 'block' : 'none', flex: 1, minWidth: 0, background: 'var(--surface)', borderRadius: 16, overflow: 'hidden' }}>

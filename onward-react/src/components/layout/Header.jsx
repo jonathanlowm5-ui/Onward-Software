@@ -529,7 +529,7 @@ export default function Header() {
                 ['💳', 'Transactions', () => goSection('transactions')],
                 ['🎰', 'Wager', () => goSection('wager')],
                 ['💸', 'Withdraw', () => { setAcctOpen(false); openModal('withdraw'); }],
-                ['🕴️', 'Agent', () => { setAcctOpen(false); go('agent'); }],
+                ['🕴️', 'Agent', () => goSection('agent')],
               ].map(([ic, label, fn]) => (
                 <button key={label} onClick={fn} style={acctRow}>
                   <span style={{ width: 22, textAlign: 'center' }}>{ic}</span><span>{label}</span>
