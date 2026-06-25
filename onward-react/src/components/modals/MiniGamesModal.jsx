@@ -144,12 +144,10 @@ function FortuneWheel({ config, onClose }) {
           : <div style={fwTitle}>{theme.title || 'WHEEL OF FORTUNE'}</div>}
 
         <div style={{ position: 'relative', width: size, height: size, maxWidth: '80vw', aspectRatio: '1 / 1' }}>
-          {/* pointer / pin — PIN layer (z3, above prize + frame) */}
-          {pinImage
-            ? <img src={pinImage} alt="" style={{ position: 'absolute', top: -16, left: '50%', transform: 'translateX(-50%)', zIndex: 3, height: 56, width: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.6))' }} />
-            : <div style={{ position: 'absolute', top: -2, left: '50%', transform: 'translateX(-50%)', zIndex: 3,
-                width: 0, height: 0, borderLeft: '13px solid transparent', borderRight: '13px solid transparent',
-                borderTop: `24px solid ${pointerColor}`, filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.6))' }} />}
+          {/* win indicator — small fixed pointer at the top edge (z5) */}
+          <div style={{ position: 'absolute', top: -2, left: '50%', transform: 'translateX(-50%)', zIndex: 5,
+            width: 0, height: 0, borderLeft: '12px solid transparent', borderRight: '12px solid transparent',
+            borderTop: `22px solid ${pointerColor}`, filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.6))' }} />
           {/* frame — uploaded ring image, else generated gold rim ring (z2) */}
           {frameImage
             ? <img src={frameImage} alt="" style={{ position: 'absolute', inset: -6, width: 'calc(100% + 12px)', height: 'calc(100% + 12px)', objectFit: 'contain', pointerEvents: 'none', zIndex: 2 }} />
@@ -161,13 +159,16 @@ function FortuneWheel({ config, onClose }) {
               width: 7, height: 7, borderRadius: '50%', background: b.on ? '#fff7d6' : '#b98e2c',
               boxShadow: b.on ? '0 0 5px 1px rgba(255,240,180,.9)' : 'inset 0 0 2px rgba(0,0,0,.5)' }} />
           ))}
-          {/* hub / TOKEN centerpiece — TOKEN layer (z4, above pin) */}
-          {tokenImage
-            ? <img src={tokenImage} alt="" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 4,
+          {/* PIN — centre hub gem in the middle of the wheel (z4) */}
+          {pinImage
+            ? <img src={pinImage} alt="" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 4,
                 width: 66, height: 66, objectFit: 'contain', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,.55))', pointerEvents: 'none' }} />
             : <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 4,
                 width: 46, height: 46, borderRadius: '50%', background: `radial-gradient(circle at 35% 30%, #fff2c0, ${hubColor})`,
                 border: '3px solid rgba(0,0,0,.35)', boxShadow: '0 2px 8px rgba(0,0,0,.55)' }} />}
+          {/* TOKEN — coin at the bottom of the wheel (z4) */}
+          {tokenImage && <img src={tokenImage} alt="" style={{ position: 'absolute', bottom: -10, left: '50%', transform: 'translateX(-50%)', zIndex: 4,
+            width: 54, height: 54, objectFit: 'contain', filter: 'drop-shadow(0 3px 8px rgba(0,0,0,.55))', pointerEvents: 'none' }} />}
           <div style={{
             width: '100%', height: '100%', borderRadius: '50%', zIndex: 1,
             ...(wheelImage
