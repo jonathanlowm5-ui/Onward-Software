@@ -11,7 +11,6 @@
 const express = require('express');
 const store = require('../store');
 const { requireAuth } = require('../auth');
-const { requirePerm } = require('../permissions');
 
 const router = express.Router();
 const LEVELS = ['info', 'warning', 'critical'];
@@ -30,7 +29,9 @@ router.get('/', (req, res) => {
   res.json(current());
 });
 
-router.put('/', requireAuth, requirePerm('settings.manage'), (req, res) => {
+// Any logged-in admin can post/clear an emergency announcement (no elevated
+// permission required, so it can go out fast).
+router.put('/', requireAuth, (req, res) => {
   const b = req.body || {};
   const next = {
     enabled: !!b.enabled,

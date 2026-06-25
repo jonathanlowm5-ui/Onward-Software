@@ -186,7 +186,7 @@ export default function Notification() {
           <div className="card-title" style={{ marginBottom: 0 }}>🚨 Emergency Announcement Ticker</div>
           <span className="pr" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: 13, color: ann.enabled ? 'var(--green)' : 'var(--muted)', fontWeight: 700 }}>{ann.enabled ? '● LIVE on site' : '○ Off'}</span>
-            <label className="switch"><input type="checkbox" checked={!!ann.enabled} onChange={(e) => saveAnn({ enabled: e.target.checked })} /><span className="slider"></span></label>
+            <label className="switch"><input type="checkbox" checked={!!ann.enabled} onChange={(e) => { if (e.target.checked && !ann.text.trim()) { toast('Enter a message first', 'error'); return; } saveAnn({ enabled: e.target.checked }); }} /><span className="slider"></span></label>
           </span>
         </div>
         <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>Shows a scrolling message at the very top of every player page. Use for maintenance, emergencies or important notices.</div>
