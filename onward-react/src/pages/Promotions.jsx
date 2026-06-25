@@ -3,6 +3,7 @@ import { useUI } from '../context/UIContext';
 import { useAuth } from '../context/AuthContext';
 import useSectionNav from '../hooks/useSectionNav';
 import { resolvePromoBanner } from '../utils/promoTerms';
+import usePageBanner from '../hooks/usePageBanner';
 import api from '../services/api';
 // Uploaded welcome-tier icons (coin → bag → chest → crown).
 import wStep1 from '../assets/welcome/welcome-step1.avif';
@@ -97,8 +98,17 @@ export default function Promotions() {
   const visible = SHOW_MAP[activeTab] || SHOW_MAP.all;
   const show = (id) => (visible.includes(id) ? {} : { display: 'none' });
 
-  // Welcome card: each player claims the 4 tiers; once all 4 are claimed the
-  // whole card is hidden for that player.
+  // Welcome card: an admin-uploaded background (Website Design) sits behind the
+  // 4 tiers; each player claims the tiers and once all 4 are claimed the whole
+  // card is hidden for that player.
+  const welcomeBg = usePageBanner('welcomeCard');
+  const welcomeCardStyle = welcomeBg
+    ? {
+      backgroundImage: `linear-gradient(90deg, rgba(10,20,42,.88) 0%, rgba(10,20,42,.5) 42%, rgba(10,20,42,.12) 72%, rgba(10,20,42,0) 100%), url(${welcomeBg})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+    }
+    : undefined;
   const welcomeClaimed = Math.max(0, Number(profile?.welcomeClaimed || 0));
   const welcomeDone = isLoggedIn && welcomeClaimed >= WELCOME_TIERS.length;
   const claimWelcome = async (i) => {
@@ -196,7 +206,7 @@ export default function Promotions() {
         {/* WELCOME BONUS HERO CARD — hidden once the player claims all 4 tiers */}
         {!welcomeDone && (
         <div id="promo-section-welcome" style={show('welcome')}>
-          <div className="welcome-hero-card">
+          <div className="welcome-hero-card" style={welcomeCardStyle}>
             <div className="welcome-hero-left">
               <span className="welcome-hero-activated" data-i18n="promo_activated">ACTIVATED</span>
               <div className="welcome-hero-title" data-i18n="promo_welcome">WELCOME BONUS</div>
