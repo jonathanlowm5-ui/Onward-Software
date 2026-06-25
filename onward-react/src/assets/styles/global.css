@@ -6286,3 +6286,8 @@ img{ -webkit-user-drag:none; user-drag:none; }
   .promo-bonus-grid .pb-card .wh-tier-btn{ font-size:13px !important; padding:11px !important; margin-top:10px !important; }
   .promo-bonus-grid .pb-region{ font-size:9px !important; }
 }
+
+/* Lobby "Popular Games" — cap at 12 tiles on mobile (full list via "See All"). */
+@media(max-width:640px){
+  #game-grid .game-card:nth-child(n+13){ display:none !important; }
+}
