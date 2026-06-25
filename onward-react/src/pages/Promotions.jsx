@@ -101,6 +101,14 @@ export default function Promotions() {
   // Welcome card: an admin-uploaded background (Website Design) sits behind the
   // 4 tiers; each player claims the tiers and once all 4 are claimed the whole
   // card is hidden for that player.
+  const promoBarBg = usePageBanner('promoCodeBar');
+  const promoBarStyle = promoBarBg
+    ? {
+      backgroundImage: `linear-gradient(rgba(10,20,42,.72), rgba(10,20,42,.72)), url(${promoBarBg})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+    }
+    : undefined;
   const welcomeBg = usePageBanner('welcomeCard');
   const welcomeCardStyle = welcomeBg
     ? {
@@ -144,7 +152,7 @@ export default function Promotions() {
     <div id="view-promos">
 
       {/* PROMO CODE BAR */}
-      <div className="promo-code-bar">
+      <div className="promo-code-bar" style={promoBarStyle}>
         <div className="promo-code-img">🎟️</div>
         <div className="promo-code-text">
           <div className="promo-code-title" data-i18n="promo_have_code">Have a Special Promocode?</div>

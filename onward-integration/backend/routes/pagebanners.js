@@ -14,7 +14,7 @@ const { requireAuth } = require('../auth');
 const { requirePerm } = require('../permissions');
 
 const router = express.Router();
-const KEYS = ['jackpots', 'referral', 'vip', 'agent', 'follow', 'promotions', 'missions', 'welcomeCard'];
+const KEYS = ['jackpots', 'referral', 'vip', 'agent', 'follow', 'promotions', 'missions', 'welcomeCard', 'promoCodeBar'];
 
 function current() {
   const m = store.getSettings().pageBanners || {};

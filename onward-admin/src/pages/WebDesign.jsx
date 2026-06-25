@@ -119,6 +119,28 @@ export default function WebDesign() {
         </div>
       </div>
 
+      {/* Promocode bar background — the "Have a Special Promocode?" bar */}
+      <div className="card" style={{ marginBottom: 'var(--pad)' }}>
+        <div className="card-title">🎟️ Promocode Bar Background</div>
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>
+          Background photo for the "Have a Special Promocode?" bar at the top of the Promotions page.
+          Recommended <b style={{ color: 'var(--text)' }}>1200 × 140 px</b> (wide ~8.5:1, under 4 MB). Cover-fitted with a dark overlay so the text stays readable.
+          Leave empty to keep the default surface colour.
+        </div>
+        <div style={{ maxWidth: 560 }}>
+          <div style={{ width: '100%', aspectRatio: '1200 / 140', borderRadius: 10, overflow: 'hidden', background: 'var(--panel-3,#1b2541)', border: '1px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
+            {pageBanners.promoCodeBar
+              ? <img src={pageBanners.promoCodeBar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              : <span style={{ fontSize: 12, color: 'var(--muted)' }}>No image — default surface colour</span>}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <input type="file" accept="image/*" onChange={uploadPageBanner('promoCodeBar')} />
+            {pbUploading === 'promoCodeBar' && <span style={{ color: 'var(--gold)' }}>…</span>}
+            {pageBanners.promoCodeBar && <button className="del-btn" onClick={() => clearPageBanner('promoCodeBar')}>🗑 Remove</button>}
+          </div>
+        </div>
+      </div>
+
       <div className="wd-grid">
         <div className="wd-card">
           <h3>🧩 Side Panel Logo</h3>
