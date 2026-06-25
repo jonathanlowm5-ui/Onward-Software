@@ -4,6 +4,7 @@ import { Table } from '../components/ui.jsx';
 import { listPromotions, togglePromotion, removePromotion, createPromotion, updatePromotion, reorderPromotions } from '../services/promotionService';
 import { uploadImage } from '../services/uploadService';
 import { getMiniGames, saveMiniGames } from '../services/minigameService';
+import { listBankChannels } from '../services/bankService';
 import { buildPromoTerms } from '../utils/promoTerms';
 
 /* ---------- demo data (fallbacks) ---------- */
@@ -105,7 +106,34 @@ const EMPTY_PROMO = {
   isExclusive: 'no', hidden: 'no', isAccumulate: 'no', promoDeductOnWithdraw: 'no',
   claimLimitDaily: 0, minDepositAmt: 0, depositCount: 0, maxClaimAmount: 0,
   maxWinningMultiply: 0, percentage: 0, multiply: 1, sequence: 0, minBalance: 0,
+  // step 2 — allow lists
+  allowProducts: [], allowPlayerGroups: [], allowBanks: [], allowRiskGroups: [],
 };
+
+const PROMO_PRODUCTS = ['JDB', 'JILI', 'JOKER', 'KINGMIDAS', 'VICTORY POKER', 'YESBINGO', 'DS88', 'PG SOFT', 'PRAGMATIC', 'EVOLUTION', 'SPRIBE', 'CQ9', 'FA CHAI', 'PLAYTECH', 'HABANERO'];
+const PROMO_PLAYER_GROUPS = ['Normal', 'VIP', 'VVIP', 'High Roller', 'New Player', 'Affiliate'];
+const PROMO_RISK_GROUPS = ['Low Risk', 'Medium Risk', 'High Risk', 'Watch List'];
+
+// A "Select All" + checklist allow-list (used on step 2 of the promo editor).
+function AllowList({ title, hint, options, selected, onChange }) {
+  const sel = Array.isArray(selected) ? selected : [];
+  const allSel = options.length > 0 && options.every((o) => sel.includes(o));
+  const toggle = (o) => onChange(sel.includes(o) ? sel.filter((x) => x !== o) : [...sel, o]);
+  const toggleAll = () => onChange(allSel ? [] : [...options]);
+  return (
+    <div className="pm-fld" style={{ gridColumn: '1 / -1' }}>
+      <label>{title} {hint && <span style={{ color: 'var(--muted)', fontWeight: 600 }}>{hint}</span>}</label>
+      <div style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 10, maxHeight: 190, overflowY: 'auto', background: 'var(--bg3,#0b1224)' }}>
+        <label style={alRow}><input type="checkbox" checked={allSel} onChange={toggleAll} /> <b>Select All</b></label>
+        {options.length === 0 && <div style={{ fontSize: 12, color: 'var(--muted)', padding: '4px 2px' }}>No options.</div>}
+        {options.map((o) => (
+          <label key={o} style={alRow}><input type="checkbox" checked={sel.includes(o)} onChange={() => toggle(o)} /> {o}</label>
+        ))}
+      </div>
+    </div>
+  );
+}
+const alRow = { display: 'flex', alignItems: 'center', gap: 8, padding: '5px 2px', fontSize: 13, color: 'var(--text)', cursor: 'pointer' };
 
 const PROMO_REQUIREMENTS = ['Deposit (T/O)', 'Deposit (Winover)', 'Product (T/O)', 'Product (Winover)', 'Multi-Product (T/O)', 'Multi-Product (Winover)'];
 const PROMO_BONUS_TYPES = ['Bonus', 'Free Credit', 'Referral Share', 'Register Bonus'];
@@ -125,7 +153,17 @@ function PromoEditModal({ initial, onClose, onSaved }) {
   const [uploading, setUploading] = useState(false);
   const [bannerCur, setBannerCur] = useState('PHP');
   const [bannerUploading, setBannerUploading] = useState(false);
+  const [step, setStep] = useState(1); // 1 = details/rules, 2 = allow lists
+  const [bankOptions, setBankOptions] = useState([]);
+  useEffect(() => {
+    let alive = true;
+    listBankChannels()
+      .then((rows) => { if (alive) setBankOptions([...new Set((Array.isArray(rows) ? rows : []).map((b) => b.bankName || b.name || b.label).filter(Boolean))]); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
+  const setMulti = (k) => (arr) => setF((p) => ({ ...p, [k]: arr }));
   // Picking a country auto-fills the matching currency (only when currency is
   // still on Auto) so country + currency promos stay consistent.
   const onCountry = (e) => {
@@ -177,12 +215,10 @@ function PromoEditModal({ initial, onClose, onSaved }) {
   const submit = async () => {
     if (!f.title.trim()) { toast('Promotion title is required', 'error'); return; }
     setBusy(true);
-    const payload = {
-      title: f.title.trim(), type: f.type, currency: f.currency, country: f.country, bonus: f.bonus, maxBonus: f.maxBonus,
-      minDeposit: f.minDeposit, wager: f.wager, turnover: f.turnover,
-      description: f.description, image: f.image, banners: f.banners || {}, startDate: f.startDate, endDate: f.endDate,
-      status: f.status, buttonText: f.buttonText, buttonLink: f.buttonLink,
-    };
+    // Send the whole form — the backend clean() keeps only the fields it knows
+    // (basic info, rules, and the step-2 allow lists). Spreading avoids dropping
+    // newly-added fields.
+    const payload = { ...f, title: f.title.trim(), banners: f.banners || {} };
     try {
       const saved = isEdit ? await updatePromotion(initial.id, payload) : await createPromotion(payload);
       toast(isEdit ? 'Promotion updated ✔ live on player site' : 'Promotion created ✔ live on player site');
@@ -203,6 +239,7 @@ function PromoEditModal({ initial, onClose, onSaved }) {
           <button className="kyc-x" style={{ marginLeft: 'auto' }} onClick={onClose}>✕</button>
         </div>
         <div className="pm-body">
+          <div style={{ display: step === 1 ? 'block' : 'none' }}>
           <div className="pm-grid">
             <div className="pm-fld" style={{ gridColumn: '1 / -1' }}><label>Title <span style={{ color: 'var(--red)' }}>*</span></label><input value={f.title} onChange={set('title')} placeholder="200% Welcome Bonus" /></div>
             <div className="pm-fld"><label>Section</label><select value={f.type} onChange={set('type')}><option value="welcome">Welcome</option><option value="deposit">Deposit</option><option value="reload">Reload</option><option value="cashback">Cashback</option><option value="freespin">Freespin</option><option value="referral">Referral</option><option value="tournament">Tournament</option></select><div className="pm-hint">Which page section it appears in. (Bonus type, %, amounts & limits are set in Promotion Rules below.)</div></div>
@@ -328,10 +365,34 @@ function PromoEditModal({ initial, onClose, onSaved }) {
               ))}
             </ol>
           </div>
+          </div>{/* /step 1 */}
+
+          {/* ===== STEP 2 — Allow lists (Multi-Product, player group, bank, risk) ===== */}
+          <div style={{ display: step === 2 ? 'block' : 'none' }}>
+            <div className="pm-grid">
+              <div className="pm-fld" style={{ gridColumn: '1 / -1' }}>
+                <div style={{ fontWeight: 800, color: 'var(--gold)', fontSize: 14 }}>✅ Allow Lists</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>Restrict who/what this promotion covers. Leave a list empty = allow everything.</div>
+              </div>
+              <AllowList title="Allow Products" hint="(Multi-Product — games/providers this promo applies to)" options={PROMO_PRODUCTS} selected={f.allowProducts} onChange={setMulti('allowProducts')} />
+              <AllowList title="Allow Player Groups" options={PROMO_PLAYER_GROUPS} selected={f.allowPlayerGroups} onChange={setMulti('allowPlayerGroups')} />
+              <AllowList title="Allow Banks" hint="(from your configured bank channels)" options={bankOptions} selected={f.allowBanks} onChange={setMulti('allowBanks')} />
+              <AllowList title="Allow Risk Groups" options={PROMO_RISK_GROUPS} selected={f.allowRiskGroups} onChange={setMulti('allowRiskGroups')} />
+            </div>
+          </div>
         </div>
         <div className="pm-foot">
-          <button className="btn-cancel" onClick={onClose}>Cancel</button>
-          <button className="btn-pm-save" onClick={submit} disabled={busy || uploading}>{busy ? 'Saving…' : (isEdit ? '💾 Update' : '＋ Create')}</button>
+          {step === 1 ? (
+            <>
+              <button className="btn-cancel" onClick={onClose}>Cancel</button>
+              <button className="btn-pm-save" onClick={() => setStep(2)}>Next →</button>
+            </>
+          ) : (
+            <>
+              <button className="btn-cancel" onClick={() => setStep(1)}>← Back</button>
+              <button className="btn-pm-save" onClick={submit} disabled={busy || uploading}>{busy ? 'Saving…' : (isEdit ? '💾 Update' : '＋ Create')}</button>
+            </>
+          )}
         </div>
       </div>
     </div>
