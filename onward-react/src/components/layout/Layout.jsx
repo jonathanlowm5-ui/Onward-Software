@@ -16,9 +16,6 @@ export default function Layout() {
     <>
       <Header />
 
-      {/* Full-width emergency announcement ticker, directly under the header */}
-      <NotificationTicker />
-
       {/* MOBILE SIDEBAR OVERLAY */}
       <div id="sb-overlay" className={sidebarOpen ? 'open' : ''} onClick={toggleSidebar}></div>
 
@@ -26,6 +23,8 @@ export default function Layout() {
       <div id="page-wrapper">
         <Sidebar />
         <div id="page-content">
+          {/* Announcement ticker — within the content column (clears the sidebar) */}
+          <NotificationTicker />
           <main id="main-content">
             <Outlet />
           </main>
