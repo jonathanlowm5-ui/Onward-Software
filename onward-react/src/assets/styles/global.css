@@ -784,6 +784,7 @@ body::before{
 /* Tier cards row */
 .welcome-hero-tiers{
   display:flex;gap:10px;flex:1;
+  justify-content:safe center;
   position:relative;z-index:1;
   overflow-x:auto;
   padding-bottom:4px;
