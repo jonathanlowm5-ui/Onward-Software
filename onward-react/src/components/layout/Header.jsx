@@ -5,6 +5,7 @@ import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import useSectionNav from '../../hooks/useSectionNav';
 import { IMG0 as LOGO } from '../../assets/images';
+import PlayerAvatar from '../common/PlayerAvatar';
 import { POPULAR_GAMES, ALL_SLOTS } from '../../services/data/gameData';
 import { launchGame as resolveLaunch } from '../../services/gamesService';
 
@@ -501,7 +502,7 @@ export default function Header() {
                 </div>
                 <button className="hdr-deposit-btn" onClick={() => openModal('deposit')}>DEPOSIT</button>
                 <div className="hdr-avatar-wrap" onClick={(e) => { e.stopPropagation(); setAcctOpen((o) => !o); }} style={{ cursor: 'pointer' }}>
-                  <div className="hdr-avatar" id="hdr-avatar">🎮</div>
+                  <div className="hdr-avatar" id="hdr-avatar" style={profile?.avatar ? { backgroundImage: `url(${profile.avatar})`, backgroundSize: 'cover', backgroundPosition: 'center', color: 'transparent' } : undefined}>{profile?.avatar ? '' : '🎮'}</div>
                   <div className="hdr-avatar-badge" id="hdr-avatar-badge">0</div>
                 </div>
               </div>
@@ -516,7 +517,7 @@ export default function Header() {
           <div onClick={() => setAcctOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 5000 }} />
           <div style={{ position: 'fixed', top: 96, right: 16, zIndex: 5001, width: 264, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, boxShadow: '0 20px 60px rgba(0,0,0,.6)', overflow: 'hidden', maxHeight: '80vh', overflowY: 'auto' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
-              <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'var(--bg3,#0c1322)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>🎮</div>
+              <PlayerAvatar size={42} fontSize={22} />
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{profile?.username || 'Player'}</div>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{profile?.playerCode || ''}</div>

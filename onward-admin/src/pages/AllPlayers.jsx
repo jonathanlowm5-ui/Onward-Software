@@ -42,6 +42,7 @@ const toRow = (p, i) => [
   p.hl || '',
   p.id || p.playerId || p.player_id || null, // [15] backend record id for API calls
   p.referralCode || p.referral_code || '',   // [16] referral code (for filtering)
+  p.avatar || '',                            // [17] uploaded avatar URL
 ];
 
 const selF = (l, opts, req) => (
@@ -596,7 +597,7 @@ export default function AllPlayers() {
         <div className="modal-ov show" id="pmModal" onClick={(e) => { if (e.target === e.currentTarget) closePlayer(); }}>
           <div className="pm-modal">
             <div className="pm-head">
-              <span className="pavatar" id="pmAvatar">{initials(PM[1])}</span>
+              <span className="pavatar" id="pmAvatar" style={PM[17] ? { backgroundImage: `url(${PM[17]})`, backgroundSize: 'cover', backgroundPosition: 'center', color: 'transparent' } : undefined}>{PM[17] ? '' : initials(PM[1])}</span>
               <span><div className="nm" id="pmName">{PM[1]}</div><div className="meta" id="pmMeta">ID #{String(PM[2]).padStart(7, '0')} · {PM[5]} · {PM[11] ? 'active' : 'suspended'}</div></span>
               <button className="kyc-x" style={{ marginLeft: 'auto' }} onClick={closePlayer} aria-label="Close">✕</button>
             </div>

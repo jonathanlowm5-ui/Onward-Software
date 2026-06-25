@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import useSectionNav from '../../hooks/useSectionNav';
+import PlayerAvatar from '../common/PlayerAvatar';
 
 const CURRENCIES = [
   { code: 'PHP', symbol: '₱', flag: '🇵🇭', name: 'Philippine Peso' },
@@ -85,7 +86,7 @@ export default function Dropdowns() {
       {dropdown === 'profile' && isLoggedIn && (
         <div id="profile-menu" style={{ ...panel, right: 16, minWidth: 264, padding: 0, overflow: 'hidden' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
-            <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'var(--bg3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>🎮</div>
+            <PlayerAvatar size={42} fontSize={22} />
             <div style={{ minWidth: 0 }}>
               <div style={{ fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{profile?.username || 'Player'}</div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{profile?.playerCode || ''}</div>
