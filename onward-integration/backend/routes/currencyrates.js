@@ -12,6 +12,7 @@
 const express = require('express');
 const store = require('../store');
 const { requireAuth } = require('../auth');
+const { requirePerm } = require('../permissions');
 
 const router = express.Router();
 const CODES = ['PHP', 'USD', 'EUR', 'INR', 'THB', 'VND', 'IDR', 'MYR', 'CNY', 'JPY'];
@@ -29,7 +30,7 @@ function current() {
 
 router.get('/', (req, res) => res.json(current()));
 
-router.put('/', requireAuth, (req, res) => {
+router.put('/', requireAuth, requirePerm('settings.manage'), (req, res) => {
   const b = req.body || {};
   const next = { ...(store.getSettings().currencyRates || {}) };
   const incoming = b.rates && typeof b.rates === 'object' ? b.rates : {};

@@ -10,6 +10,7 @@
 const express = require('express');
 const store = require('../store');
 const { requireAuth } = require('../auth');
+const { requirePerm } = require('../permissions');
 
 const router = express.Router();
 const DEFAULTS = [730, 1000, 2500, 5000, 10000, 25000, 50000, 60770];
@@ -25,7 +26,7 @@ function current() {
 
 router.get('/', (req, res) => res.json(current()));
 
-router.put('/', requireAuth, (req, res) => {
+router.put('/', requireAuth, requirePerm('settings.manage'), (req, res) => {
   let arr = req.body && req.body.quickAmounts;
   if (!Array.isArray(arr)) arr = [];
   arr = arr.map(Number).filter((n) => Number.isFinite(n) && n > 0).slice(0, 12);

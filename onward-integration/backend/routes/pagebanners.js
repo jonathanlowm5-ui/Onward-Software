@@ -11,6 +11,7 @@
 const express = require('express');
 const store = require('../store');
 const { requireAuth } = require('../auth');
+const { requirePerm } = require('../permissions');
 
 const router = express.Router();
 const KEYS = ['jackpots', 'referral', 'vip', 'agent', 'follow', 'promotions', 'missions'];
@@ -24,7 +25,7 @@ function current() {
 
 router.get('/', (req, res) => res.json(current()));
 
-router.put('/', requireAuth, (req, res) => {
+router.put('/', requireAuth, requirePerm('settings.manage'), (req, res) => {
   const b = req.body || {};
   const next = { ...(store.getSettings().pageBanners || {}) };
   KEYS.forEach((k) => { if (k in b) next[k] = String(b[k] || '').slice(0, 2048); });

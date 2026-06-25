@@ -12,6 +12,7 @@
 const express = require('express');
 const store = require('../store');
 const { requireAuth, requirePlayer } = require('../auth');
+const { requirePerm } = require('../permissions');
 
 const router = express.Router();
 const AGENTS = 'agents';
@@ -72,7 +73,7 @@ router.get('/', requireAuth, (req, res) => {
   res.json(rows);
 });
 
-router.patch('/:id/approve', requireAuth, (req, res) => {
+router.patch('/:id/approve', requireAuth, requirePerm('agents.manage'), (req, res) => {
   const a = store.get(AGENTS, req.params.id);
   if (!a) return res.status(404).json({ error: 'Agent not found' });
   const code = a.code || `AG${String(a.id).slice(-4).toUpperCase()}`;
@@ -81,7 +82,7 @@ router.patch('/:id/approve', requireAuth, (req, res) => {
   res.json(store.update(AGENTS, req.params.id, { status: 'approved', code }));
 });
 
-router.patch('/:id/reject', requireAuth, (req, res) => {
+router.patch('/:id/reject', requireAuth, requirePerm('agents.manage'), (req, res) => {
   const a = store.get(AGENTS, req.params.id);
   if (!a) return res.status(404).json({ error: 'Agent not found' });
   res.json(store.update(AGENTS, req.params.id, { status: 'rejected', reason: req.body?.reason || '' }));

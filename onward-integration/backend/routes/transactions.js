@@ -51,12 +51,18 @@ router.get('/', requireAuth, (req, res) => {
 });
 
 // ---- create ----
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, requirePerm('transactions.approve'), (req, res) => {
   const b = req.body || {};
+  const type = ['deposit', 'withdrawal', 'bonus', 'adjustment'].includes(b.type) ? b.type : 'deposit';
+  const amount = Number(b.amount);
+  // Reject invalid amounts. Only "adjustment" may be negative (manual correction).
+  if (!Number.isFinite(amount) || amount === 0 || (amount < 0 && type !== 'adjustment')) {
+    return res.status(400).json({ error: 'A valid non-zero amount is required' });
+  }
   const tx = store.insert(COLLECTION, {
     playerId: b.playerId || null,
-    type: ['deposit', 'withdrawal', 'bonus', 'adjustment'].includes(b.type) ? b.type : 'deposit',
-    amount: Number(b.amount || 0),
+    type,
+    amount,
     method: b.method || '',
     status: b.status || 'pending',
     note: b.note || '',

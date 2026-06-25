@@ -6,7 +6,19 @@
  */
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret-in-production';
+// JWT signing secret. In the deployed environment it MUST come from a real
+// secret (bound via Firebase Secret Manager in functions.js) — we refuse to
+// boot with the old hardcoded placeholder so forged tokens are impossible.
+// Locally (no Cloud Functions runtime) we fall back to a dev-only secret.
+const ON_CLOUD = !!(process.env.K_SERVICE || process.env.FUNCTION_TARGET || process.env.FUNCTION_SIGNATURE_TYPE);
+let JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  if (ON_CLOUD) {
+    throw new Error('JWT_SECRET is not configured. Set it via Firebase Secret Manager before deploying.');
+  }
+  JWT_SECRET = 'dev-only-insecure-secret-do-not-use-in-prod';
+  console.warn('[auth] JWT_SECRET not set — using an INSECURE dev secret (local only).');
+}
 const TOKEN_TTL = '12h';
 
 function sign(user) {

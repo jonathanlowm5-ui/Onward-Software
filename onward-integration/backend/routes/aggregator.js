@@ -12,6 +12,7 @@ const express = require('express');
 const store = require('../store');
 const provider = require('../providers');
 const { requireAuth } = require('../auth');
+const { requirePerm } = require('../permissions');
 
 const router = express.Router();
 
@@ -21,7 +22,7 @@ router.get('/status', requireAuth, (req, res) => {
 });
 
 // Pull the upstream catalog and upsert into local games (matched by externalId).
-router.post('/import', requireAuth, async (req, res) => {
+router.post('/import', requireAuth, requirePerm('content.manage'), async (req, res) => {
   try {
     const config = store.getSettings();
     const catalog = await provider.listGames(config);

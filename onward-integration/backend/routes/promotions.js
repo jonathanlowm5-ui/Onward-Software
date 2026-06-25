@@ -15,6 +15,7 @@
 const express = require('express');
 const store = require('../store');
 const { requireAuth } = require('../auth');
+const { requirePerm } = require('../permissions');
 
 const router = express.Router();
 const COLLECTION = 'promotions';
@@ -85,7 +86,7 @@ router.get('/', (req, res) => {
   res.json(promos);
 });
 
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, requirePerm('content.manage'), (req, res) => {
   const data = clean(req.body);
   if (!data.title) return res.status(400).json({ error: 'Promotion title is required' });
   // New promos append to the end of the order.
@@ -94,27 +95,27 @@ router.post('/', requireAuth, (req, res) => {
 });
 
 // Reorder: body { order: [id, id, ...] } -> sets sortOrder = index for each.
-router.post('/reorder', requireAuth, (req, res) => {
+router.post('/reorder', requireAuth, requirePerm('content.manage'), (req, res) => {
   const order = Array.isArray(req.body && req.body.order) ? req.body.order : [];
   order.forEach((id, i) => { if (store.get(COLLECTION, id)) store.update(COLLECTION, id, { sortOrder: i }); });
   res.json(store.list(COLLECTION).slice().sort(bySort));
 });
 
-router.put('/:id', requireAuth, (req, res) => {
+router.put('/:id', requireAuth, requirePerm('content.manage'), (req, res) => {
   // clean() omits sortOrder, so store.update preserves the existing order.
   const updated = store.update(COLLECTION, req.params.id, clean(req.body));
   if (!updated) return res.status(404).json({ error: 'Promotion not found' });
   res.json(updated);
 });
 
-router.patch('/:id/toggle', requireAuth, (req, res) => {
+router.patch('/:id/toggle', requireAuth, requirePerm('content.manage'), (req, res) => {
   const promo = store.get(COLLECTION, req.params.id);
   if (!promo) return res.status(404).json({ error: 'Promotion not found' });
   const status = promo.status === 'active' ? 'inactive' : 'active';
   res.json(store.update(COLLECTION, req.params.id, { status }));
 });
 
-router.delete('/:id', requireAuth, (req, res) => {
+router.delete('/:id', requireAuth, requirePerm('content.manage'), (req, res) => {
   if (!store.remove(COLLECTION, req.params.id))
     return res.status(404).json({ error: 'Promotion not found' });
   res.json({ ok: true });
