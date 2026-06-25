@@ -132,7 +132,12 @@ export default function PromoDetailModal() {
             {terms.map((t, i) => <li key={i}>{t}</li>)}
           </ol>
         </div>
+      </div>
 
+      {/* Sticky footer — Back + the call-to-action stay reachable without
+          scrolling through the whole T&C (mobile-friendly). */}
+      <div className="promo-detail-footer">
+        <button className="promo-detail-back" onClick={closeModal}>← Back</button>
         <button className="promo-detail-cta" onClick={onCta}>{ctaLabel}</button>
       </div>
     </Modal>

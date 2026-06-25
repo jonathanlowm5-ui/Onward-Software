@@ -1295,12 +1295,36 @@ body::before{
 }
 .promo-terms-list li::marker{color:var(--gold,#f0c040);font-weight:700}
 .promo-detail-cta{
-  width:100%;padding:13px;border:none;border-radius:10px;cursor:pointer;
+  flex:1;width:100%;padding:13px;border:none;border-radius:10px;cursor:pointer;
   font-weight:900;font-size:15px;color:#1a1205;
   background:linear-gradient(180deg,#ffd75e,#f0c040);
   box-shadow:0 8px 20px rgba(240,192,64,.32);
 }
 .promo-detail-cta:hover{filter:brightness(1.05)}
+
+/* Promo detail modal: bounded height with a pinned header + sticky footer so
+   the Back / Claim buttons are always reachable (no scrolling through all the
+   T&C on mobile). */
+#promo-modal .modal{ display:flex; flex-direction:column; max-height:90vh; }
+#promo-modal .modal-header{ flex:0 0 auto; }
+#promo-modal .modal-body{ flex:1 1 auto; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+.promo-detail-footer{
+  flex:0 0 auto;display:flex;align-items:center;gap:10px;
+  padding:14px 18px;border-top:1px solid var(--border);
+  background:var(--bg3);
+}
+.promo-detail-back{
+  flex:0 0 auto;padding:13px 16px;border:1px solid var(--border);border-radius:10px;
+  background:var(--surface);color:var(--text,#fff);font-weight:800;font-size:14px;cursor:pointer;
+  font-family:inherit;white-space:nowrap;
+}
+.promo-detail-back:hover{background:var(--border)}
+@media(max-width:600px){
+  #promo-modal .modal{ max-height:92vh; }
+  /* Single scroll area — let the body scroll instead of a nested T&C box. */
+  #promo-modal .promo-terms-list{ max-height:none; overflow:visible; }
+  .promo-detail-footer{ padding:12px 14px; }
+}
 
 @media(max-width:900px){
   .welcome-hero-card{flex-direction:column;align-items:flex-start}
