@@ -205,7 +205,7 @@ function PromoEditModal({ initial, onClose, onSaved }) {
         <div className="pm-body">
           <div className="pm-grid">
             <div className="pm-fld" style={{ gridColumn: '1 / -1' }}><label>Title <span style={{ color: 'var(--red)' }}>*</span></label><input value={f.title} onChange={set('title')} placeholder="200% Welcome Bonus" /></div>
-            <div className="pm-fld"><label>Section</label><select value={f.type} onChange={set('type')}><option value="welcome">welcome</option><option value="deposit">deposit</option><option value="reload">reload</option><option value="cashback">cashback</option><option value="freespin">freespin</option><option value="referral">referral</option><option value="tournament">tournament</option></select><div className="pm-hint">Which page section it appears in. (Bonus type, %, amounts & limits are set in Promotion Rules below.)</div></div>
+            <div className="pm-fld"><label>Section</label><select value={f.type} onChange={set('type')}><option value="welcome">Welcome</option><option value="deposit">Deposit</option><option value="reload">Reload</option><option value="cashback">Cashback</option><option value="freespin">Freespin</option><option value="referral">Referral</option><option value="tournament">Tournament</option></select><div className="pm-hint">Which page section it appears in. (Bonus type, %, amounts & limits are set in Promotion Rules below.)</div></div>
             <div className="pm-fld"><label>Country</label><select value={f.country} onChange={onCountry}><option value="">All countries</option>{PROMO_COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
             <div className="pm-fld"><label>Currency</label><select value={f.currency} onChange={set('currency')}><option value="">Auto (player's currency)</option>{PROMO_CURRENCIES.map((c) => <option key={c} value={c}>{c} only</option>)}</select></div>
             <div className="pm-fld"><label>Start Date</label><input type="date" value={f.startDate} onChange={set('startDate')} /></div>
@@ -389,7 +389,7 @@ function PromosTab({ promos, setPromos, loading, onEdit }) {
       <div className="card" style={{ marginTop: 'var(--pad)' }}>
         <div className="page-head" style={{ marginBottom: 12 }}><div className="card-title" style={{ marginBottom: 0 }}>Promotion Packages</div>
           <span className="pr" style={{ display: 'flex', gap: 8 }}>
-            <select className="qsearch" style={{ width: 'auto' }} value={typeF} onChange={(e) => setTypeF(e.target.value)}><option value="">All Types</option><option>welcome</option><option>deposit</option><option>referral</option><option>cashback</option><option>freespin</option></select>
+            <select className="qsearch" style={{ width: 'auto' }} value={typeF} onChange={(e) => setTypeF(e.target.value)}><option value="">All Types</option><option value="welcome">Welcome</option><option value="deposit">Deposit</option><option value="reload">Reload</option><option value="cashback">Cashback</option><option value="freespin">Freespin</option><option value="referral">Referral</option><option value="tournament">Tournament</option></select>
             <input className="qsearch" placeholder="Search promo…" value={query} onChange={(e) => setQuery(e.target.value)} />
           </span>
         </div>
