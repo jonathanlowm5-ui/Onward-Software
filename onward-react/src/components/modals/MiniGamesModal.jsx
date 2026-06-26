@@ -125,7 +125,7 @@ function FortuneWheel({ config, onClose }) {
   // stage so the wheel is the hero instead of floating in empty artwork.
   const themed = !!(wheel.theme?.bgImage || wheel.theme?.frameImage);
   const avail = stageW || (typeof window !== 'undefined' ? window.innerWidth - 96 : 340);
-  const size = Math.max(220, Math.min(themed ? 380 : 340, avail));
+  const size = Math.max(220, Math.min(themed ? 400 : 360, avail));
   const theme = wheel.theme || {};
   const rimColor = theme.rimColor || '#f4b223';
   const hubColor = theme.hubColor || '#f4b223';
