@@ -2433,7 +2433,7 @@ footer{
 }
 
 #sidebar-nav{
-  width:220px;
+  width:248px;
   flex-shrink:0;
   background:var(--bg2);
   border-right:1px solid var(--border);
@@ -2513,7 +2513,10 @@ footer{
   transition:all .2s;
   color:var(--text-muted);
   background:transparent;
+  white-space:nowrap;
 }
+/* Keep tab labels on a single line even for longer translations (e.g. CN). */
+.sb-tab span:last-child{white-space:nowrap}
 .sb-tab.active{
   background:linear-gradient(135deg,var(--gold),var(--gold-dark));
   color:#06091a;
