@@ -4,8 +4,13 @@ import useSectionNav from '../hooks/useSectionNav';
 import PageBanner from '../components/common/PageBanner.jsx';
 import usePageHero from '../hooks/usePageHero';
 import { JP_WINNINGS, JP_FAV_GAMES } from '../services/data/gameData';
+// Uploaded jackpot tier badges (replace the medal/crown emoji on each card).
+import jpImperial from '../assets/jackpot/jackpot-imperial.avif';
+import jpGolden from '../assets/jackpot/jackpot-golden.avif';
+import jpSilver from '../assets/jackpot/jackpot-silver.avif';
+import jpBronze from '../assets/jackpot/jackpot-bronze.avif';
 
-const TIER_ICONS = { Bronze: '🥉', Silver: '🥈', Golden: '🥇', Imperial: '👑' };
+const TIER_ICONS = { Bronze: jpBronze, Silver: jpSilver, Golden: jpGolden, Imperial: jpImperial };
 
 function formatJPAmount(v) {
   if (v >= 1000000) return (v / 1000000).toFixed(2) + 'M';
@@ -81,7 +86,7 @@ export default function Jackpots() {
 
           <div className="jp-tier-card imperial" onClick={() => openModal('register')}>
             <span className="jp-tier-hot">HOT</span>
-            <span className="jp-tier-crown">👑</span>
+            <img className="jp-tier-crown" src={jpImperial} alt="" />
             <div className="jp-tier-name" data-i18n="jp_imperial">Imperial</div>
             <div className="jp-tier-label" data-i18n="misc_jackpot">Jackpot</div>
             <div className="jp-tier-amount imperial-color">
@@ -96,7 +101,7 @@ export default function Jackpots() {
           </div>
 
           <div className="jp-tier-card golden" onClick={() => openModal('register')}>
-            <span className="jp-tier-crown">🥇</span>
+            <img className="jp-tier-crown" src={jpGolden} alt="" />
             <div className="jp-tier-name" data-i18n="jp_golden">Golden</div>
             <div className="jp-tier-label">Jackpot</div>
             <div className="jp-tier-amount golden-color">
@@ -111,7 +116,7 @@ export default function Jackpots() {
           </div>
 
           <div className="jp-tier-card silver" onClick={() => openModal('register')}>
-            <span className="jp-tier-crown">🥈</span>
+            <img className="jp-tier-crown" src={jpSilver} alt="" />
             <div className="jp-tier-name" data-i18n="jp_silver">Silver</div>
             <div className="jp-tier-label">Jackpot</div>
             <div className="jp-tier-amount silver-color">
@@ -126,7 +131,7 @@ export default function Jackpots() {
           </div>
 
           <div className="jp-tier-card bronze" onClick={() => openModal('register')}>
-            <span className="jp-tier-crown">🥉</span>
+            <img className="jp-tier-crown" src={jpBronze} alt="" />
             <div className="jp-tier-name" data-i18n="jp_bronze">Bronze</div>
             <div className="jp-tier-label">Jackpot</div>
             <div className="jp-tier-amount bronze-color">
@@ -167,7 +172,9 @@ export default function Jackpots() {
                     </td>
                     <td>
                       <div className="jp-jackpot-cell">
-                        <span className="jp-jackpot-crown">{TIER_ICONS[w.tier] || '🏅'}</span>
+                        {TIER_ICONS[w.tier]
+                          ? <img className="jp-jackpot-crown" src={TIER_ICONS[w.tier]} alt="" />
+                          : <span className="jp-jackpot-crown">🏅</span>}
                         <span className={w.tierClass}>{w.tier}</span>
                       </div>
                     </td>

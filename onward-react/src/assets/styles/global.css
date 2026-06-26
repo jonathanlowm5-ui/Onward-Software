@@ -1554,6 +1554,9 @@ body::before{
   padding:2px 7px;border-radius:4px;
 }
 .jp-tier-crown{font-size:54px;line-height:1;margin-bottom:10px;display:block}
+/* Uploaded jackpot badge image variant of the tier crown. */
+img.jp-tier-crown{width:84px;height:84px;object-fit:contain;margin:0 auto 10px;filter:drop-shadow(0 4px 10px rgba(0,0,0,.45))}
+img.jp-jackpot-crown{width:24px;height:24px;object-fit:contain;vertical-align:middle}
 .jp-tier-name{
   font-size:14px;font-weight:700;color:#fff;
   margin-bottom:2px;letter-spacing:.04em;
@@ -5680,6 +5683,7 @@ img{ -webkit-user-drag:none; user-drag:none; }
   .jp-tiers{ gap:8px !important; margin-bottom:24px !important; }
   .jp-tier-card{ padding:14px 10px !important; }
   .jp-tier-crown{ font-size:38px !important; margin-bottom:6px !important; }
+  img.jp-tier-crown{ width:60px !important; height:60px !important; margin-bottom:6px !important; }
   .jp-tier-name{ font-size:13px !important; }
   .jp-tier-amount{ font-size:17px !important; margin-bottom:10px !important; }
   .jp-tier-meta{ font-size:10px !important; padding-top:9px !important; }
