@@ -57,6 +57,23 @@ function FortuneWheel({ config, onClose }) {
   const [status, setStatus] = useState(null); // { freeLeft, spinsToday, maxPerDay, spinCost }
   const [result, setResult] = useState(null); // { label, won }
   const timer = useRef(null);
+  // Measure the stage's inner width so the wheel scales to fit small screens
+  // (otherwise the fixed 340px wheel overflows narrow phones and the right-hand
+  // prizes clip). Falls back to the viewport width before the first measure.
+  const stageRef = useRef(null);
+  const [stageW, setStageW] = useState(0);
+  useEffect(() => {
+    const measure = () => {
+      const el = stageRef.current;
+      if (!el) return;
+      const cs = window.getComputedStyle(el);
+      const pad = parseFloat(cs.paddingLeft || '0') + parseFloat(cs.paddingRight || '0');
+      setStageW(Math.max(0, el.clientWidth - pad));
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
 
   const loadStatus = () => {
     if (!isLoggedIn) { setStatus(null); return; }
@@ -103,7 +120,10 @@ function FortuneWheel({ config, onClose }) {
     }
   };
 
-  const size = 340;
+  // Fit the wheel to its stage: full 340 on desktop, shrinking on phones so it
+  // never overflows the modal. Use the measured stage width when available.
+  const avail = stageW || (typeof window !== 'undefined' ? window.innerWidth - 96 : 340);
+  const size = Math.max(220, Math.min(340, avail));
   const theme = wheel.theme || {};
   const rimColor = theme.rimColor || '#f4b223';
   const hubColor = theme.hubColor || '#f4b223';
@@ -143,8 +163,8 @@ function FortuneWheel({ config, onClose }) {
 
       {/* Stage — only shows a panel when a background image is uploaded; otherwise
           the wheel sits transparently on the modal (no dark box / border). */}
-      <div style={{
-        position: 'relative', width: '100%', maxWidth: size + 80,
+      <div ref={stageRef} style={{
+        position: 'relative', width: '100%', maxWidth: 420,
         borderRadius: theme.bgImage ? 18 : 0, overflow: 'visible',
         padding: '16px 14px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
         background: theme.bgImage ? `url(${theme.bgImage}) center/cover no-repeat` : 'transparent',
@@ -154,7 +174,7 @@ function FortuneWheel({ config, onClose }) {
           ? <img src={theme.titleImage} alt="" style={{ display: 'block', width: '100%', maxWidth: 460, maxHeight: 128, objectFit: 'contain', margin: '0 auto' }} />
           : <div style={{ ...fwTitle, textAlign: 'center', width: '100%' }}>{theme.title || 'WHEEL OF FORTUNE'}</div>}
 
-        <div style={{ position: 'relative', width: size, height: size, maxWidth: '86vw', aspectRatio: '1 / 1' }}>
+        <div style={{ position: 'relative', width: size, height: size, aspectRatio: '1 / 1' }}>
           {/* frame — uploaded ring image, else generated gold rim ring (z2) */}
           {frameImage
             ? <img src={frameImage} alt="" style={{ position: 'absolute', inset: -6, width: 'calc(100% + 12px)', height: 'calc(100% + 12px)', objectFit: 'contain', pointerEvents: 'none', zIndex: 2 }} />
