@@ -51,6 +51,10 @@ function FortuneWheel({ config, onClose }) {
     () => (wheelImage ? active.map((_, i) => (i + 0.5) * (360 / (active.length || 1))) : centers),
     [wheelImage, active, centers],
   );
+  // Half a segment — the disc is offset by this so a slice CENTRE (a number),
+  // not a dividing line, sits under the top pointer at rest and after every spin.
+  const segDeg = 360 / (active.length || 1);
+  const halfSeg = segDeg / 2;
 
   const [rot, setRot] = useState(0);
   const [spinning, setSpinning] = useState(false);
@@ -95,9 +99,11 @@ function FortuneWheel({ config, onClose }) {
     try {
       const { data } = await api.post('/mini-games/wheel/spin');
       const idx = Math.max(0, Math.min(active.length - 1, data?.result?.index ?? 0));
-      const target = landCenters[idx] || 0;
+      // Subtract halfSeg to match the disc's resting offset, so the slice CENTRE
+      // (not the boundary line) lands under the top pointer.
+      const target = (landCenters[idx] || 0) - halfSeg;
       // Land the winning slice centre under the top pointer with ≥5 full turns.
-      const desired = (360 - (target % 360)) % 360;
+      const desired = ((360 - (target % 360)) % 360 + 360) % 360;
       const current = ((rot % 360) + 360) % 360;
       let delta = desired - current;
       if (delta < 0) delta += 360;
@@ -213,7 +219,7 @@ function FortuneWheel({ config, onClose }) {
             ...(wheelImage
               ? { backgroundImage: `url(${wheelImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }
               : { background: gradient }),
-            transform: `rotate(${rot}deg)`,
+            transform: `rotate(${rot - halfSeg}deg)`,
             transition: spinning ? 'transform 4s cubic-bezier(.17,.67,.27,1)' : 'none',
             boxShadow: 'inset 0 0 30px rgba(0,0,0,.45)',
           }}>
