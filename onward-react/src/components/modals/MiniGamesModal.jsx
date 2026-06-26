@@ -163,20 +163,25 @@ function FortuneWheel({ config, onClose }) {
         {isLoggedIn && <span style={chip}>Balance: <b style={{ color: 'var(--gold)' }}>{sym}{Number(profile?.balance || 0).toLocaleString()}</b></span>}
       </div>
 
-      {/* Title — sits on the clean modal background (above the themed stage) so it
-          never overlaps the wheel/frame artwork. */}
-      {theme.titleImage
-        ? <img src={theme.titleImage} alt="" style={{ display: 'block', width: '100%', maxWidth: 420, maxHeight: 116, objectFit: 'contain', margin: '0 auto' }} />
-        : <div style={{ ...fwTitle, textAlign: 'center', width: '100%' }}>{theme.title || 'WHEEL OF FORTUNE'}</div>}
-
-      {/* Stage — only shows a panel when a background image is uploaded; otherwise
-          the wheel sits transparently on the modal (no dark box / border). */}
+      {/* Stage — when a background image is uploaded it bleeds edge-to-edge so it
+          fills the whole mini-games card (cancelling the modal-body padding), and
+          holds the title + wheel. Without art it's a transparent centred column. */}
       <div ref={stageRef} style={{
-        position: 'relative', width: '100%', maxWidth: 440,
-        borderRadius: theme.bgImage ? 18 : 0, overflow: 'visible',
-        padding: theme.bgImage ? '18px 12px' : '4px 0', display: 'flex', flexDirection: 'column', alignItems: 'center',
+        position: 'relative',
+        width: theme.bgImage ? 'calc(100% + 56px)' : '100%',
+        marginLeft: theme.bgImage ? -28 : 0,
+        marginRight: theme.bgImage ? -28 : 0,
+        maxWidth: theme.bgImage ? 'none' : 440,
+        overflow: 'visible',
+        padding: theme.bgImage ? '22px 16px 28px' : '4px 0',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
         background: theme.bgImage ? `url(${theme.bgImage}) center/cover no-repeat` : 'transparent',
       }}>
+        {/* title — sits on the themed background */}
+        {theme.titleImage
+          ? <img src={theme.titleImage} alt="" style={{ display: 'block', width: '100%', maxWidth: 420, maxHeight: 116, objectFit: 'contain', margin: '0 auto' }} />
+          : <div style={{ ...fwTitle, textAlign: 'center', width: '100%' }}>{theme.title || 'WHEEL OF FORTUNE'}</div>}
+
         <div style={{ position: 'relative', width: size, height: size, aspectRatio: '1 / 1' }}>
           {/* frame — uploaded ring image, else generated gold rim ring (z2) */}
           {frameImage
