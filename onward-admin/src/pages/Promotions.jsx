@@ -563,6 +563,7 @@ function wheelGrad(slices) {
 // Theme image-slot tile styles (the upload grid in the Theme card).
 const slotWrap = { display: 'flex', flexDirection: 'column', gap: 6 };
 const slotLabel = { fontSize: 12, fontWeight: 700, color: 'var(--muted,#8898b8)', textAlign: 'center' };
+const slotHint = { fontSize: 10, fontWeight: 600, color: 'var(--gold,#f0c040)', textAlign: 'center', opacity: 0.85, marginTop: -2 };
 const slotBox = {
   display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
   height: 96, padding: 8, borderRadius: 10, border: '1px dashed var(--border,#243049)',
@@ -622,10 +623,11 @@ function MgWheel({ slices, setSlices, wheelCfg = {}, setWheelCfg, onSave, saving
     } finally { setThemeUploading(''); }
   };
   // One upload tile (label, preview, upload, remove) — mirrors the reference grid.
-  const renderSlot = ({ key, label, url, apply, bg }) => (
+  const renderSlot = ({ key, label, url, apply, bg, hint }) => (
     <div style={slotWrap}>
       <div style={slotLabel}>{label}</div>
-      <label style={{ ...slotBox, background: bg || 'var(--bg3,#0b1224)' }} title={`Upload ${label}`}>
+      {hint && <div style={slotHint}>{hint}</div>}
+      <label style={{ ...slotBox, background: bg || 'var(--bg3,#0b1224)' }} title={`Upload ${label} — recommended ${hint || 'square image'}`}>
         {url
           ? <img src={url} alt={label} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
           : <span style={slotEmpty}>{themeUploading === key ? 'Uploading…' : '＋ Upload'}</span>}
@@ -751,6 +753,9 @@ function MgWheel({ slices, setSlices, wheelCfg = {}, setWheelCfg, onSave, saving
         </div>
         <div className="card" style={{ marginTop: 'var(--pad)' }}>
           <div className="card-title">🎨 Theme <span style={{ color: 'var(--muted)', fontSize: 12, fontWeight: 600 }}>(upload each element — change anytime)</span></div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 10, lineHeight: 1.5 }}>
+            ℹ The wheel displays at up to <b style={{ color: 'var(--gold)' }}>340 px</b> and scales down on mobile. Upload at <b style={{ color: 'var(--text)' }}>2×</b> for sharp art. Use <b style={{ color: 'var(--text)' }}>square 1:1</b> images for the Prize disc &amp; Frame (the disc shows as a circle). PNG/WebP/AVIF, max 10 MB each.
+          </div>
           <div className="fld" style={{ marginBottom: 14 }}>
             <label>Title Text <span style={{ color: 'var(--muted)', fontWeight: 600, fontSize: 11 }}>(used when no Title image)</span></label>
             <input value={theme.title || ''} onChange={(e) => setTheme('title', e.target.value)} placeholder="WHEEL OF FORTUNE" />
@@ -759,13 +764,13 @@ function MgWheel({ slices, setSlices, wheelCfg = {}, setWheelCfg, onSave, saving
               Prize is the disc, Pin sits in the CENTRE, Token at the BOTTOM, Button below. */}
           <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>Layout: <b style={{ color: 'var(--text)' }}>Background · Title · Frame (rim) → Prize (disc) · Pin (centre) · Token (bottom) · Button</b></div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 12 }}>
-            {renderSlot({ key: 'bgImage', label: 'Background', url: theme.bgImage, apply: (u) => setTheme('bgImage', u) })}
-            {renderSlot({ key: 'titleImage', label: 'Title', url: theme.titleImage, apply: (u) => setTheme('titleImage', u) })}
-            {renderSlot({ key: 'frameImage', label: 'Frame (rim)', url: theme.frameImage, apply: (u) => setTheme('frameImage', u) })}
-            {renderSlot({ key: 'prizeImage', label: 'Prize Wheel (disc)', url: wheelCfg.image, apply: (u) => setWheelCfg?.((s) => ({ ...s, image: u })) })}
-            {renderSlot({ key: 'pinImage', label: 'Pin (centre)', url: theme.pinImage, apply: (u) => setTheme('pinImage', u) })}
-            {renderSlot({ key: 'tokenImage', label: 'Token (bottom)', url: theme.tokenImage, apply: (u) => setTheme('tokenImage', u) })}
-            {renderSlot({ key: 'buttonImage', label: 'Button', url: theme.buttonImage, apply: (u) => setTheme('buttonImage', u) })}
+            {renderSlot({ key: 'bgImage', label: 'Background', hint: '≈ 840 × 900 px', url: theme.bgImage, apply: (u) => setTheme('bgImage', u) })}
+            {renderSlot({ key: 'titleImage', label: 'Title', hint: '920 × 256 px (transparent)', url: theme.titleImage, apply: (u) => setTheme('titleImage', u) })}
+            {renderSlot({ key: 'frameImage', label: 'Frame (rim)', hint: '880 × 880 px · hollow centre', url: theme.frameImage, apply: (u) => setTheme('frameImage', u) })}
+            {renderSlot({ key: 'prizeImage', label: 'Prize Wheel (disc)', hint: '800 × 800 px square (circle)', url: wheelCfg.image, apply: (u) => setWheelCfg?.((s) => ({ ...s, image: u })) })}
+            {renderSlot({ key: 'pinImage', label: 'Pin (centre)', hint: '200 × 200 px (transparent)', url: theme.pinImage, apply: (u) => setTheme('pinImage', u) })}
+            {renderSlot({ key: 'tokenImage', label: 'Token (bottom)', hint: '200 × 200 px (transparent)', url: theme.tokenImage, apply: (u) => setTheme('tokenImage', u) })}
+            {renderSlot({ key: 'buttonImage', label: 'Button', hint: '520 × 160 px (transparent)', url: theme.buttonImage, apply: (u) => setTheme('buttonImage', u) })}
           </div>
           {/* Prize fit — how big the prize disc sits inside the frame ring */}
           {theme.frameImage && (
