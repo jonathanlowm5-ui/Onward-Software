@@ -714,7 +714,10 @@ function MgWheel({ slices, setSlices, wheelCfg = {}, setWheelCfg, onSave, saving
                     ...(wheelCfg.image
                       ? { backgroundImage: `url(${wheelCfg.image})`, backgroundSize: 'cover', backgroundPosition: 'center' }
                       : { background: wheelGrad(slices) }),
-                    transform: `rotate(${rot}deg)`, transition: 'transform 2.2s cubic-bezier(.17,.67,.27,1)',
+                    // Offset by half a segment so slice #1's CENTRE sits under
+                    // badge 1 at the top (12 o'clock) — i.e. the first slice is
+                    // always at position 1 — instead of straddling the boundary.
+                    transform: `rotate(${rot - seg / 2}deg)`, transition: 'transform 2.2s cubic-bezier(.17,.67,.27,1)',
                     border: '6px solid #f4b223', boxShadow: '0 0 0 3px rgba(0,0,0,.45), inset 0 0 26px rgba(0,0,0,.45)',
                   }}>
                     {!wheelCfg.image && act.map((s, i) => {
