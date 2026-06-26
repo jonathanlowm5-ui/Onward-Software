@@ -157,7 +157,7 @@ function FortuneWheel({ config, onClose }) {
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr)', gap: 14, justifyItems: 'center' }}>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', width: '100%' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', width: '100%', padding: '14px 14px 0', boxSizing: 'border-box' }}>
         <span style={chip}>
           {tokenImage ? <img src={tokenImage} alt="" style={{ height: 18, width: 18, objectFit: 'contain', verticalAlign: 'middle', marginRight: 4 }} /> : '🎟️ '}
           Free today: <b style={{ color: 'var(--gold)' }}>{freeLeft}</b>
@@ -174,9 +174,7 @@ function FortuneWheel({ config, onClose }) {
           holds the title + wheel. Without art it's a transparent centred column. */}
       <div ref={stageRef} style={{
         position: 'relative',
-        width: theme.bgImage ? 'calc(100% + 56px)' : '100%',
-        marginLeft: theme.bgImage ? -28 : 0,
-        marginRight: theme.bgImage ? -28 : 0,
+        width: '100%',
         maxWidth: theme.bgImage ? 'none' : 440,
         overflow: 'visible',
         padding: theme.bgImage ? '22px 16px 28px' : '4px 0',
@@ -242,13 +240,13 @@ function FortuneWheel({ config, onClose }) {
       </div>
 
       {result && (
-        <div style={{ textAlign: 'center', fontWeight: 800, color: result.won > 0 ? 'var(--gold,#f4b223)' : 'var(--text-muted,#8898b8)' }}>
+        <div style={{ textAlign: 'center', fontWeight: 800, padding: '0 14px', color: result.won > 0 ? 'var(--gold,#f4b223)' : 'var(--text-muted,#8898b8)' }}>
           {result.won > 0 ? `🎉 ${sym}${result.won.toLocaleString()} — ${result.label}` : `🎯 ${result.label}`}
         </div>
       )}
 
       {/* Bottom controls — SPIN button + token balance badge (like the concept) */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, flexWrap: 'wrap', width: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, flexWrap: 'wrap', width: '100%', padding: '0 14px', boxSizing: 'border-box' }}>
         {buttonImage
           ? <button onClick={spin} disabled={spinning} title={isPaid ? `Spin (${sym}${spinCost.toLocaleString()})` : 'Spin to Win'}
               style={{ background: 'none', border: 'none', padding: 0, cursor: spinning ? 'default' : 'pointer', opacity: spinning ? 0.6 : 1, lineHeight: 0 }}>
@@ -273,7 +271,7 @@ function FortuneWheel({ config, onClose }) {
           </div>
         )}
       </div>
-      <div style={{ fontSize: 12, color: 'var(--text-muted,#8898b8)', textAlign: 'center', maxWidth: 360 }}>
+      <div style={{ fontSize: 12, color: 'var(--text-muted,#8898b8)', textAlign: 'center', maxWidth: 360, padding: '0 14px 16px' }}>
         {wheel.freeSpinsPerDay ? `${wheel.freeSpinsPerDay} free spin(s) per day` : 'Paid spins'} ·
         {' '}up to {wheel.maxPerDay || 5} spins/day. Prizes are credited to your wallet instantly.
       </div>
@@ -298,7 +296,7 @@ function LuckyTicket({ config, onClose }) {
   const deposit = () => { onClose?.(); openModal('deposit'); };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '16px 16px 18px' }}>
       {/* Hero — prize pool + next draw */}
       <div style={{
         position: 'relative', overflow: 'hidden', borderRadius: 16, padding: '20px 18px',
