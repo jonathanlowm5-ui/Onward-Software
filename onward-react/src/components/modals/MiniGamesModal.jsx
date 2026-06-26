@@ -120,10 +120,12 @@ function FortuneWheel({ config, onClose }) {
     }
   };
 
-  // Fit the wheel to its stage: full 340 on desktop, shrinking on phones so it
-  // never overflows the modal. Use the measured stage width when available.
+  // Fit the wheel to its stage: shrinking on phones so it never overflows the
+  // modal. A themed wheel (with uploaded background/frame art) fills more of the
+  // stage so the wheel is the hero instead of floating in empty artwork.
+  const themed = !!(wheel.theme?.bgImage || wheel.theme?.frameImage);
   const avail = stageW || (typeof window !== 'undefined' ? window.innerWidth - 96 : 340);
-  const size = Math.max(220, Math.min(340, avail));
+  const size = Math.max(220, Math.min(themed ? 380 : 340, avail));
   const theme = wheel.theme || {};
   const rimColor = theme.rimColor || '#f4b223';
   const hubColor = theme.hubColor || '#f4b223';
@@ -148,7 +150,7 @@ function FortuneWheel({ config, onClose }) {
   });
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr)', gap: 16, justifyItems: 'center' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr)', gap: 14, justifyItems: 'center' }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', width: '100%' }}>
         <span style={chip}>
           {tokenImage ? <img src={tokenImage} alt="" style={{ height: 18, width: 18, objectFit: 'contain', verticalAlign: 'middle', marginRight: 4 }} /> : '🎟️ '}
@@ -161,19 +163,20 @@ function FortuneWheel({ config, onClose }) {
         {isLoggedIn && <span style={chip}>Balance: <b style={{ color: 'var(--gold)' }}>{sym}{Number(profile?.balance || 0).toLocaleString()}</b></span>}
       </div>
 
+      {/* Title — sits on the clean modal background (above the themed stage) so it
+          never overlaps the wheel/frame artwork. */}
+      {theme.titleImage
+        ? <img src={theme.titleImage} alt="" style={{ display: 'block', width: '100%', maxWidth: 420, maxHeight: 116, objectFit: 'contain', margin: '0 auto' }} />
+        : <div style={{ ...fwTitle, textAlign: 'center', width: '100%' }}>{theme.title || 'WHEEL OF FORTUNE'}</div>}
+
       {/* Stage — only shows a panel when a background image is uploaded; otherwise
           the wheel sits transparently on the modal (no dark box / border). */}
       <div ref={stageRef} style={{
-        position: 'relative', width: '100%', maxWidth: 420,
+        position: 'relative', width: '100%', maxWidth: 440,
         borderRadius: theme.bgImage ? 18 : 0, overflow: 'visible',
-        padding: '16px 14px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
+        padding: theme.bgImage ? '18px 12px' : '4px 0', display: 'flex', flexDirection: 'column', alignItems: 'center',
         background: theme.bgImage ? `url(${theme.bgImage}) center/cover no-repeat` : 'transparent',
       }}>
-        {/* title — bigger and centred on the wheel's vertical axis */}
-        {theme.titleImage
-          ? <img src={theme.titleImage} alt="" style={{ display: 'block', width: '100%', maxWidth: 460, maxHeight: 128, objectFit: 'contain', margin: '0 auto' }} />
-          : <div style={{ ...fwTitle, textAlign: 'center', width: '100%' }}>{theme.title || 'WHEEL OF FORTUNE'}</div>}
-
         <div style={{ position: 'relative', width: size, height: size, aspectRatio: '1 / 1' }}>
           {/* frame — uploaded ring image, else generated gold rim ring (z2) */}
           {frameImage
