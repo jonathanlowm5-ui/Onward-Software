@@ -216,6 +216,10 @@ router.put('/me', requirePlayer, (req, res) => {
     if (patch.phone !== (p.phone || '')) patch.mobileVerified = false;
   }
   if (b.avatar !== undefined) patch.avatar = b.avatar;
+  // Per-player game favourites (array of game ids/names).
+  if (b.favorites !== undefined && Array.isArray(b.favorites)) {
+    patch.favorites = [...new Set(b.favorites.map((x) => String(x).slice(0, 64)))].slice(0, 500);
+  }
 
   res.json(view(store.update(PLAYERS, p.id, patch)));
 });
