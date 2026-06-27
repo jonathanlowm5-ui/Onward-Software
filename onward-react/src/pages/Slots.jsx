@@ -3,11 +3,12 @@ import { useSearchParams } from 'react-router-dom';
 import { useUI } from '../context/UIContext';
 import GameCard from '../components/casino/GameCard.jsx';
 import useFavorites from '../hooks/useFavorites';
-import { ALL_SLOTS, GAMES, ALL_GAME_ICONS, PROVIDERS, PROVIDER_LOGOS } from '../services/data/gameData';
+import useGames from '../hooks/useGames';
+import { ALL_SLOTS, GAMES, ALL_GAME_ICONS, LIVE_GAMES, PROVIDERS, PROVIDER_LOGOS } from '../services/data/gameData';
 
-// Every known game, so the "favorite" view can resolve a favourited id even if
+// Every bundled game, so the "favorite" view can resolve a favourited id even if
 // it isn't a slot (live, table, etc.).
-const ALL_KNOWN = [...ALL_GAME_ICONS, ...GAMES];
+const ALL_KNOWN = [...ALL_GAME_ICONS, ...GAMES, ...LIVE_GAMES];
 
 const PER_PAGE = 30;
 
@@ -23,16 +24,28 @@ export default function Slots() {
   const catParam = params.get('cat');
   const isFavView = catParam === 'favorite';
   const { favorites } = useFavorites();
+  const { games: liveGames } = useGames(); // same source as the lobby/cards
   const [provider, setProvider] = useState('all');
   const [page, setPage] = useState(1);
   const trackRef = useRef(null);
 
   useEffect(() => { setPage(1); }, [provider, searchQuery, catParam]);
 
+  // id → game lookup spanning the LIVE catalogue (what the cards actually came
+  // from) plus every bundled game, so a favourited id always resolves.
+  const catalog = useMemo(() => {
+    const m = new Map();
+    [...(liveGames || []), ...ALL_KNOWN].forEach((g) => {
+      const key = String(g.id != null ? g.id : g.name);
+      if (!m.has(key)) m.set(key, g);
+    });
+    return m;
+  }, [liveGames]);
+
   const filtered = useMemo(() => {
     // Favourites view: resolve the saved ids against the full catalogue.
     let list = isFavView
-      ? favorites.map((fid) => ALL_KNOWN.find((g) => String(g.id) === fid || g.name === fid)).filter(Boolean)
+      ? favorites.map((fid) => catalog.get(String(fid))).filter(Boolean)
       : ALL_SLOTS;
     if (catParam && !isFavView) list = list.filter((g) => g.cat === catParam);
     if (provider !== 'all') list = list.filter((g) => g.provider === provider);
@@ -41,7 +54,7 @@ export default function Slots() {
       list = list.filter((g) => g.name.toLowerCase().includes(q) || (g.provider || '').toLowerCase().includes(q));
     }
     return list;
-  }, [provider, searchQuery, catParam, isFavView, favorites]);
+  }, [provider, searchQuery, catParam, isFavView, favorites, catalog]);
 
   const visible = filtered.slice(0, page * PER_PAGE);
   const scrollProviders = (dir) => trackRef.current?.scrollBy({ left: dir * 300, behavior: 'smooth' });

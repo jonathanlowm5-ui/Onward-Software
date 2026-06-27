@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUI } from '../../context/UIContext';
 import useSectionNav from '../../hooks/useSectionNav';
+import useFavorites from '../../hooks/useFavorites';
 // Uploaded sidebar icons (replace the emoji on the Casino panel menu).
 import icFortune from '../../assets/sidebar/fortune-wheel.avif';
 import icTournament from '../../assets/sidebar/tournament.avif';
@@ -39,6 +40,7 @@ export default function Sidebar() {
   const [filter, setFilter] = useState('popular');
   const [openGroups, setOpenGroups] = useState({});
   const { closeSidebar, openModal, sidebarOpen } = useUI();
+  const { count: favCount } = useFavorites();
   const go = useSectionNav();
   const navigate = useNavigate();
 
@@ -85,7 +87,7 @@ export default function Sidebar() {
           <div className="sb-divider"></div>
 
           <SbItem icon="🔥" label="Popular" i18n="nav_popular" active={filter === 'popular'} onClick={() => filterSidebar('popular')} />
-          <SbItem icon="❤️" label="Favorite" i18n="nav_favorite" active={filter === 'favorite'} onClick={() => filterSidebar('favorite')} />
+          <SbItem icon="❤️" label="Favorite" i18n="nav_favorite" active={filter === 'favorite'} badge={favCount > 0 ? { cls: 'hot', text: String(favCount) } : undefined} onClick={() => filterSidebar('favorite')} />
           <SbItem icon="🆕" label="New" i18n="nav_new" badge={{ cls: 'new', text: 'NEW' }} onClick={() => filterSidebar('new')} />
           <SbItem icon="⚡" label="Instant Games" i18n="nav_instant" onClick={() => filterSidebar('crash')} />
           <SbItem icon="📡" label="Live Casino" i18n="nav_live" onClick={() => go('live')} />
