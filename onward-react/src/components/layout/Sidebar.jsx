@@ -95,7 +95,7 @@ export default function Sidebar() {
           <SbItem icon="🎡" label="Roulette" i18n="nav_roulette" onClick={() => filterSidebar('roulette')} />
           <SbItem icon="🎲" label="Craps" i18n="nav_craps" onClick={() => filterSidebar('table')} />
           <SbItem icon="🃏" label="Poker" i18n="nav_poker" onClick={() => go('poker')} />
-          <SbItem icon="🎫" label="Lottery" i18n="nav_lottery" onClick={() => filterSidebar('lottery')} />
+          <SbItem icon="🎫" label="Lottery" i18n="nav_lottery" onClick={() => go('lottery')} />
           <SbItem icon="🐟" label="Fish Games" i18n="nav_fish" onClick={() => go('fish')} />
 
           <div className="sb-divider"></div>
