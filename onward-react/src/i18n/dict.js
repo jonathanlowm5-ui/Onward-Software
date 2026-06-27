@@ -9,6 +9,8 @@
  */
 export const DICT = {
   zh: {
+    nav_favorite: "收藏",
+    sec_favorites: "❤️ 我的收藏",
     nav_fortune_wheel: "迷你游戏",
     nav_vip: "VIP 俱乐部",
     nav_mission: "任务",
@@ -416,6 +418,8 @@ export const DICT = {
     wager_wagered_required: '已投注 / 要求',
   },
   id: {
+    nav_favorite: "Favorit",
+    sec_favorites: "❤️ Favorit Saya",
     nav_fortune_wheel: "Game Mini",
     nav_vip: "Klub VIP",
     nav_mission: "Misi",
@@ -823,6 +827,8 @@ export const DICT = {
     wager_wagered_required: 'Dipertaruhkan / Diperlukan',
   },
   ms: {
+    nav_favorite: "Kegemaran",
+    sec_favorites: "❤️ Kegemaran Saya",
     nav_fortune_wheel: "Permainan Mini",
     nav_vip: "Kelab VIP",
     nav_mission: "Misi",
@@ -1230,6 +1236,8 @@ export const DICT = {
     wager_wagered_required: 'Dipertaruhkan / Diperlukan',
   },
   th: {
+    nav_favorite: "รายการโปรด",
+    sec_favorites: "❤️ รายการโปรดของฉัน",
     nav_fortune_wheel: "มินิเกม",
     nav_vip: "สโมสร VIP",
     nav_mission: "ภารกิจ",
@@ -1637,6 +1645,8 @@ export const DICT = {
     wager_wagered_required: 'เดิมพันแล้ว / ที่ต้องการ',
   },
   vi: {
+    nav_favorite: "Yêu thích",
+    sec_favorites: "❤️ Yêu thích của tôi",
     nav_fortune_wheel: "Trò chơi nhỏ",
     nav_vip: "Câu lạc bộ VIP",
     nav_mission: "Nhiệm vụ",
@@ -2044,6 +2054,8 @@ export const DICT = {
     wager_wagered_required: 'Đã Cược / Yêu Cầu',
   },
   hi: {
+    nav_favorite: "पसंदीदा",
+    sec_favorites: "❤️ मेरे पसंदीदा",
     nav_fortune_wheel: "मिनी गेम्स",
     nav_vip: "VIP क्लब",
     nav_mission: "मिशन",
@@ -2451,6 +2463,8 @@ export const DICT = {
     wager_wagered_required: 'दांव / आवश्यक',
   },
   ko: {
+    nav_favorite: "즐겨찾기",
+    sec_favorites: "❤️ 내 즐겨찾기",
     nav_fortune_wheel: "미니 게임",
     nav_vip: "VIP 클럽",
     nav_mission: "미션",
@@ -2858,6 +2872,8 @@ export const DICT = {
     wager_wagered_required: '베팅됨 / 필요',
   },
   ja: {
+    nav_favorite: "お気に入り",
+    sec_favorites: "❤️ お気に入り",
     nav_fortune_wheel: "ミニゲーム",
     nav_vip: "VIPクラブ",
     nav_mission: "ミッション",
@@ -3265,6 +3281,8 @@ export const DICT = {
     wager_wagered_required: '賭け済み / 必要',
   },
   es: {
+    nav_favorite: "Favoritos",
+    sec_favorites: "❤️ Mis favoritos",
     nav_fortune_wheel: "Minijuegos",
     nav_vip: "Club VIP",
     nav_mission: "Misiones",
@@ -3672,6 +3690,8 @@ export const DICT = {
     wager_wagered_required: 'Apostado / Requerido',
   },
   pt: {
+    nav_favorite: "Favoritos",
+    sec_favorites: "❤️ Meus favoritos",
     nav_fortune_wheel: "Minijogos",
     nav_vip: "Clube VIP",
     nav_mission: "Missões",

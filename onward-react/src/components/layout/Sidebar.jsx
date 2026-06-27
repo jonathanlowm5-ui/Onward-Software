@@ -85,6 +85,7 @@ export default function Sidebar() {
           <div className="sb-divider"></div>
 
           <SbItem icon="🔥" label="Popular" i18n="nav_popular" active={filter === 'popular'} onClick={() => filterSidebar('popular')} />
+          <SbItem icon="❤️" label="Favorite" i18n="nav_favorite" active={filter === 'favorite'} onClick={() => filterSidebar('favorite')} />
           <SbItem icon="🆕" label="New" i18n="nav_new" badge={{ cls: 'new', text: 'NEW' }} onClick={() => filterSidebar('new')} />
           <SbItem icon="⚡" label="Instant Games" i18n="nav_instant" onClick={() => filterSidebar('crash')} />
           <SbItem icon="📡" label="Live Casino" i18n="nav_live" onClick={() => go('live')} />

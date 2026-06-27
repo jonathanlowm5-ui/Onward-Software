@@ -1,6 +1,7 @@
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { launchGame as resolveLaunch } from '../../services/gamesService';
+import useFavorites from '../../hooks/useFavorites';
 
 const BADGE_LABEL = { hot: '🔥 Hot', new: '✨ New', jackpot: '💎 Jackpot' };
 
@@ -12,6 +13,9 @@ export default function GameCard({ game }) {
   const g = game;
   const { openModal } = useUI();
   const { isLoggedIn } = useAuth();
+  const { isFavorite, toggle } = useFavorites();
+  const favId = g.id != null ? g.id : g.name;
+  const fav = isFavorite(favId);
 
   const launch = async () => {
     if (!isLoggedIn) { openModal('register'); return; }
@@ -34,6 +38,15 @@ export default function GameCard({ game }) {
         <div className="game-name">{g.name}</div>
       </div>
       {g.badge && <span className={`game-badge badge-${g.badge}`}>{BADGE_LABEL[g.badge] || g.badge}</span>}
+      <button
+        type="button"
+        className={`game-fav${fav ? ' on' : ''}`}
+        title={fav ? 'Remove from favourites' : 'Add to favourites'}
+        aria-label={fav ? 'Remove from favourites' : 'Add to favourites'}
+        onClick={(e) => { e.stopPropagation(); toggle(favId); }}
+      >
+        {fav ? '♥' : '♡'}
+      </button>
       <div className="game-play-btn"><div className="play-circle">▶</div></div>
     </div>
   );

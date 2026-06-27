@@ -372,6 +372,18 @@ body::before{
   padding:3px 8px;border-radius:100px;
   font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
 }
+/* Favourite heart toggle (top-left of every game tile). */
+.game-fav{
+  position:absolute;top:8px;left:8px;z-index:4;
+  width:28px;height:28px;border-radius:50%;border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;line-height:1;color:#fff;
+  background:rgba(8,12,24,.55);backdrop-filter:blur(2px);
+  transition:transform .12s, background .15s, color .15s;
+}
+.game-fav:hover{background:rgba(8,12,24,.8);transform:scale(1.12)}
+.game-fav.on{color:#ff4d6d}
+.game-fav.on:hover{color:#ff6b85}
 .badge-hot{background:var(--red);color:#fff}
 .badge-new{background:var(--green);color:#000}
 .badge-jackpot{
