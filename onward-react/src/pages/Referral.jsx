@@ -1,19 +1,13 @@
 import { useUI } from '../context/UIContext';
 import PageBanner from '../components/common/PageBanner.jsx';
 import usePageHero from '../hooks/usePageHero';
+import { SOCIALS } from '../services/social';
 
 const REF_LINK = 'https://legox.com/ref/PLAYER123';
+const SHARE_TEXT = 'Join me on Onward Casino and we both get rewarded!';
 
 // Demo data shown when logged in (empty by default in the original).
 const REF_FRIENDS = [];
-
-const SHARE_BTNS = [
-  { label: '📘 Facebook' },
-  { label: '✈️ Telegram' },
-  { label: '🐦 Twitter / X' },
-  { label: '💬 WhatsApp' },
-  { label: '📧 Email' },
-];
 
 const STEPS = [
   { num: '1', icon: '🔗', title: 'Share Your Link', titleKey: 'ref_share', desc: 'Copy your unique referral link and share it with friends via social media, messaging apps, or email.' },
@@ -85,8 +79,20 @@ export default function Referral() {
               <button className="ref-copy-btn" onClick={copyRefLink}>📋 Copy Link</button>
             </div>
             <div className="ref-share-btns">
-              {SHARE_BTNS.map((b, i) => (
-                <button key={i} className="ref-share-btn" onClick={() => toast('Link shared!', 'success')}>{b.label}</button>
+              {SOCIALS.map((s) => (
+                <button
+                  key={s.key}
+                  className="ref-share-btn"
+                  title={`Share on ${s.name}`}
+                  onClick={() => {
+                    const url = s.share && s.share(REF_LINK, SHARE_TEXT);
+                    if (url) { window.open(url, '_blank', 'noopener,width=600,height=520'); }
+                    else { navigator.clipboard?.writeText(REF_LINK); toast(`Link copied — paste it on ${s.name}`, 'success'); }
+                  }}
+                >
+                  <img src={s.icon} alt="" />
+                  <span>{s.name}</span>
+                </button>
               ))}
             </div>
           </div>

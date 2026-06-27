@@ -1,12 +1,16 @@
 import { useNavigate } from 'react-router-dom';
 import { useUI } from '../../context/UIContext';
 import useSectionNav from '../../hooks/useSectionNav';
+import useSocialLinks from '../../hooks/useSocialLinks';
+import { SOCIALS } from '../../services/social';
 import { IMG0 as LOGO } from '../../assets/images';
 
 export default function Footer() {
   const go = useSectionNav();
   const navigate = useNavigate();
   const { openModal } = useUI();
+  const social = useSocialLinks();
+  const activeSocials = SOCIALS.filter((s) => social[s.key]);
 
   const footerGoTable = () => navigate('/slots?cat=table');
   const footerGoCrash = () => navigate('/slots?cat=crash');
@@ -26,6 +30,18 @@ export default function Footer() {
             <div style={{ padding: '6px 12px', borderRadius: '8px', background: 'var(--surface)', border: '1px solid var(--border)', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }} data-i18n="ftr_licensed">PAGCOR Licensed</div>
             <div style={{ padding: '6px 12px', borderRadius: '8px', background: 'var(--surface)', border: '1px solid var(--border)', fontSize: '12px', fontWeight: 700, color: 'var(--green)' }} data-i18n="ftr_ssl">SSL Secure</div>
           </div>
+          {activeSocials.length > 0 && (
+            <div className="ftr-social">
+              <div className="ftr-social-title" data-i18n="ftr_follow_us">Follow Us</div>
+              <div className="ftr-social-row">
+                {activeSocials.map((s) => (
+                  <a key={s.key} href={social[s.key]} target="_blank" rel="noopener noreferrer" className="ftr-social-link" title={s.name} aria-label={s.name}>
+                    <img src={s.icon} alt={s.name} />
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         <div className="footer-col">
           <h4 data-i18n="ftr_casino">Casino</h4>

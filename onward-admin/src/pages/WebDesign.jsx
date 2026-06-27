@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useUI } from '../context/UIContext';
 import { uploadImage } from '../services/uploadService';
-import { getPageBanners, savePageBanners, getPageHeroes, savePageHeroes } from '../services/pageBannerService';
+import { getPageBanners, savePageBanners, getPageHeroes, savePageHeroes, getSocialLinks, saveSocialLinks } from '../services/pageBannerService';
 
 const PAGE_BANNER_LIST = [
   { key: 'jackpots', label: '👑 Jackpots' },
@@ -98,6 +98,8 @@ export default function WebDesign() {
       </div>
 
       <PageHeroTextCard />
+
+      <SocialLinksCard />
 
       {/* Welcome Bonus card background — wide banner behind the 4 tier cards */}
       <div className="card" style={{ marginBottom: 'var(--pad)' }}>
@@ -298,6 +300,44 @@ function PageHeroTextCard() {
         })}
       </div>
       <button className="gss-savebtn" disabled={busy} onClick={save}>{busy ? 'Saving…' : 'Save Hero Text'}</button>
+    </div>
+  );
+}
+
+// Official social-media links for the footer "Follow Us" row.
+const SOCIAL_FIELDS = [
+  { key: 'facebook', label: '📘 Facebook', ph: 'https://facebook.com/yourpage' },
+  { key: 'telegram', label: '✈️ Telegram', ph: 'https://t.me/yourchannel' },
+  { key: 'whatsapp', label: '💬 WhatsApp', ph: 'https://wa.me/60123456789' },
+  { key: 'instagram', label: '📷 Instagram', ph: 'https://instagram.com/yourpage' },
+  { key: 'twitter', label: '🐦 Twitter / X', ph: 'https://twitter.com/yourpage' },
+  { key: 'kwai', label: '🎵 Kwai', ph: 'https://kwai.com/@yourpage' },
+];
+function SocialLinksCard() {
+  const { toast } = useUI();
+  const [links, setLinks] = useState({});
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { getSocialLinks().then((d) => setLinks(d || {})).catch(() => {}); }, []);
+  const save = async () => {
+    setBusy(true);
+    try { const saved = await saveSocialLinks(links); setLinks(saved || links); toast('Social links saved ✔'); }
+    catch (e) { toast('⚠ Save failed: ' + (e.message || 'error')); }
+    finally { setBusy(false); }
+  };
+  const inp = { width: '100%', padding: '9px 12px', borderRadius: 8, background: 'var(--bg3,#0b1224)', color: 'var(--text,#fff)', border: '1px solid var(--border,#243049)', fontFamily: 'inherit', fontSize: 14 };
+  return (
+    <div className="card" style={{ marginBottom: 'var(--pad)' }}>
+      <div className="card-title">🔗 Social Media Links</div>
+      <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>Paste the full URL for each account. Only the ones you fill in show in the footer “Follow Us” row on the player site. Leave blank to hide an icon.</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(280px,1fr))', gap: 14 }}>
+        {SOCIAL_FIELDS.map((s) => (
+          <div key={s.key} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <label style={{ fontWeight: 800, fontSize: 13 }}>{s.label}</label>
+            <input style={inp} value={links[s.key] || ''} onChange={(e) => setLinks((p) => ({ ...p, [s.key]: e.target.value }))} placeholder={s.ph} />
+          </div>
+        ))}
+      </div>
+      <button className="gss-savebtn" disabled={busy} onClick={save}>{busy ? 'Saving…' : 'Save Social Links'}</button>
     </div>
   );
 }

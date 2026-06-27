@@ -9,6 +9,7 @@
  */
 export const DICT = {
   zh: {
+    ftr_follow_us: "关注我们",
     nav_favorite: "收藏",
     sec_favorites: "❤️ 我的收藏",
     nav_fortune_wheel: "迷你游戏",
@@ -418,6 +419,7 @@ export const DICT = {
     wager_wagered_required: '已投注 / 要求',
   },
   id: {
+    ftr_follow_us: "Ikuti Kami",
     nav_favorite: "Favorit",
     sec_favorites: "❤️ Favorit Saya",
     nav_fortune_wheel: "Game Mini",
@@ -827,6 +829,7 @@ export const DICT = {
     wager_wagered_required: 'Dipertaruhkan / Diperlukan',
   },
   ms: {
+    ftr_follow_us: "Ikuti Kami",
     nav_favorite: "Kegemaran",
     sec_favorites: "❤️ Kegemaran Saya",
     nav_fortune_wheel: "Permainan Mini",
@@ -1236,6 +1239,7 @@ export const DICT = {
     wager_wagered_required: 'Dipertaruhkan / Diperlukan',
   },
   th: {
+    ftr_follow_us: "ติดตามเรา",
     nav_favorite: "รายการโปรด",
     sec_favorites: "❤️ รายการโปรดของฉัน",
     nav_fortune_wheel: "มินิเกม",
@@ -1645,6 +1649,7 @@ export const DICT = {
     wager_wagered_required: 'เดิมพันแล้ว / ที่ต้องการ',
   },
   vi: {
+    ftr_follow_us: "Theo dõi chúng tôi",
     nav_favorite: "Yêu thích",
     sec_favorites: "❤️ Yêu thích của tôi",
     nav_fortune_wheel: "Trò chơi nhỏ",
@@ -2054,6 +2059,7 @@ export const DICT = {
     wager_wagered_required: 'Đã Cược / Yêu Cầu',
   },
   hi: {
+    ftr_follow_us: "हमें फ़ॉलो करें",
     nav_favorite: "पसंदीदा",
     sec_favorites: "❤️ मेरे पसंदीदा",
     nav_fortune_wheel: "मिनी गेम्स",
@@ -2463,6 +2469,7 @@ export const DICT = {
     wager_wagered_required: 'दांव / आवश्यक',
   },
   ko: {
+    ftr_follow_us: "팔로우하기",
     nav_favorite: "즐겨찾기",
     sec_favorites: "❤️ 내 즐겨찾기",
     nav_fortune_wheel: "미니 게임",
@@ -2872,6 +2879,7 @@ export const DICT = {
     wager_wagered_required: '베팅됨 / 필요',
   },
   ja: {
+    ftr_follow_us: "フォローする",
     nav_favorite: "お気に入り",
     sec_favorites: "❤️ お気に入り",
     nav_fortune_wheel: "ミニゲーム",
@@ -3281,6 +3289,7 @@ export const DICT = {
     wager_wagered_required: '賭け済み / 必要',
   },
   es: {
+    ftr_follow_us: "Síguenos",
     nav_favorite: "Favoritos",
     sec_favorites: "❤️ Mis favoritos",
     nav_fortune_wheel: "Minijuegos",
@@ -3690,6 +3699,7 @@ export const DICT = {
     wager_wagered_required: 'Apostado / Requerido',
   },
   pt: {
+    ftr_follow_us: "Siga-nos",
     nav_favorite: "Favoritos",
     sec_favorites: "❤️ Meus favoritos",
     nav_fortune_wheel: "Minijogos",

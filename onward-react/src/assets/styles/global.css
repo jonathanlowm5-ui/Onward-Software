@@ -4138,6 +4138,20 @@ footer{
   display:flex;align-items:center;gap:6px;
 }
 .ref-share-btn:hover{border-color:var(--border2);color:var(--text)}
+.ref-share-btn img{width:18px;height:18px;object-fit:contain;display:block}
+
+/* Footer "Follow Us" social row */
+.ftr-social{margin-top:20px}
+.ftr-social-title{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px}
+.ftr-social-row{display:flex;gap:10px;flex-wrap:wrap}
+.ftr-social-link{
+  width:40px;height:40px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--surface);border:1px solid var(--border);
+  transition:transform .12s, border-color .15s, background .15s;
+}
+.ftr-social-link:hover{transform:translateY(-2px);border-color:var(--gold,#f0c040);background:var(--surface2,#1a2238)}
+.ftr-social-link img{width:22px;height:22px;object-fit:contain;display:block}
 
 /* How it works */
 .ref-how-title{font-size:18px;font-weight:700;color:#fff;margin-bottom:16px}
