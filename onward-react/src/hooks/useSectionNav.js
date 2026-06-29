@@ -19,6 +19,12 @@ export const SECTION_ROUTES = {
   referral: '/referral',
   profile: '/profile',
   missions: '/missions',
+  sponsors: '/sponsors',
+  leaderboard: '/leaderboard',
+  rewards: '/rewards',
+  mobile: '/mobile',
+  fastgames: '/fast-games',
+  luckywheel: '/lucky-wheel',
 };
 
 /** Drop-in replacement for the original global showSection(id). */
