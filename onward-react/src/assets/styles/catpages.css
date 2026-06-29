@@ -1,0 +1,179 @@
+/*
+ * catpages.css — styles for the v16.2 category pages ported into the React app:
+ * Sponsors, Leaderboard, Rewards, Mobile, Fast Games, Lucky Wheel.
+ *
+ * The original onward_16_2.html used a light design-system theme. These pages
+ * are re-themed to match the existing dark Onward app (global.css variables) so
+ * the look stays consistent with the rest of the site.
+ */
+
+.catpage {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 20px 16px 64px;
+}
+
+.catpage-hero {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--surface), var(--bg3));
+  padding: 28px 24px;
+  margin-bottom: 28px;
+}
+.catpage-hero::after {
+  content: '';
+  position: absolute;
+  right: -8%;
+  top: -40%;
+  width: 30%;
+  height: 180%;
+  background: linear-gradient(180deg, var(--gold), var(--gold-dark));
+  transform: skewX(-14deg);
+  opacity: 0.18;
+}
+.catpage-eyebrow {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 10px;
+}
+.catpage-hero h1 {
+  font-size: clamp(26px, 4vw, 40px);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin: 0 0 12px;
+  color: var(--text);
+}
+.catpage-hero p {
+  font-size: 15px;
+  max-width: 52ch;
+  color: var(--text-muted);
+  margin: 0;
+}
+.catpage-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.catpage-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0 0 16px;
+  gap: 12px;
+}
+.catpage-section-head .eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.catpage-section-head h2 {
+  font-size: 20px;
+  color: var(--text);
+  margin: 0;
+}
+
+/* Tile grid (sponsors, rewards, mobile, lucky-wheel) */
+.cat-tiles {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, 1fr);
+}
+@media (min-width: 560px) { .cat-tiles { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 900px) { .cat-tiles { grid-template-columns: repeat(4, 1fr); } }
+
+.cat-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 18px;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.12s ease, box-shadow 0.2s ease;
+}
+.cat-tile:hover {
+  border-color: var(--gold);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+.cat-tile__ico {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius);
+  display: grid;
+  place-items: center;
+  background: var(--bg4);
+  font-size: 22px;
+}
+.cat-tile__name { font-size: 15px; font-weight: 700; }
+.cat-tile__meta { font-size: 13px; color: var(--text-muted); }
+.cat-tile__meta b { color: var(--green); font-weight: 700; }
+
+/* Leaderboard list */
+.lb-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.lb-row {
+  display: grid;
+  grid-template-columns: 46px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 14px 18px;
+}
+.lb-row.top { border-color: var(--gold); background: linear-gradient(110deg, var(--surface), rgba(240, 192, 64, 0.08)); }
+.lb-rank {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 15px;
+  background: var(--bg4);
+  color: var(--text);
+}
+.lb-rank.gold { background: linear-gradient(135deg, var(--gold), var(--gold-dark)); color: #06091a; }
+.lb-rank.silver { background: linear-gradient(135deg, #cdd6e3, #8697a2); color: #06091a; }
+.lb-rank.bronze { background: linear-gradient(135deg, #d9a066, #b07a46); color: #06091a; }
+.lb-name { font-size: 15px; font-weight: 600; color: var(--text); }
+.lb-points { font-size: 15px; font-weight: 800; color: var(--gold); }
+.lb-points span { font-size: 12px; font-weight: 600; color: var(--text-muted); margin-left: 4px; }
+
+/* shared back button */
+.cat-back-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-bottom: 16px;
+}
+.cat-back-btn:hover { color: var(--text); border-color: var(--gold); }
+
+.cat-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  font-size: 15px;
+}

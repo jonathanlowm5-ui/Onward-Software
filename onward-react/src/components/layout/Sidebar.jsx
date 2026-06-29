@@ -71,6 +71,11 @@ export default function Sidebar() {
           <SbItem icon="🎟️" label="Use Code" i18n="nav_use_code" onClick={openPromoModal} />
           <SbItem icon="👑" label="Jackpots" i18n="nav_jackpots" badge={{ cls: 'hot', text: '₱128M' }} onClick={() => go('jackpots')} />
           <SbItem icon="🤝" label="Referral" i18n="nav_referral" onClick={() => go('referral')} />
+          <SbItem icon="⚡" label="Fast Games" i18n="nav_fast_games" badge={{ cls: 'new', text: 'NEW' }} onClick={() => go('fastgames')} />
+          <SbItem icon="🎡" label="Lucky Wheel" i18n="nav_lucky_wheel" onClick={() => go('luckywheel')} />
+          <SbItem icon="🏅" label="Leaderboard" i18n="nav_leaderboard" onClick={() => go('leaderboard')} />
+          <SbItem icon="🎁" label="Rewards Club" i18n="nav_rewards" onClick={() => go('rewards')} />
+          <SbItem icon="🏆" label="Sponsors" i18n="nav_sponsors" onClick={() => go('sponsors')} />
 
           <div className="sb-divider"></div>
 
@@ -89,6 +94,7 @@ export default function Sidebar() {
 
           <div className="sb-bottom">
             <SbItem icon="❓" label="FAQ" i18n="nav_faq" onClick={closeSidebar} />
+            <SbItem icon="📲" label="Mobile App" i18n="nav_mobile" onClick={() => go('mobile')} />
             <SbItem icon="📱" label="Download APP" i18n="nav_mini" onClick={openDownloadModal} />
           </div>
         </div>

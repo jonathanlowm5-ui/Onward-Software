@@ -18,6 +18,12 @@ const Referral = lazy(() => import('./pages/Referral.jsx'));
 const Profile = lazy(() => import('./pages/Profile.jsx'));
 const Missions = lazy(() => import('./pages/Missions.jsx'));
 const Giveaways = lazy(() => import('./pages/Giveaways.jsx'));
+const Sponsors = lazy(() => import('./pages/Sponsors.jsx'));
+const Leaderboard = lazy(() => import('./pages/Leaderboard.jsx'));
+const Rewards = lazy(() => import('./pages/Rewards.jsx'));
+const Mobile = lazy(() => import('./pages/Mobile.jsx'));
+const FastGames = lazy(() => import('./pages/FastGames.jsx'));
+const LuckyWheel = lazy(() => import('./pages/LuckyWheel.jsx'));
 
 export default function App() {
   return (
@@ -43,6 +49,12 @@ export default function App() {
                 <Route path="profile" element={<Profile />} />
                 <Route path="missions" element={<Missions />} />
                 <Route path="giveaways" element={<Giveaways />} />
+                <Route path="sponsors" element={<Sponsors />} />
+                <Route path="leaderboard" element={<Leaderboard />} />
+                <Route path="rewards" element={<Rewards />} />
+                <Route path="mobile" element={<Mobile />} />
+                <Route path="fast-games" element={<FastGames />} />
+                <Route path="lucky-wheel" element={<LuckyWheel />} />
                 <Route path="*" element={<Lobby />} />
               </Routes>
             </Suspense>

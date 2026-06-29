@@ -90,6 +90,42 @@ module.exports = function seed() {
     console.log(`Seeded ${promos.length} demo promotions (1 intentionally expired)`);
   }
 
+  // ---- sponsors (v16.2 /sponsors page) ----
+  if (store.list('sponsors').length === 0) {
+    const sponsors = [
+      { icon: '🏍', name: 'Racing Team', tier: 'Title sponsor', link: '', active: true, sortOrder: 1 },
+      { icon: '🏸', name: 'Badminton Cup', tier: 'Presenting partner', link: '', active: true, sortOrder: 2 },
+      { icon: '⚽', name: 'Football Club', tier: 'Official partner', link: '', active: true, sortOrder: 3 },
+    ];
+    sponsors.forEach((s) => store.insert('sponsors', s));
+    console.log(`Seeded ${sponsors.length} demo sponsors`);
+  }
+
+  // ---- rewards club store (v16.2 /rewards page) ----
+  if (store.list('rewards').length === 0) {
+    const rewards = [
+      { icon: '🎟', name: 'Bonus cash', cost: 500, active: true, sortOrder: 1 },
+      { icon: '🎰', name: 'Free spins', cost: 300, active: true, sortOrder: 2 },
+      { icon: '👕', name: 'Merch', cost: 1200, active: true, sortOrder: 3 },
+      { icon: '⏫', name: 'Tier boost', cost: 2000, active: true, sortOrder: 4 },
+    ];
+    rewards.forEach((r) => store.insert('rewards', r));
+    console.log(`Seeded ${rewards.length} demo rewards`);
+  }
+
+  // ---- weekly leaderboard (v16.2 /leaderboard page) ----
+  if (store.list('leaderboard').length === 0) {
+    const board = [
+      { name: 'Player_88', points: 12400 },
+      { name: 'LuckyTan', points: 11050 },
+      { name: 'AceWong', points: 9820 },
+      { name: 'MsLim', points: 8300 },
+      { name: 'RajaR', points: 7640 },
+    ];
+    board.forEach((b) => store.insert('leaderboard', b));
+    console.log(`Seeded ${board.length} leaderboard entries`);
+  }
+
   // ---- one-time wipe of all demo/test players ----
   // Requested clean slate before real test players are created. Deletes every
   // player and their related records, once (guarded by a flag), then future
