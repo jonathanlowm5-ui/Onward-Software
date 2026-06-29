@@ -44,10 +44,21 @@ export default function Slots() {
 
   const filtered = useMemo(() => {
     // Favourites view: resolve the saved ids against the full catalogue.
-    let list = isFavView
-      ? favorites.map((fid) => catalog.get(String(fid))).filter(Boolean)
-      : ALL_SLOTS;
-    if (catParam && !isFavView) list = list.filter((g) => g.cat === catParam);
+    let list;
+    if (isFavView) {
+      list = favorites.map((fid) => catalog.get(String(fid))).filter(Boolean);
+    } else if (catParam === 'new') {
+      // "New" = freshly-added games (badge=new), topped up with the newest games.
+      const flagged = ALL_SLOTS.filter((g) => g.badge === 'new');
+      const seen = new Set(flagged.map((g) => g.id));
+      list = [...flagged, ...ALL_SLOTS.slice(0, 48).filter((g) => !seen.has(g.id))];
+    } else if (catParam === 'roulette') {
+      list = ALL_SLOTS.filter((g) => /roulette/i.test(g.name) || /roulette/i.test(g.provider || ''));
+    } else if (catParam) {
+      list = ALL_SLOTS.filter((g) => g.cat === catParam);
+    } else {
+      list = ALL_SLOTS;
+    }
     if (provider !== 'all') list = list.filter((g) => g.provider === provider);
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -65,6 +76,10 @@ export default function Slots() {
         <div className="section-header">
           {isFavView
             ? <h2 className="section-title" data-i18n="sec_favorites">❤️ My Favourites</h2>
+            : catParam === 'new' ? <h2 className="section-title">🆕 New Games</h2>
+            : catParam === 'crash' ? <h2 className="section-title">⚡ Instant Games</h2>
+            : catParam === 'roulette' ? <h2 className="section-title">🎡 Roulette</h2>
+            : catParam === 'table' ? <h2 className="section-title">🎲 Table Games</h2>
             : <h2 className="section-title" data-i18n="sec_all_slots">🎲 All Slot Games</h2>}
           <span style={{ color: 'var(--text-muted)', fontSize: '14px' }} id="slot-count">{filtered.length} Games</span>
         </div>
@@ -93,11 +108,13 @@ export default function Slots() {
         </div>
         )}
 
-        {isFavView && filtered.length === 0 ? (
-          <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '60px 20px', lineHeight: 1.6 }}>
-            <div style={{ fontSize: 44, marginBottom: 10 }}>🤍</div>
-            <div style={{ fontWeight: 800, color: 'var(--text)', fontSize: 16, marginBottom: 6 }}>No favourites yet</div>
-            <div>Tap the heart on any game to add it here.</div>
+        {filtered.length === 0 ? (
+          <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '80px 20px', lineHeight: 1.6 }}>
+            <div style={{ fontSize: 44, marginBottom: 10 }}>{isFavView ? '🤍' : '🎰'}</div>
+            <div style={{ fontWeight: 800, color: 'var(--text)', fontSize: 16, marginBottom: 6 }}>
+              {isFavView ? 'No favourites yet' : 'No games here yet'}
+            </div>
+            <div>{isFavView ? 'Tap the heart on any game to add it here.' : 'Check back soon — new games are added regularly.'}</div>
           </div>
         ) : (
         <div className="game-grid" id="slots-grid">
