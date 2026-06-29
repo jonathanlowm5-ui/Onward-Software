@@ -1085,11 +1085,9 @@ body::before{
   from{transform:translateX(0)}
   to{transform:translateX(-33.333%)}
 }
-@media(max-width:600px){
-  .note-ticker{height:34px;gap:8px}
-  .note-ticker-tag{font-size:10px;padding:2px 8px}
-  .note-ticker-msg{font-size:12px;padding:0 30px}
-  .note-ticker-track{animation-duration:20s}
+/* Hide the announcement ticker on mobile (it crowded the small-screen layout). */
+@media(max-width:768px){
+  .note-ticker{display:none !important}
 }
 
 /* ===== Follow Us page ===== */
