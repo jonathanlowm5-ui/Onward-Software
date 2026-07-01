@@ -83,17 +83,24 @@ function CurrencyRatesCard() {
   const { toast } = useUI();
   const [base, setBase] = useState('PHP');
   const [rates, setRates] = useState({});
+  const [enabled, setEnabled] = useState(FX_CODES.map(([c]) => c));
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let alive = true;
     getCurrencyRates()
-      .then((d) => { if (!alive) return; if (d.base) setBase(d.base); setRates(d.rates || {}); })
+      .then((d) => {
+        if (!alive) return;
+        if (d.base) setBase(d.base);
+        setRates(d.rates || {});
+        if (Array.isArray(d.enabled) && d.enabled.length) setEnabled(d.enabled);
+      })
       .catch(() => {});
     return () => { alive = false; };
   }, []);
 
   const setRate = (code, v) => setRates((p) => ({ ...p, [code]: v }));
+  const toggleEnabled = (code) => setEnabled((p) => (p.includes(code) ? p.filter((c) => c !== code) : [...p, code]));
 
   const save = async () => {
     const clean = {};
@@ -101,12 +108,15 @@ function CurrencyRatesCard() {
     if (Number(clean[base]) !== 1) {
       clean[base] = 1; // base is always 1.0 by definition
     }
+    // Always keep the base currency offerable.
+    const en = enabled.includes(base) ? enabled : [base, ...enabled];
     setBusy(true);
     try {
-      const saved = await saveCurrencyRates(base, clean);
+      const saved = await saveCurrencyRates(base, clean, en);
       if (saved.base) setBase(saved.base);
       setRates(saved.rates || clean);
-      toast('Currency conversion rates saved ✔');
+      if (Array.isArray(saved.enabled)) setEnabled(saved.enabled);
+      toast('Currency settings saved ✔');
     } catch (e) {
       toast('⚠ Save failed: ' + (e.message || 'error'));
     } finally { setBusy(false); }
@@ -142,6 +152,10 @@ function CurrencyRatesCard() {
                 onChange={(e) => setRate(c, e.target.value.replace(/[^0-9.]/g, ''))}
                 title={nm}
               />
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, fontSize: 11, color: 'var(--muted,#8898b8)', fontWeight: 600, cursor: isBase ? 'default' : 'pointer' }} title="Offer this currency to players at registration">
+                <input type="checkbox" checked={isBase || enabled.includes(c)} disabled={isBase || busy} onChange={() => toggleEnabled(c)} style={{ width: 14, height: 14 }} />
+                Offer at registration
+              </label>
             </div>
           );
         })}

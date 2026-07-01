@@ -49,6 +49,15 @@ export default function AuthModal() {
   const [loginPass, setLoginPass] = useState('');
   // Register form
   const [reg, setReg] = useState(EMPTY_REG);
+  // Currencies offered at registration come from the admin (enabled list).
+  const [currencies, setCurrencies] = useState(CURRENCIES);
+  useEffect(() => {
+    let alive = true;
+    api.get('/currency-rates')
+      .then((r) => { const en = r.data?.enabled; if (alive && Array.isArray(en) && en.length) setCurrencies(en); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -196,7 +205,7 @@ export default function AuthModal() {
             <div className="form-group">
               <label data-i18n="auth_currency">Currency</label>
               <select id="reg-currency" value={reg.currency} onChange={setR('currency')} style={{ width: '100%', padding: '12px', borderRadius: '8px', background: '#0c1322', color: '#fff', border: '1px solid #2a3a5c', fontSize: '14px' }}>
-                {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                {currencies.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
           </div>

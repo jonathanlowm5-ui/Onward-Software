@@ -38,6 +38,27 @@ export function buildPromoTerms(promo = {}, viewerCurrency, lang = 'en') {
   return out;
 }
 
+// Convert a promo's money amounts (min deposit / max bonus) from the currency
+// they were defined in (p.currency, else PHP) into the viewer's currency using
+// the app FX rates, so every player sees the terms in their own currency.
+// `convert(amount, from, to)` is the fxConvert helper from the UI context.
+export function localizePromoMoney(promo = {}, viewerCurrency, convert) {
+  const p = promo || {};
+  const from = String(p.currency || 'PHP').toUpperCase();
+  const to = String(viewerCurrency || from).toUpperCase();
+  if (!convert || from === to) return p;
+  const num = (v) => { const m = String(v ?? '').match(/\d[\d,]*(?:\.\d+)?/); return m ? Number(m[0].replace(/,/g, '')) : null; };
+  const conv = (v) => { const n = num(v); return n == null ? v : Math.round(convert(n, from, to)); };
+  return {
+    ...p,
+    currency: to,
+    minDeposit: p.minDeposit != null && p.minDeposit !== '' ? conv(p.minDeposit) : p.minDeposit,
+    minDepositAmt: Number(p.minDepositAmt) > 0 ? Math.round(convert(Number(p.minDepositAmt), from, to)) : p.minDepositAmt,
+    maxBonus: p.maxBonus != null && p.maxBonus !== '' ? conv(p.maxBonus) : p.maxBonus,
+    maxClaimAmount: Number(p.maxClaimAmount) > 0 ? Math.round(convert(Number(p.maxClaimAmount), from, to)) : p.maxClaimAmount,
+  };
+}
+
 // Localize a promo's title/description for a viewer's language. Admins provide
 // translations in p.i18n[lang]; otherwise the base (default) text is shown.
 export function localizePromo(promo = {}, lang = 'en') {

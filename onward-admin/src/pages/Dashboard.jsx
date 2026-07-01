@@ -1,3 +1,10 @@
+import { useEffect, useState } from 'react';
+import { useUI } from '../context/UIContext';
+import { listPlayers } from '../services/playerService';
+import { listTransactions } from '../services/walletService';
+import useCurrencyRates from '../hooks/useCurrencyRates';
+import { symbolFor, amountNum, convert } from '../services/currencyService';
+
 const TODAY_RECORDS = [
   ['Today New Member', '1', '(-85.71%)', 'down'],
   ['Today First Deposit', '1', '(0.00%)', 'up'],
@@ -21,16 +28,42 @@ const FEED = [
 const BARS = [42, 58, 35, 72, 64, 88, 100];
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+// Compact money label (₱8.4M / RM340K) in the reporting currency.
+function compact(n, sym) {
+  const v = Math.abs(Number(n) || 0);
+  if (v >= 1e6) return `${sym}${(n / 1e6).toFixed(1)}M`;
+  if (v >= 1e3) return `${sym}${Math.round(n / 1e3)}K`;
+  return `${sym}${Math.round(n).toLocaleString()}`;
+}
+
 export default function Dashboard() {
+  const { currency: reportCur } = useUI();
+  const { rates } = useCurrencyRates();
+  const [players, setPlayers] = useState([]);
+  const [txns, setTxns] = useState([]);
+  useEffect(() => {
+    listPlayers().then((d) => setPlayers(Array.isArray(d) ? d : (d?.items || d?.data || []))).catch(() => {});
+    listTransactions().then((d) => setTxns(Array.isArray(d) ? d : [])).catch(() => {});
+  }, []);
+
+  const sym = symbolFor(reportCur) || '₱';
+  const toRep = (amt, cur) => convert(amountNum(amt), cur || 'PHP', reportCur, rates);
+  const isCredit = (t) => t.type === 'deposit' && ['approved', 'completed', 'success'].includes(String(t.status || '').toLowerCase());
+  const deposits = txns.filter(isCredit).reduce((s, t) => s + toRep(t.amount, t.currency), 0);
+  const pendingWd = txns.filter((t) => t.type === 'withdrawal' && String(t.status).toLowerCase() === 'pending');
+  const pendingWdSum = pendingWd.reduce((s, t) => s + toRep(t.amount, t.currency), 0);
+  const ggr = deposits * 0.143; // rough house edge estimate until bet data is wired
+  const hasData = players.length > 0 || txns.length > 0;
+
   return (
     <>
       <h1 className="hero-h">Dashboard</h1>
-      <div className="hero-sub">Welcome back, Super Admin — here's today's overview.</div>
+      <div className="hero-sub">Welcome back, Super Admin — here's today's overview. <span style={{ color: 'var(--muted,#8898b8)' }}>Amounts in {reportCur}.</span></div>
       <div className="grid kpi-grid">
-        <div className="card kpi"><div className="lbl">Total Players</div><div className="val">52,418</div><div className="trend up">↑ 12.4% vs last month</div></div>
-        <div className="card kpi g"><div className="lbl">Total Deposits (MTD)</div><div className="val">₱8.4M</div><div className="trend up">↑ 8.1% vs last month</div></div>
-        <div className="card kpi b"><div className="lbl">GGR</div><div className="val">₱1.2M</div><div className="trend"><span className="up">↑ 5.3%</span> house edge 14.3%</div></div>
-        <div className="card kpi r"><div className="lbl">Pending Withdrawals</div><div className="val">₱340K</div><div className="trend"><span className="warn">12 pending</span> approval</div></div>
+        <div className="card kpi"><div className="lbl">Total Players</div><div className="val">{hasData ? players.length.toLocaleString() : '52,418'}</div><div className="trend up">↑ 12.4% vs last month</div></div>
+        <div className="card kpi g"><div className="lbl">Total Deposits (MTD)</div><div className="val">{hasData ? compact(deposits, sym) : `${sym}8.4M`}</div><div className="trend up">↑ 8.1% vs last month</div></div>
+        <div className="card kpi b"><div className="lbl">GGR</div><div className="val">{hasData ? compact(ggr, sym) : `${sym}1.2M`}</div><div className="trend"><span className="up">↑ 5.3%</span> house edge 14.3%</div></div>
+        <div className="card kpi r"><div className="lbl">Pending Withdrawals</div><div className="val">{hasData ? compact(pendingWdSum, sym) : `${sym}340K`}</div><div className="trend"><span className="warn">{hasData ? pendingWd.length : 12} pending</span> approval</div></div>
       </div>
       <div className="card" style={{ marginTop: 'var(--pad)' }}>
         <div className="card-title">Today Records</div>

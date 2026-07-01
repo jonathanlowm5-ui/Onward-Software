@@ -10,7 +10,9 @@ export async function getCurrencyRates() {
   return data || { base: 'PHP', rates: {} };
 }
 
-export async function saveCurrencyRates(base, rates) {
-  const { data } = await api.put('/currency-rates', { base, rates });
+export async function saveCurrencyRates(base, rates, enabled) {
+  const body = { base, rates };
+  if (Array.isArray(enabled)) body.enabled = enabled;
+  const { data } = await api.put('/currency-rates', body);
   return data;
 }

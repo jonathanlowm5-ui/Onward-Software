@@ -1,7 +1,7 @@
 import Modal from './Modal.jsx';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
-import { buildPromoTerms, resolvePromoBanner, localizePromo } from '../../utils/promoTerms';
+import { buildPromoTerms, resolvePromoBanner, localizePromo, localizePromoMoney } from '../../utils/promoTerms';
 
 /*
  * Promotion detail modal (#promo). Opened from any promo card on the
@@ -20,12 +20,15 @@ function fmtDate(d) {
 }
 
 export default function PromoDetailModal() {
-  const { activeModal, modalData, closeModal, openModal, lang } = useUI();
+  const { activeModal, modalData, closeModal, openModal, lang, currency, fxConvert } = useUI();
   const { profile } = useAuth();
   const open = activeModal === 'promo';
   if (!open) return null;
 
-  const p = localizePromo(modalData || {}, lang);
+  // Show amounts in the viewer's currency: localize language, then auto-convert
+  // the money amounts from the promo's currency into the viewer's currency.
+  const viewerCur = currency?.code || profile?.currency || 'PHP';
+  const p = localizePromoMoney(localizePromo(modalData || {}, lang), viewerCur, fxConvert);
   const title = p.title || p.name || 'Promotion';
   const desc = p.description || p.desc || '';
   const lines = String(desc).split('\n').filter(Boolean);
@@ -49,7 +52,7 @@ export default function PromoDetailModal() {
   const starts = fmtDate(p.startDate);
   const ends = fmtDate(p.endDate);
 
-  const terms = buildPromoTerms(p, profile?.currency, lang);
+  const terms = buildPromoTerms(p, viewerCur, lang);
   const banner = resolvePromoBanner(p, profile?.currency);
   const ctaLabel = p.buttonText || 'Deposit Now';
   const onCta = () => {
