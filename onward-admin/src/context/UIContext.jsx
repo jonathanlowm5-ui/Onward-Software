@@ -13,6 +13,14 @@ export function UIProvider({ children }) {
   const [light, setLight] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [lang, setLangState] = useState(getStoredLang);
+  // Display currency for the admin panel (persisted). Defaults to PHP.
+  const [currency, setCurrencyState] = useState(() => {
+    try { return localStorage.getItem('admin_currency') || 'PHP'; } catch { return 'PHP'; }
+  });
+  const setCurrency = useCallback((c) => {
+    setCurrencyState(c);
+    try { localStorage.setItem('admin_currency', c); } catch { /* storage unavailable */ }
+  }, []);
   const langRef = useRef(lang);
   const tRef = useRef(null);
 
@@ -47,8 +55,8 @@ export function UIProvider({ children }) {
   useEffect(() => { document.body.classList.toggle('light', light); }, [light]);
 
   const value = useMemo(
-    () => ({ toastMsg, toast, light, toggleTheme, sidebarOpen, openSidebar, closeSidebar, lang, setLang }),
-    [toastMsg, toast, light, toggleTheme, sidebarOpen, openSidebar, closeSidebar, lang]
+    () => ({ toastMsg, toast, light, toggleTheme, sidebarOpen, openSidebar, closeSidebar, lang, setLang, currency, setCurrency }),
+    [toastMsg, toast, light, toggleTheme, sidebarOpen, openSidebar, closeSidebar, lang, currency, setCurrency]
   );
   return <UIContext.Provider value={value}>{children}</UIContext.Provider>;
 }
