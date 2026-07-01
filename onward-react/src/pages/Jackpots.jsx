@@ -4,6 +4,7 @@ import useSectionNav from '../hooks/useSectionNav';
 import PageBanner from '../components/common/PageBanner.jsx';
 import usePageHero from '../hooks/usePageHero';
 import { JP_WINNINGS, JP_FAV_GAMES } from '../services/data/gameData';
+import { makeDisplayMoney } from '../utils/displayMoney';
 // Uploaded jackpot tier badges (replace the medal/crown emoji on each card).
 import jpImperial from '../assets/jackpot/jackpot-imperial.avif';
 import jpGolden from '../assets/jackpot/jackpot-golden.avif';
@@ -25,9 +26,12 @@ function formatMega(v) {
 }
 
 export default function Jackpots() {
-  const { openModal } = useUI();
+  const { openModal, currency, fxConvert } = useUI();
   const go = useSectionNav();
   const hero = usePageHero('jackpots'); // admin-editable eyebrow / title / desc
+  // All jackpot figures are authored in PHP; convert to the display currency.
+  const conv = (n) => (fxConvert ? fxConvert(Number(n) || 0, 'PHP', currency.code) : Number(n) || 0);
+  const money = makeDisplayMoney(currency, fxConvert);
 
   const [favTab, setFavTab] = useState('slots');
   const [tiers, setTiers] = useState({ t1: 7740000, t2: 173550, t3: 16560, t4: 682200 });
@@ -78,7 +82,7 @@ export default function Jackpots() {
 
         {/* MEGA TOTAL COUNTER */}
         <div className="jp-mega-counter">
-          <div className="jp-mega-amount"><span className="jp-mega-currency">₱</span><span id="jp-mega-val">{formatMega(mega)}</span></div>
+          <div className="jp-mega-amount"><span className="jp-mega-currency">{currency.symbol}</span><span id="jp-mega-val">{formatMega(conv(mega))}</span></div>
         </div>
 
         {/* 4 TIER CARDS */}
@@ -90,12 +94,12 @@ export default function Jackpots() {
             <div className="jp-tier-name" data-i18n="jp_imperial">Imperial</div>
             <div className="jp-tier-label" data-i18n="misc_jackpot">Jackpot</div>
             <div className="jp-tier-amount imperial-color">
-              <span id="jp-t1-val">{formatJPAmount(tiers.t1)}</span>
-              <span className="jp-tier-currency">₱</span>
+              <span id="jp-t1-val">{formatJPAmount(conv(tiers.t1))}</span>
+              <span className="jp-tier-currency">{currency.symbol}</span>
             </div>
             <div className="jp-tier-meta">
-              <div className="jp-tier-meta-row"><span data-i18n="jp_min_bet">Minimum bet</span><span className="jp-tier-meta-val" id="jp-t1-min">307.52 ₱</span></div>
-              <div className="jp-tier-meta-row"><span data-i18n="jp_max_win">Max win</span><span className="jp-tier-meta-val">3 075 250.00 ₱</span></div>
+              <div className="jp-tier-meta-row"><span data-i18n="jp_min_bet">Minimum bet</span><span className="jp-tier-meta-val" id="jp-t1-min">{money(307.52)}</span></div>
+              <div className="jp-tier-meta-row"><span data-i18n="jp_max_win">Max win</span><span className="jp-tier-meta-val">{money(3075250)}</span></div>
             </div>
             <button className="jp-tier-btn" onClick={playSlots} data-i18n="ui_play_now">Play Now</button>
           </div>
@@ -105,12 +109,12 @@ export default function Jackpots() {
             <div className="jp-tier-name" data-i18n="jp_golden">Golden</div>
             <div className="jp-tier-label">Jackpot</div>
             <div className="jp-tier-amount golden-color">
-              <span id="jp-t2-val">{formatJPAmount(tiers.t2)}</span>
-              <span className="jp-tier-currency">₱</span>
+              <span id="jp-t2-val">{formatJPAmount(conv(tiers.t2))}</span>
+              <span className="jp-tier-currency">{currency.symbol}</span>
             </div>
             <div className="jp-tier-meta">
-              <div className="jp-tier-meta-row"><span>Minimum bet</span><span className="jp-tier-meta-val" id="jp-t2-min">153.76 ₱</span></div>
-              <div className="jp-tier-meta-row"><span>Max win</span><span className="jp-tier-meta-val">615 050.00 ₱</span></div>
+              <div className="jp-tier-meta-row"><span>Minimum bet</span><span className="jp-tier-meta-val" id="jp-t2-min">{money(153.76)}</span></div>
+              <div className="jp-tier-meta-row"><span>Max win</span><span className="jp-tier-meta-val">{money(615050)}</span></div>
             </div>
             <button className="jp-tier-btn" onClick={playSlots}>Play Now</button>
           </div>
@@ -120,12 +124,12 @@ export default function Jackpots() {
             <div className="jp-tier-name" data-i18n="jp_silver">Silver</div>
             <div className="jp-tier-label">Jackpot</div>
             <div className="jp-tier-amount silver-color">
-              <span id="jp-t3-val">{formatJPAmount(tiers.t3)}</span>
-              <span className="jp-tier-currency">₱</span>
+              <span id="jp-t3-val">{formatJPAmount(conv(tiers.t3))}</span>
+              <span className="jp-tier-currency">{currency.symbol}</span>
             </div>
             <div className="jp-tier-meta">
-              <div className="jp-tier-meta-row"><span>Minimum bet</span><span className="jp-tier-meta-val" id="jp-t3-min">30.75 ₱</span></div>
-              <div className="jp-tier-meta-row"><span>Max win</span><span className="jp-tier-meta-val">61 505.00 ₱</span></div>
+              <div className="jp-tier-meta-row"><span>Minimum bet</span><span className="jp-tier-meta-val" id="jp-t3-min">{money(30.75)}</span></div>
+              <div className="jp-tier-meta-row"><span>Max win</span><span className="jp-tier-meta-val">{money(61505)}</span></div>
             </div>
             <button className="jp-tier-btn" onClick={playSlots}>Play Now</button>
           </div>
@@ -135,12 +139,12 @@ export default function Jackpots() {
             <div className="jp-tier-name" data-i18n="jp_bronze">Bronze</div>
             <div className="jp-tier-label">Jackpot</div>
             <div className="jp-tier-amount bronze-color">
-              <span id="jp-t4-val">{formatJPAmount(tiers.t4)}</span>
-              <span className="jp-tier-currency">₱</span>
+              <span id="jp-t4-val">{formatJPAmount(conv(tiers.t4))}</span>
+              <span className="jp-tier-currency">{currency.symbol}</span>
             </div>
             <div className="jp-tier-meta">
-              <div className="jp-tier-meta-row"><span>Minimum bet</span><span className="jp-tier-meta-val" id="jp-t4-min">12.30 ₱</span></div>
-              <div className="jp-tier-meta-row"><span>Max win</span><span className="jp-tier-meta-val">15 376.25 ₱</span></div>
+              <div className="jp-tier-meta-row"><span>Minimum bet</span><span className="jp-tier-meta-val" id="jp-t4-min">{money(12.30)}</span></div>
+              <div className="jp-tier-meta-row"><span>Max win</span><span className="jp-tier-meta-val">{money(15376.25)}</span></div>
             </div>
             <button className="jp-tier-btn" onClick={playSlots}>Play Now</button>
           </div>
@@ -179,7 +183,7 @@ export default function Jackpots() {
                       </div>
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      <span className={'jp-prize-cell ' + w.tierClass}>{w.prize.toLocaleString('en', { minimumFractionDigits: 2 })} ₱</span>
+                      <span className={'jp-prize-cell ' + w.tierClass}>{money(w.prize)}</span>
                     </td>
                   </tr>
                 ))}
@@ -199,7 +203,7 @@ export default function Jackpots() {
             </div>
             <div className="jp-how-step">
               <span className="jp-how-step-icon">💰</span>
-              <div className="jp-how-step-text">Make a bet while playing, even minimal bets of <strong>₱6.15</strong> can be winning</div>
+              <div className="jp-how-step-text">Make a bet while playing, even minimal bets of <strong>{money(6.15)}</strong> can be winning</div>
             </div>
             <div className="jp-how-step">
               <span className="jp-how-step-icon">🎁</span>

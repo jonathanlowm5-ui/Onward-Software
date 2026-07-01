@@ -2,15 +2,19 @@ import { useNavigate } from 'react-router-dom';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { resolvePromoBanner, localizePromo } from '../../utils/promoTerms';
+import { convertMoneyInText } from '../../utils/displayMoney';
 
 // Mirrors renderPromoCard(). Supports both bundled promos ({tag,title,desc,amount})
 // and API promos ({title,description,image,banners,buttonText,buttonLink}).
 export default function PromoCard({ promo, index, onOpen }) {
-  const { openModal, lang } = useUI();
+  const { openModal, lang, currency, fxConvert } = useUI();
   const { profile } = useAuth();
   const p = localizePromo(promo, lang);
   const navigate = useNavigate();
-  const desc = p.desc || p.description || '';
+  const viewerCur = currency?.code || profile?.currency || 'PHP';
+  const fromCur = String(p.currency || 'PHP').toUpperCase();
+  const title = convertMoneyInText(p.title, fromCur, viewerCur, fxConvert);
+  const desc = convertMoneyInText(p.desc || p.description || '', fromCur, viewerCur, fxConvert);
   const lines = String(desc).split('\n');
   const banner = resolvePromoBanner(p, profile?.currency);
 
@@ -31,13 +35,13 @@ export default function PromoCard({ promo, index, onOpen }) {
         // Banner image with the title + description overlaid on its left area.
         <div className="pb-banner-box" style={{ backgroundImage: `url(${banner})` }}>
           <div className="pb-banner-text">
-            <div className="pb-title">{p.title}</div>
+            <div className="pb-title">{title}</div>
             {desc && <div className="pb-detail">{lines.map((l, i) => <span key={i}>{l}<br /></span>)}</div>}
           </div>
         </div>
       ) : (
         <>
-          <div className="promo-title">{p.title}</div>
+          <div className="promo-title">{title}</div>
           <div className="promo-desc">{lines.map((l, i) => <div key={i}>{l}</div>)}</div>
         </>
       )}

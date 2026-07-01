@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { resolvePromoBanner, localizePromo } from '../../utils/promoTerms';
+import { convertMoneyInText } from '../../utils/displayMoney';
 import { fetchPromotions } from '../../services/gamesService';
 
 /*
@@ -15,8 +16,9 @@ import { fetchPromotions } from '../../services/gamesService';
  * Recommended source image: 1200 × 425, under 4 MB.
  */
 export default function BannerCarousel({ promos, className = '' }) {
-  const { openModal, lang } = useUI();
+  const { openModal, lang, currency, fxConvert } = useUI();
   const { profile } = useAuth();
+  const viewerCur = currency?.code || profile?.currency || 'PHP';
 
   // Clicking a banner always opens the promotion detail (conditions / T&C). The
   // detail modal's own call-to-action then handles the link (deposit, internal
@@ -65,15 +67,18 @@ export default function BannerCarousel({ promos, className = '' }) {
     <div className={`onward-banner ${className}`.trim()}>
       <div className="onward-banner-track" style={{ transform: `translateX(-${safeIdx * 100}%)` }}>
         {slides.map((s, i) => {
-          const lines = s.p.description
-            ? String(s.p.description).split('\n').map((l, j) => <span key={j}>{l}<br /></span>)
+          const fromCur = String(s.p.currency || 'PHP').toUpperCase();
+          const title = convertMoneyInText(s.p.title, fromCur, viewerCur, fxConvert);
+          const desc = convertMoneyInText(s.p.description, fromCur, viewerCur, fxConvert);
+          const lines = desc
+            ? String(desc).split('\n').map((l, j) => <span key={j}>{l}<br /></span>)
             : null;
           return (
             <div key={s.p.id ?? i} className="onward-banner-slide" onClick={() => onBannerClick(s.p)}>
-              <img src={s.img} alt={s.p.title || 'Promotion'} className="onward-banner-img" />
-              {(s.p.title || lines) && (
+              <img src={s.img} alt={title || 'Promotion'} className="onward-banner-img" />
+              {(title || lines) && (
                 <div className="onward-banner-text">
-                  {s.p.title && <div className="onward-banner-title">{s.p.title}</div>}
+                  {title && <div className="onward-banner-title">{title}</div>}
                   {lines && <div className="onward-banner-desc">{lines}</div>}
                 </div>
               )}
