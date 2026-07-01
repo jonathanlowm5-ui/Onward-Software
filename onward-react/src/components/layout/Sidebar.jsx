@@ -92,9 +92,14 @@ export default function Sidebar() {
           <SbItem icon="⚡" label="Instant Games" i18n="nav_instant" onClick={() => filterSidebar('crash')} />
           <SbItem icon="📡" label="Live Casino" i18n="nav_live" onClick={() => go('live')} />
           <SbItem icon="🎰" label="Slots" i18n="nav_slots" onClick={() => go('slots')} />
+          <SbItem icon="💎" label="Jackpot" i18n="nav_jackpot_games" onClick={() => filterSidebar('jackpot')} />
+          <SbItem icon="🎇" label="Megaways" i18n="nav_megaways" onClick={() => filterSidebar('megaways')} />
           <SbItem icon="🎡" label="Roulette" i18n="nav_roulette" onClick={() => filterSidebar('roulette')} />
-          <SbItem icon="🎲" label="Craps" i18n="nav_craps" onClick={() => filterSidebar('table')} />
-          <SbItem icon="🃏" label="Poker" i18n="nav_poker" onClick={() => go('poker')} />
+          <SbItem icon="🎲" label="Table Games" i18n="nav_table" onClick={() => filterSidebar('table')} />
+          <SbItem icon="🃏" label="Cards" i18n="nav_cards" onClick={() => filterSidebar('cards')} />
+          <SbItem icon="♠️" label="Poker" i18n="nav_poker" onClick={() => go('poker')} />
+          <SbItem icon="🎱" label="Bingo" i18n="nav_bingo" onClick={() => filterSidebar('bingo')} />
+          <SbItem icon="🀄" label="Mahjong" i18n="nav_mahjong" onClick={() => filterSidebar('mahjong')} />
           <SbItem icon="🎫" label="Lottery" i18n="nav_lottery" onClick={() => go('lottery')} />
           <SbItem icon="🐟" label="Fish Games" i18n="nav_fish" onClick={() => go('fish')} />
 

@@ -12,6 +12,31 @@ const ALL_KNOWN = [...ALL_GAME_ICONS, ...GAMES, ...LIVE_GAMES];
 
 const PER_PAGE = 30;
 
+// Keyword-backed categories so sidebar links resolve to real games (matched by
+// game name / provider) instead of an empty filter.
+const CAT_KEYWORDS = {
+  jackpot: /jackpot/i,
+  bingo: /bingo/i,
+  mahjong: /mahjong/i,
+  megaways: /megaways/i,
+  cards: /poker|blackjack|baccarat|\bcards?\b|hold ?'?em|teen ?patti|rummy/i,
+  fishing: /fish/i,
+};
+
+// Section titles per category.
+const CAT_TITLE = {
+  new: '🆕 New Games',
+  crash: '⚡ Instant Games',
+  roulette: '🎡 Roulette',
+  table: '🎲 Table Games',
+  jackpot: '💎 Jackpot Games',
+  bingo: '🎱 Bingo',
+  mahjong: '🀄 Mahjong',
+  megaways: '🎇 Megaways',
+  cards: '🃏 Card Games',
+  fishing: '🐟 Fishing Games',
+};
+
 // Provider scroller buttons matching the original provider-filter-btns.
 const PROVIDER_LIST = [
   { name: 'All', key: 'all', label: 'All', logo: null },
@@ -54,6 +79,10 @@ export default function Slots() {
       list = [...flagged, ...ALL_SLOTS.slice(0, 48).filter((g) => !seen.has(g.id))];
     } else if (catParam === 'roulette') {
       list = ALL_SLOTS.filter((g) => /roulette/i.test(g.name) || /roulette/i.test(g.provider || ''));
+    } else if (catParam && CAT_KEYWORDS[catParam]) {
+      const re = CAT_KEYWORDS[catParam];
+      list = ALL_SLOTS.filter((g) => re.test(g.name) || re.test(g.provider || '')
+        || (catParam === 'jackpot' && g.badge === 'jackpot'));
     } else if (catParam) {
       list = ALL_SLOTS.filter((g) => g.cat === catParam);
     } else {
@@ -76,10 +105,7 @@ export default function Slots() {
         <div className="section-header">
           {isFavView
             ? <h2 className="section-title" data-i18n="sec_favorites">❤️ My Favourites</h2>
-            : catParam === 'new' ? <h2 className="section-title">🆕 New Games</h2>
-            : catParam === 'crash' ? <h2 className="section-title">⚡ Instant Games</h2>
-            : catParam === 'roulette' ? <h2 className="section-title">🎡 Roulette</h2>
-            : catParam === 'table' ? <h2 className="section-title">🎲 Table Games</h2>
+            : catParam && CAT_TITLE[catParam] ? <h2 className="section-title">{CAT_TITLE[catParam]}</h2>
             : <h2 className="section-title" data-i18n="sec_all_slots">🎲 All Slot Games</h2>}
           <span style={{ color: 'var(--text-muted)', fontSize: '14px' }} id="slot-count">{filtered.length} Games</span>
         </div>
