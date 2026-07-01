@@ -2198,9 +2198,6 @@ footer{
 #wallet-bar{display:none!important}
 #top-panel{display:none!important}
 
-/* Sidebar min-height for new header (~96px). The panel scrolls WITH the page
-   (not pinned), so no sticky offset / internal max-height here. */
-#sidebar-nav{min-height:calc(100vh - 96px)}
 #sb-overlay{top:0}
 
 /* Logged-out state hides wallet */
@@ -2449,19 +2446,31 @@ footer{
 
 #page-wrapper{
   display:flex;
+  align-items:flex-start;      /* let the sidebar size to its own content */
   min-height:calc(100vh - 64px);
 }
 
+/* Desktop sidebar: scrolls with the page, then pins just below the sticky
+   header (top:96px) so it stays reachable while you browse — the standard,
+   user-friendly "follow then stick" behaviour. Sized to its content (no empty
+   gap); only scrolls internally when it's taller than the viewport. */
 #sidebar-nav{
   width:248px;
   flex-shrink:0;
   background:var(--bg2);
   border-right:1px solid var(--border);
-  align-self:stretch;
-  min-height:calc(100vh - 96px);
+  position:sticky;
+  top:96px;
+  align-self:flex-start;
+  max-height:calc(100vh - 104px);
+  overflow-y:auto;
+  overflow-x:hidden;
   z-index:50;
   transition:width .25s ease, transform .25s ease;
 }
+#sidebar-nav::-webkit-scrollbar{width:5px}
+#sidebar-nav::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+#sidebar-nav:hover::-webkit-scrollbar-thumb{background:var(--border2,#33415e)}
 /* The sidebar scrolls with the page (no sticky pin / internal scrollbar), so
    every item and the footer are reached with the normal page scroll. */
 .sb-inner{
@@ -2652,6 +2661,7 @@ footer{
     position:fixed;
     top:0;left:0;
     height:100vh;
+    max-height:none;            /* full-height drawer (override desktop cap) */
     width:230px;
     transform:translateX(-100%);
     box-shadow:4px 0 24px rgba(0,0,0,.5);
@@ -4775,6 +4785,7 @@ img{ -webkit-user-drag:none; user-drag:none; }
     z-index:500 !important;
     top:0 !important;
     height:100vh !important;
+    max-height:none !important;
     padding-bottom:calc(76px + env(safe-area-inset-bottom));
   }
   #sb-overlay{ z-index:499 !important; }
