@@ -2504,36 +2504,33 @@ footer{
   min-height:calc(100vh - 64px);
 }
 
-/* Desktop sidebar: scrolls with the page, then pins just below the sticky
-   header (top:96px) so it stays reachable while you browse — the standard,
-   user-friendly "follow then stick" behaviour. Sized to its content (no empty
-   gap); only scrolls internally when it's taller than the viewport. */
+/* Desktop sidebar: the COLUMN stretches the full height of the page (down to
+   the footer) so there is never an empty gap beneath the last item, while the
+   inner content follows the scroll and then pins below the sticky header
+   (top:96px) — the standard "full column + follow then stick" behaviour. */
 #sidebar-nav{
   width:248px;
   flex-shrink:0;
   background:var(--bg2);
   border-right:1px solid var(--border);
-  position:sticky;
-  top:96px;
-  align-self:flex-start;
-  max-height:calc(100vh - 104px);
-  overflow-y:auto;
-  overflow-x:hidden;
+  align-self:stretch;         /* fill the column to the footer, no dead space */
   z-index:50;
   transition:width .25s ease, transform .25s ease;
 }
-#sidebar-nav::-webkit-scrollbar{width:5px}
-#sidebar-nav::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
-#sidebar-nav:hover::-webkit-scrollbar-thumb{background:var(--border2,#33415e)}
-/* The sidebar scrolls with the page (no sticky pin / internal scrollbar), so
-   every item and the footer are reached with the normal page scroll. */
+/* Inner rail follows the page then sticks; only it scrolls when taller than
+   the viewport, so the full-height column stays put behind it. */
 .sb-inner{
+  position:sticky;
+  top:96px;
+  max-height:calc(100vh - 104px);
+  overflow-y:auto;
   overflow-x:hidden;
   display:flex;
   flex-direction:column;
 }
-.sb-inner::-webkit-scrollbar{width:3px}
-.sb-inner::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.sb-inner::-webkit-scrollbar{width:5px}
+.sb-inner::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.sb-inner:hover::-webkit-scrollbar-thumb{background:var(--border2,#33415e)}
 
 /* ── COLLAPSED STATE ── */
 #sidebar-nav.collapsed{
