@@ -11,6 +11,7 @@
 
 // Pull the first numeric value out of a free-text field (e.g. "₱500" -> "500").
 import { TERMS_I18N } from './promoTermsI18n';
+import { autoTranslatePromo } from './promoAutoTranslate';
 
 function digits(value, fallback) {
   const m = String(value ?? '').match(/\d[\d,]*(?:\.\d+)?/);
@@ -59,16 +60,17 @@ export function localizePromoMoney(promo = {}, viewerCurrency, convert) {
   };
 }
 
-// Localize a promo's title/description for a viewer's language. Admins provide
-// translations in p.i18n[lang]; otherwise the base (default) text is shown.
+// Localize a promo's title/description for a viewer's language. An admin-provided
+// translation (p.i18n[lang]) always wins; otherwise the common promo wording is
+// auto-translated so banners/cards localise themselves without manual entry.
 export function localizePromo(promo = {}, lang = 'en') {
   const p = promo || {};
   const tr = (p.i18n && p.i18n[lang]) || {};
-  const pick = (a, b) => (a && String(a).trim() ? a : b);
+  const has = (v) => v && String(v).trim();
   return {
     ...p,
-    title: pick(tr.title, p.title),
-    description: pick(tr.description, p.description),
+    title: has(tr.title) ? tr.title : autoTranslatePromo(p.title, lang),
+    description: has(tr.description) ? tr.description : autoTranslatePromo(p.description, lang),
   };
 }
 
