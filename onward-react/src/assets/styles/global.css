@@ -1912,6 +1912,7 @@ footer{
   margin-bottom:10px;transition:all .2s;
 }
 .social-btn:hover{border-color:var(--text-muted);background:var(--surface2)}
+.social-logo{width:20px;height:20px;object-fit:contain;display:block;flex-shrink:0}
 .form-footer{
   text-align:center;margin-top:16px;
   font-size:13px;color:var(--text-muted);

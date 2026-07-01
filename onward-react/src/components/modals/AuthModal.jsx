@@ -4,6 +4,8 @@ import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { deposit as depositRequest } from '../../services/playersService';
 import api from '../../services/api';
+import telegramLogo from '../../assets/social/telegram.svg';
+import googleLogo from '../../assets/social/google.svg';
 
 const EMPTY_REG = {
   name: '', username: '', email: '', phone: '',
@@ -165,8 +167,8 @@ export default function AuthModal() {
             <span data-i18n="auth_login_play">{busy ? 'Logging in…' : '🎰 Login & Play'}</span>
           </button>
           <div className="form-divider" data-i18n="auth_or_continue">or continue with</div>
-          <button className="social-btn"><span>✈️</span> <span data-i18n="auth_telegram">Continue with Telegram</span></button>
-          <button className="social-btn"><span>🔍</span> <span data-i18n="auth_google">Continue with Google</span></button>
+          <button className="social-btn"><img src={telegramLogo} alt="" className="social-logo" /> <span data-i18n="auth_telegram">Continue with Telegram</span></button>
+          <button className="social-btn"><img src={googleLogo} alt="" className="social-logo" /> <span data-i18n="auth_google">Continue with Google</span></button>
           <div className="form-footer">
             <a href="#" onClick={doForgot} data-i18n="auth_forgot">Forgot Password?</a> &nbsp;·&nbsp;{' '}
             <span data-i18n="auth_new">New?</span>{' '}
