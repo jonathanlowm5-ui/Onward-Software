@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useUI } from '../context/UIContext';
+import { useAuth } from '../context/AuthContext';
 import useSectionNav from '../hooks/useSectionNav';
+import useGames from '../hooks/useGames';
 import PageBanner from '../components/common/PageBanner.jsx';
 import usePageHero from '../hooks/usePageHero';
-import { JP_WINNINGS, JP_FAV_GAMES } from '../services/data/gameData';
+import { JP_WINNINGS, ALL_SLOTS, LIVE_GAMES } from '../services/data/gameData';
+import { launchGame as resolveLaunch } from '../services/gamesService';
 import { makeDisplayMoney } from '../utils/displayMoney';
 // Uploaded jackpot tier badges (replace the medal/crown emoji on each card).
 import jpImperial from '../assets/jackpot/jackpot-imperial.avif';
@@ -25,15 +28,66 @@ function formatMega(v) {
   return Number(int).toLocaleString('en').replace(/,/g, ' ') + '.' + dec;
 }
 
+// Deterministic "live players" badge so cards don't flicker on re-render.
+function playersFor(key) {
+  const s = String(key || '');
+  let n = 0;
+  for (let i = 0; i < s.length; i++) n = (n * 31 + s.charCodeAt(i)) % 1000;
+  return 8 + (n % 92); // 8..99
+}
+
 export default function Jackpots() {
   const { openModal, currency, fxConvert } = useUI();
+  const { isLoggedIn } = useAuth();
   const go = useSectionNav();
+  const { games: liveGames } = useGames(); // live catalogue (bundled fallback)
   const hero = usePageHero('jackpots'); // admin-editable eyebrow / title / desc
   // All jackpot figures are authored in PHP; convert to the display currency.
   const conv = (n) => (fxConvert ? fxConvert(Number(n) || 0, 'PHP', currency.code) : Number(n) || 0);
   const money = makeDisplayMoney(currency, fxConvert);
 
   const [favTab, setFavTab] = useState('slots');
+
+  // Real catalogue games for the "All your Favorite Games" grid. Slots come
+  // from the live catalogue (bundled fallback); Live games from LIVE_GAMES.
+  const slotGames = useMemo(() => {
+    const src = (liveGames && liveGames.length ? liveGames : ALL_SLOTS)
+      .filter((g) => !g.cat || g.cat === 'slots');
+    return src.slice(0, 18).map((g) => ({
+      id: g.id,
+      name: g.name,
+      provider: g.provider,
+      icon: g.icon || '🎰',
+      color: g.color || '#1a1000',
+      img: g.img || '',
+      launchUrl: g.launchUrl || '',
+      players: playersFor(g.id != null ? g.id : g.name),
+    }));
+  }, [liveGames]);
+
+  const liveList = useMemo(
+    () => LIVE_GAMES.map((g) => ({
+      id: g.id,
+      name: g.provider,
+      provider: g.provider,
+      icon: g.icon || '🎲',
+      color: g.color || '#0a1420',
+      img: g.img || '',
+      launchUrl: g.launchUrl || '',
+      players: g.players != null ? g.players : playersFor(g.provider),
+    })),
+    [],
+  );
+
+  const favGames = favTab === 'live' ? liveList : slotGames;
+
+  const launchFav = async (g) => {
+    if (!isLoggedIn) { openModal('register'); return; }
+    const url = g.id != null ? await resolveLaunch(g.id) : g.launchUrl;
+    if (url) window.open(url, '_blank', 'noopener');
+    else openModal('game', { name: g.name, icon: g.icon });
+  };
+
   const [tiers, setTiers] = useState({ t1: 7740000, t2: 173550, t3: 16560, t4: 682200 });
   const [mega, setMega] = useState(8610389.37);
 
@@ -222,9 +276,15 @@ export default function Jackpots() {
             </div>
           </div>
           <div className="jp-fav-grid" id="jp-fav-grid">
-            {JP_FAV_GAMES.map((g, i) => (
-              <div key={i} className="jp-fav-card" onClick={() => openModal('register')}>
-                <div className="jp-fav-thumb" style={{ background: `linear-gradient(135deg,${g.color},${g.color}88)` }}>{g.icon}</div>
+            {favGames.map((g, i) => (
+              <div key={(g.id != null ? g.id : g.name) + '-' + i} className="jp-fav-card" onClick={() => launchFav(g)}>
+                {g.img ? (
+                  <div className="jp-fav-thumb" style={{ padding: 0, overflow: 'hidden' }}>
+                    <img src={g.img} alt={g.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  </div>
+                ) : (
+                  <div className="jp-fav-thumb" style={{ background: `linear-gradient(135deg,${g.color},${g.color}88)` }}>{g.icon}</div>
+                )}
                 <div className="jp-fav-players">{g.players}</div>
                 <div className="jp-fav-name">{g.name}</div>
                 <div className="jp-fav-overlay"><div className="jp-fav-play">▶</div></div>
