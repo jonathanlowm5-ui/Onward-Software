@@ -9,7 +9,9 @@ const RESULT_POOLS = [
   { key: 'toto', label: '🔵 Sports Toto' },
 ];
 const blankPool = () => ({ date: '', drawNo: '', first: '', second: '', third: '', special: '', consolation: '', jp1: '', jp2: '' });
-const toList = (s) => String(s || '').split(/[\s,]+/).map((x) => x.replace(/[^0-9]/g, '')).filter(Boolean);
+// Preserve the exact result layout: keep 4-digit numbers AND the "----" blanks
+// in their positions, so Special / Consolation match the source draw exactly.
+const toList = (s) => String(s || '').split(/[\s,]+/).filter(Boolean).map((x) => (/^-+$/.test(x) ? '----' : x.replace(/[^0-9]/g, '').slice(0, 4))).filter(Boolean);
 
 function ResultsEntry() {
   const { toast } = useUI();
@@ -66,7 +68,7 @@ function ResultsEntry() {
           <button className="btn-search" disabled={busy} onClick={save}>{busy ? 'Publishing…' : '💾 Publish Results'}</button>
         </span>
       </div>
-      <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>Enter the latest draw for each pool — it appears instantly on the player Lottery page. For Special / Consolation, type the 4-digit numbers separated by spaces.</div>
+      <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>Enter the latest draw for each pool — it appears instantly on the player Lottery page. For Special / Consolation, type the 4-digit numbers separated by spaces, and <b>---- for any blank slot</b> so it lines up exactly like the official result.</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 14 }}>
         {RESULT_POOLS.map(({ key, label }) => {
           const p = pools[key];
@@ -78,12 +80,12 @@ function ResultsEntry() {
                 <div><label style={lbl}>Draw No.</label><input style={inp} value={p.drawNo} placeholder="No.376/26" onChange={(e) => set(key, 'drawNo', e.target.value)} /></div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
-                <div><label style={lbl}>1st</label><input style={inp} maxLength={4} value={p.first} onChange={(e) => set(key, 'first', e.target.value)} /></div>
-                <div><label style={lbl}>2nd</label><input style={inp} maxLength={4} value={p.second} onChange={(e) => set(key, 'second', e.target.value)} /></div>
-                <div><label style={lbl}>3rd</label><input style={inp} maxLength={4} value={p.third} onChange={(e) => set(key, 'third', e.target.value)} /></div>
+                <div><label style={lbl}>1st</label><input style={inp} maxLength={12} value={p.first} placeholder="(L) 5573" onChange={(e) => set(key, 'first', e.target.value)} /></div>
+                <div><label style={lbl}>2nd</label><input style={inp} maxLength={12} value={p.second} placeholder="(K) 8852" onChange={(e) => set(key, 'second', e.target.value)} /></div>
+                <div><label style={lbl}>3rd</label><input style={inp} maxLength={12} value={p.third} placeholder="(B) 2745" onChange={(e) => set(key, 'third', e.target.value)} /></div>
               </div>
-              <div style={{ marginBottom: 8 }}><label style={lbl}>Special (space-separated)</label><textarea style={{ ...inp, minHeight: 48, resize: 'vertical' }} value={p.special} placeholder="3779 5646 2625 …" onChange={(e) => set(key, 'special', e.target.value)} /></div>
-              <div style={{ marginBottom: 8 }}><label style={lbl}>Consolation (space-separated)</label><textarea style={{ ...inp, minHeight: 48, resize: 'vertical' }} value={p.consolation} placeholder="5040 1304 0194 …" onChange={(e) => set(key, 'consolation', e.target.value)} /></div>
+              <div style={{ marginBottom: 8 }}><label style={lbl}>Special <span style={{ fontWeight: 400, color: 'var(--muted)' }}>— use ---- for a blank slot</span></label><textarea style={{ ...inp, minHeight: 56, resize: 'vertical', fontFamily: 'monospace' }} value={p.special} placeholder="4549 ---- 4563 7644 0869 9251 6556 1387 1377 2818 ---- ---- 7593" onChange={(e) => set(key, 'special', e.target.value)} /></div>
+              <div style={{ marginBottom: 8 }}><label style={lbl}>Consolation <span style={{ fontWeight: 400, color: 'var(--muted)' }}>— use ---- for a blank slot</span></label><textarea style={{ ...inp, minHeight: 56, resize: 'vertical', fontFamily: 'monospace' }} value={p.consolation} placeholder="9451 7692 3881 7999 1974 1164 4461 0595 5620 1489" onChange={(e) => set(key, 'consolation', e.target.value)} /></div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 <div><label style={lbl}>Jackpot 1</label><input style={inp} value={p.jp1} placeholder="RM 21,630,000.00" onChange={(e) => set(key, 'jp1', e.target.value)} /></div>
                 <div><label style={lbl}>Jackpot 2</label><input style={inp} value={p.jp2} placeholder="RM 247,000.00" onChange={(e) => set(key, 'jp2', e.target.value)} /></div>

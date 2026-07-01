@@ -108,9 +108,9 @@ function LotteryCard({ r }) {
         </div>
       ))}
       <div className="lottery-section-label">Special</div>
-      {chunk(r.special, 5).map(gridRow)}
+      {chunk(r.special, 4).map(gridRow)}
       <div className="lottery-section-label">Consolation</div>
-      {chunk(r.consolation, 5).map(gridRow)}
+      {chunk(r.consolation, 4).map(gridRow)}
       <div className="lottery-jackpot-row">
         <div className="lottery-jp-box"><div className="lottery-jp-label">4D Jackpot 1</div><div className="lottery-jp-val">{r.jp1}</div></div>
         <div className="lottery-jp-box"><div className="lottery-jp-label">4D Jackpot 2</div><div className="lottery-jp-val">{r.jp2}</div></div>
