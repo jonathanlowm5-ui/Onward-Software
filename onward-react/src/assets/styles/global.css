@@ -1080,8 +1080,10 @@ body::before{
 }
 .note-ticker:hover .note-ticker-track{animation-play-state:paused}
 .note-ticker-msg{
-  padding:0 44px;font-size:13.5px;font-weight:600;color:#fff;
+  padding:0 30px;font-size:13.5px;font-weight:600;color:#fff;
+  display:inline-flex;align-items:center;gap:30px;
 }
+.note-ticker-sep{color:rgba(255,255,255,.4);font-weight:400}
 @keyframes noteScroll{
   from{transform:translateX(0)}
   to{transform:translateX(-33.333%)}
@@ -1090,8 +1092,55 @@ body::before{
 @media(max-width:600px){
   .note-ticker{height:34px;gap:8px}
   .note-ticker-tag{font-size:10px;padding:2px 8px}
-  .note-ticker-msg{font-size:12px;padding:0 30px}
+  .note-ticker-msg{font-size:12px;padding:0 22px;gap:22px}
   .note-ticker-track{animation-duration:20s}
+}
+
+/* ===== Pop-out announcement modal ===== */
+.pop-ann-ov{
+  position:fixed;inset:0;z-index:1200;
+  display:flex;align-items:center;justify-content:center;
+  padding:20px;background:rgba(4,7,16,.72);backdrop-filter:blur(3px);
+  animation:popAnnFade .18s ease;
+}
+@keyframes popAnnFade{from{opacity:0}to{opacity:1}}
+.pop-ann{
+  position:relative;width:100%;max-width:460px;
+  background:#121a2e;border:1px solid rgba(255,255,255,.12);
+  border-radius:18px;overflow:hidden;
+  box-shadow:0 24px 70px rgba(0,0,0,.6);
+  animation:popAnnIn .22s cubic-bezier(.2,.9,.3,1.2);
+}
+@keyframes popAnnIn{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}
+.pop-ann-x{
+  position:absolute;top:10px;right:10px;z-index:2;
+  width:32px;height:32px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.5);color:#fff;border:1px solid rgba(255,255,255,.25);
+  font-size:15px;cursor:pointer;line-height:1;transition:background .15s;
+}
+.pop-ann-x:hover{background:rgba(0,0,0,.8)}
+.pop-ann-body{display:block}
+.pop-ann-body.clickable{cursor:pointer}
+.pop-ann-img{
+  display:block;width:100%;height:auto;object-fit:cover;
+}
+.pop-ann-text{padding:18px 20px 22px;text-align:center}
+.pop-ann-title{font-size:19px;font-weight:800;color:#fff;margin-bottom:8px}
+.pop-ann-msg{font-size:14px;line-height:1.5;color:#c4cde0;white-space:pre-line}
+.pop-ann-cta{
+  margin-top:16px;padding:11px 26px;border:none;border-radius:10px;cursor:pointer;
+  background:linear-gradient(90deg,#f5b731,#f08a1d);color:#1a1200;
+  font-size:14px;font-weight:800;letter-spacing:.02em;
+  box-shadow:0 6px 18px rgba(240,138,29,.35);transition:transform .12s,filter .12s;
+}
+.pop-ann-cta:hover{transform:translateY(-1px);filter:brightness(1.05)}
+@media(max-width:600px){
+  .pop-ann-ov{padding:16px;align-items:center}
+  .pop-ann{max-width:100%;border-radius:16px}
+  .pop-ann-title{font-size:17px}
+  .pop-ann-msg{font-size:13px}
+  .pop-ann-text{padding:16px 16px 20px}
 }
 
 /* ===== Follow Us page ===== */

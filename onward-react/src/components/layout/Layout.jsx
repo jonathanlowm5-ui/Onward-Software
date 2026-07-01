@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import Header from './Header.jsx';
 import NotificationTicker from './NotificationTicker.jsx';
+import PopoutAnnouncement from './PopoutAnnouncement.jsx';
 import Sidebar from './Sidebar.jsx';
 import Footer from './Footer.jsx';
 import H5BottomNav from './H5BottomNav.jsx';
@@ -40,6 +41,7 @@ export default function Layout() {
       <ModalsRoot />
       <Dropdowns />
       <Toaster />
+      <PopoutAnnouncement />
     </>
   );
 }
