@@ -2198,9 +2198,9 @@ footer{
 #wallet-bar{display:none!important}
 #top-panel{display:none!important}
 
-/* Sidebar top offset for new header (~96px) */
+/* Sidebar min-height for new header (~96px). The panel scrolls WITH the page
+   (not pinned), so no sticky offset / internal max-height here. */
 #sidebar-nav{min-height:calc(100vh - 96px)}
-#sidebar-nav .sb-inner{top:96px;max-height:calc(100vh - 96px)}
 #sb-overlay{top:0}
 
 /* Logged-out state hides wallet */
@@ -2462,11 +2462,9 @@ footer{
   z-index:50;
   transition:width .25s ease, transform .25s ease;
 }
+/* The sidebar scrolls with the page (no sticky pin / internal scrollbar), so
+   every item and the footer are reached with the normal page scroll. */
 .sb-inner{
-  position:sticky;
-  top:96px;
-  max-height:calc(100vh - 96px);
-  overflow-y:auto;
   overflow-x:hidden;
   display:flex;
   flex-direction:column;
