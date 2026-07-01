@@ -36,6 +36,8 @@ function cleanTicker(t) {
   };
 }
 
+const AUDIENCES = ['all', 'guest', 'member', 'vip'];
+
 function cleanPopout(p) {
   if (!p || typeof p !== 'object') return null;
   const title = str(p.title, 160).trim();
@@ -52,6 +54,9 @@ function cleanPopout(p) {
     mobileImage: str(p.mobileImage, 5000).trim(),
     link: str(p.link, 2000).trim(),
     ctaText: str(p.ctaText, 60).trim(),
+    audience: AUDIENCES.includes(p.audience) ? p.audience : 'all',
+    start: str(p.start, 40).trim(), // datetime-local / ISO; empty = no start bound
+    end: str(p.end, 40).trim(),     // empty = no end bound
   };
 }
 

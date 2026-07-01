@@ -1589,8 +1589,8 @@ body::before{
 .jp-tiers{
   display:grid;
   grid-template-columns:repeat(4,1fr);
-  gap:12px;
-  max-width:960px;
+  gap:16px;
+  max-width:1400px;
   margin:0 auto 40px;
   padding:0 20px;
 }
@@ -1668,7 +1668,7 @@ img.jp-jackpot-crown{width:24px;height:24px;object-fit:contain;vertical-align:mi
 
 /* ── LAST WINNINGS TABLE ── */
 .jp-winnings{
-  max-width:960px;margin:0 auto 40px;padding:0 20px;
+  max-width:1400px;margin:0 auto 40px;padding:0 20px;
 }
 .jp-winnings-title{
   font-size:18px;font-weight:700;color:#fff;margin-bottom:16px;
@@ -1728,7 +1728,7 @@ img.jp-jackpot-crown{width:24px;height:24px;object-fit:contain;vertical-align:mi
 
 /* ── HOW TO CATCH A PRIZE ── */
 .jp-how{
-  max-width:960px;margin:0 auto 48px;padding:0 20px;
+  max-width:1400px;margin:0 auto 48px;padding:0 20px;
   text-align:center;
 }
 .jp-how-title{
@@ -1751,7 +1751,7 @@ img.jp-jackpot-crown{width:24px;height:24px;object-fit:contain;vertical-align:mi
 
 /* ── FAVORITE GAMES SECTION ── */
 .jp-fav{
-  max-width:960px;margin:0 auto;padding:0 20px;
+  max-width:1400px;margin:0 auto;padding:0 20px;
 }
 .jp-fav-header{
   display:flex;align-items:center;justify-content:space-between;
@@ -1770,8 +1770,8 @@ img.jp-jackpot-crown{width:24px;height:24px;object-fit:contain;vertical-align:mi
 }
 .jp-fav-grid{
   display:grid;
-  grid-template-columns:repeat(7,1fr);
-  gap:8px;
+  grid-template-columns:repeat(auto-fill,minmax(132px,1fr));
+  gap:12px;
 }
 .jp-fav-card{
   border-radius:10px;overflow:hidden;position:relative;

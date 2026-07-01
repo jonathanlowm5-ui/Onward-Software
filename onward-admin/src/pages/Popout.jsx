@@ -20,7 +20,15 @@ const LEVELS = [
   { v: 'critical', label: '🚨 Critical (red)' },
 ];
 
-const EMPTY_POP = { id: '', enabled: true, title: '', message: '', image: '', mobileImage: '', link: '', ctaText: '' };
+const EMPTY_POP = { id: '', enabled: true, title: '', message: '', image: '', mobileImage: '', link: '', ctaText: '', audience: 'all', start: '', end: '' };
+
+const AUDIENCES = [
+  { v: 'all', label: '🌐 All Players' },
+  { v: 'guest', label: '👤 Guests (logged out)' },
+  { v: 'member', label: '✅ Members (logged in)' },
+  { v: 'vip', label: '👑 VIP Players' },
+];
+const AUD_LABEL = { all: 'All', guest: 'Guests', member: 'Members', vip: 'VIP' };
 
 export default function Popout() {
   const { toast } = useUI();
@@ -161,6 +169,10 @@ export default function Popout() {
                   <div style={{ fontWeight: 700, color: 'var(--text,#fff)', marginBottom: 4 }}>{p.title || '(no title)'}</div>
                   <div style={{ fontSize: 12, color: 'var(--muted)', minHeight: 32, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{p.message || '—'}</div>
                   {p.link && <div style={{ fontSize: 11, color: '#5aa9ff', marginTop: 6, wordBreak: 'break-all' }}>🔗 {p.link}</div>}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: 'rgba(90,169,255,.15)', color: '#8fc2ff' }}>🎯 {AUD_LABEL[p.audience] || 'All'}</span>
+                    {(p.start || p.end) && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 999, background: 'rgba(240,138,29,.15)', color: '#f0a84d' }}>📅 {(p.start || '…').replace('T', ' ')}{p.end ? ' → ' + p.end.replace('T', ' ') : ''}</span>}
+                  </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
                     <label className="switch"><input type="checkbox" checked={!!p.enabled} onChange={() => togglePop(p.id)} /><span className="slider"></span></label>
                     <span style={{ fontSize: 12, color: p.enabled ? 'var(--green)' : 'var(--muted)', fontWeight: 700 }}>{p.enabled ? 'Live' : 'Off'}</span>
@@ -209,6 +221,18 @@ export default function Popout() {
               <div className="pm-grid" style={{ marginTop: 12 }}>
                 <div className="pm-fld"><label>Click-through Link (opens on tap)</label><input value={form.link} onChange={(e) => setF('link', e.target.value)} placeholder="/promotions or https://…" /></div>
                 <div className="pm-fld"><label>Button Text</label><input value={form.ctaText} onChange={(e) => setF('ctaText', e.target.value)} placeholder="Learn More" /></div>
+              </div>
+
+              <div className="pm-fld" style={{ marginTop: 12 }}>
+                <label>Target Audience</label>
+                <select value={form.audience} onChange={(e) => setF('audience', e.target.value)}>
+                  {AUDIENCES.map((a) => <option key={a.v} value={a.v}>{a.label}</option>)}
+                </select>
+              </div>
+
+              <div className="pm-grid" style={{ marginTop: 12 }}>
+                <div className="pm-fld"><label>Start (optional — blank = show now)</label><input type="datetime-local" value={form.start} onChange={(e) => setF('start', e.target.value)} /></div>
+                <div className="pm-fld"><label>End (optional — blank = no expiry)</label><input type="datetime-local" value={form.end} onChange={(e) => setF('end', e.target.value)} /></div>
               </div>
 
               <div className="pm-check" style={{ marginTop: 12 }}><input type="checkbox" checked={form.enabled} onChange={(e) => setF('enabled', e.target.checked)} /><div><div className="t">Active</div><div className="d">Show this pop-out to players</div></div></div>

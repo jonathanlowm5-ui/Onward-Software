@@ -53,7 +53,7 @@ export default function Jackpots() {
   const slotGames = useMemo(() => {
     const src = (liveGames && liveGames.length ? liveGames : ALL_SLOTS)
       .filter((g) => !g.cat || g.cat === 'slots');
-    return src.slice(0, 18).map((g) => ({
+    return src.slice(0, 28).map((g) => ({
       id: g.id,
       name: g.name,
       provider: g.provider,
@@ -114,7 +114,7 @@ export default function Jackpots() {
       <div className="jp-page">
 
         {/* ORNATE HEADER (uploadable banner falls back to the built-in hero) */}
-        <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '16px 20px 0' }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '16px 20px 0' }}>
           <PageBanner pageKey="jackpots"
             eyebrow={hero.eyebrow || 'Exclusive'}
             title={hero.title || 'Onward Jackpots'}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 
 /*
@@ -22,8 +23,26 @@ function markSeen(id) {
   } catch { /* ignore */ }
 }
 
+// Is `now` within the pop-out's optional [start, end] window?
+function scheduleActive(p, now) {
+  if (p.start) { const s = Date.parse(p.start); if (!Number.isNaN(s) && now < s) return false; }
+  if (p.end) { const e = Date.parse(p.end); if (!Number.isNaN(e) && now > e) return false; }
+  return true;
+}
+
+// Does this visitor fall in the pop-out's target audience?
+function audienceMatch(p, isLoggedIn, vipLevel) {
+  const aud = p.audience || 'all';
+  if (aud === 'all') return true;
+  if (aud === 'guest') return !isLoggedIn;          // not logged in (prospects)
+  if (aud === 'member') return isLoggedIn;          // any registered player
+  if (aud === 'vip') return isLoggedIn && Number(vipLevel) > 0;
+  return true;
+}
+
 export default function PopoutAnnouncement() {
   const navigate = useNavigate();
+  const { isLoggedIn, profile } = useAuth();
   const [queue, setQueue] = useState([]); // enabled, not-yet-seen pop-outs
   const [mobile, setMobile] = useState(typeof window !== 'undefined' && window.innerWidth <= 600);
 
@@ -39,13 +58,18 @@ export default function PopoutAnnouncement() {
       .then((r) => {
         if (!alive) return;
         const seen = loadSeen();
+        const now = Date.now();
+        const vipLevel = profile?.vipLevel || 0;
         const list = Array.isArray(r.data?.popouts) ? r.data.popouts : [];
         setQueue(list.filter((p) => p && p.enabled !== false && !seen.includes(p.id)
-          && (p.title || p.message || p.image)));
+          && (p.title || p.message || p.image)
+          && scheduleActive(p, now)
+          && audienceMatch(p, isLoggedIn, vipLevel)));
       })
       .catch(() => {});
     return () => { alive = false; };
-  }, []);
+    // Re-evaluate when the login state / VIP level changes.
+  }, [isLoggedIn, profile?.vipLevel]);
 
   if (!queue.length) return null;
   const p = queue[0];
