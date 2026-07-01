@@ -148,6 +148,8 @@ export default function Lottery() {
           ],
           special: (live.special && live.special.length) ? live.special : card.special,
           consolation: (live.consolation && live.consolation.length) ? live.consolation : card.consolation,
+          jp1: live.jp1 || card.jp1,
+          jp2: live.jp2 || card.jp2,
         };
       }));
       if (r.data?.fetchedAt) setLiveAt(r.data.fetchedAt);

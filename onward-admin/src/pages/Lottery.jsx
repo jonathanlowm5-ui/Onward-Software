@@ -1,5 +1,100 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUI } from '../context/UIContext';
+import api from '../services/api';
+
+// Pools the operator publishes results for (ids match the player Lottery cards).
+const RESULT_POOLS = [
+  { key: 'magnum', label: '🟡 Magnum 4D' },
+  { key: 'damacai', label: '🟣 Da Ma Cai' },
+  { key: 'toto', label: '🔵 Sports Toto' },
+];
+const blankPool = () => ({ date: '', drawNo: '', first: '', second: '', third: '', special: '', consolation: '', jp1: '', jp2: '' });
+const toList = (s) => String(s || '').split(/[\s,]+/).map((x) => x.replace(/[^0-9]/g, '')).filter(Boolean);
+
+function ResultsEntry() {
+  const { toast } = useUI();
+  const [pools, setPools] = useState(() => Object.fromEntries(RESULT_POOLS.map((p) => [p.key, blankPool()])));
+  const [busy, setBusy] = useState(false);
+  const [updatedAt, setUpdatedAt] = useState(null);
+
+  useEffect(() => {
+    api.get('/lottery/results').then((r) => {
+      const arr = r.data?.pools;
+      if (!Array.isArray(arr)) return;
+      setUpdatedAt(r.data?.fetchedAt || null);
+      setPools((prev) => {
+        const next = { ...prev };
+        arr.forEach((p) => {
+          if (!next[p.key]) return;
+          next[p.key] = {
+            date: p.date || '', drawNo: p.drawNo || '',
+            first: p.first || '', second: p.second || '', third: p.third || '',
+            special: (p.special || []).join(' '), consolation: (p.consolation || []).join(' '),
+            jp1: p.jp1 || '', jp2: p.jp2 || '',
+          };
+        });
+        return next;
+      });
+    }).catch(() => {});
+  }, []);
+
+  const set = (key, field, val) => setPools((p) => ({ ...p, [key]: { ...p[key], [field]: val } }));
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      const payload = RESULT_POOLS.map(({ key }) => {
+        const p = pools[key];
+        return { key, date: p.date, drawNo: p.drawNo, first: p.first, second: p.second, third: p.third, special: toList(p.special), consolation: toList(p.consolation), jp1: p.jp1, jp2: p.jp2 };
+      });
+      const { data } = await api.put('/lottery/results', { pools: payload });
+      setUpdatedAt(data?.fetchedAt || new Date().toISOString());
+      toast('4D results published ✔ — now live on the player site');
+    } catch (e) { toast('⚠ Save failed: ' + (e.message || 'error')); }
+    finally { setBusy(false); }
+  };
+
+  const inp = { width: '100%', padding: '8px 10px', borderRadius: 8, background: 'var(--bg3,#0b1224)', color: 'var(--text,#fff)', border: '1px solid var(--border,#243049)', fontFamily: 'inherit', fontSize: 13 };
+  const lbl = { fontSize: 11, fontWeight: 700, color: 'var(--muted,#8898b8)', display: 'block', marginBottom: 3 };
+
+  return (
+    <div className="card" style={{ marginBottom: 'var(--pad)' }}>
+      <div className="page-head" style={{ marginBottom: 10 }}>
+        <div className="card-title" style={{ marginBottom: 0 }}>📝 Publish 4D Draw Results</div>
+        <span className="pr" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {updatedAt && <span style={{ fontSize: 11, color: 'var(--muted)' }}>Last published: {new Date(updatedAt).toLocaleString()}</span>}
+          <button className="btn-search" disabled={busy} onClick={save}>{busy ? 'Publishing…' : '💾 Publish Results'}</button>
+        </span>
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>Enter the latest draw for each pool — it appears instantly on the player Lottery page. For Special / Consolation, type the 4-digit numbers separated by spaces.</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 14 }}>
+        {RESULT_POOLS.map(({ key, label }) => {
+          const p = pools[key];
+          return (
+            <div key={key} style={{ border: '1px solid var(--border)', borderRadius: 12, padding: 12 }}>
+              <div style={{ fontWeight: 800, marginBottom: 8 }}>{label}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+                <div><label style={lbl}>Draw date</label><input style={inp} value={p.date} placeholder="Wed 03-06-2026" onChange={(e) => set(key, 'date', e.target.value)} /></div>
+                <div><label style={lbl}>Draw No.</label><input style={inp} value={p.drawNo} placeholder="No.376/26" onChange={(e) => set(key, 'drawNo', e.target.value)} /></div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
+                <div><label style={lbl}>1st</label><input style={inp} maxLength={4} value={p.first} onChange={(e) => set(key, 'first', e.target.value)} /></div>
+                <div><label style={lbl}>2nd</label><input style={inp} maxLength={4} value={p.second} onChange={(e) => set(key, 'second', e.target.value)} /></div>
+                <div><label style={lbl}>3rd</label><input style={inp} maxLength={4} value={p.third} onChange={(e) => set(key, 'third', e.target.value)} /></div>
+              </div>
+              <div style={{ marginBottom: 8 }}><label style={lbl}>Special (space-separated)</label><textarea style={{ ...inp, minHeight: 48, resize: 'vertical' }} value={p.special} placeholder="3779 5646 2625 …" onChange={(e) => set(key, 'special', e.target.value)} /></div>
+              <div style={{ marginBottom: 8 }}><label style={lbl}>Consolation (space-separated)</label><textarea style={{ ...inp, minHeight: 48, resize: 'vertical' }} value={p.consolation} placeholder="5040 1304 0194 …" onChange={(e) => set(key, 'consolation', e.target.value)} /></div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div><label style={lbl}>Jackpot 1</label><input style={inp} value={p.jp1} placeholder="RM 21,630,000.00" onChange={(e) => set(key, 'jp1', e.target.value)} /></div>
+                <div><label style={lbl}>Jackpot 2</label><input style={inp} value={p.jp2} placeholder="RM 247,000.00" onChange={(e) => set(key, 'jp2', e.target.value)} /></div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 const LOT_GAMES = [
   { n: 'Magnum 4D', cls: 'gname-m4', ic: '🟡', bg: 'linear-gradient(90deg,rgba(244,178,35,.18),transparent)', pl: '482', bets: '1,340', wag: '₱78.2K', avg: '₱58.40', bd: [['Classic 4D Big', '580 bets (43.3%)'], ['Classic 4D Small', '420 bets (31.3%)'], ['iBox', '340 bets (25.4%)']], last: '3821 · 4567 · 9012' },
@@ -28,6 +123,9 @@ export default function Lottery() {
         </div>
         <span className="pr"><button className="mini-btn" onClick={() => toast('Lottery feeds refreshed 🔄')}>🔄 Refresh</button></span>
       </div>
+
+      <ResultsEntry />
+
       <div className="grid kpi-grid">
         <div className="card kpi"><div className="lbl">Total Bets Today</div><div className="val">3,847</div><div className="trend" style={{ color: 'var(--muted)' }}>across all 3 games</div></div>
         <div className="card kpi g"><div className="lbl">Players Betting</div><div className="val">1,204</div><div className="trend" style={{ color: 'var(--muted)' }}>unique players today</div></div>
