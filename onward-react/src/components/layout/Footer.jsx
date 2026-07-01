@@ -79,14 +79,6 @@ export default function Footer() {
       </div>
       <div className="footer-bottom">
         <p data-i18n="ftr_copyright">© 2024 Onward. All rights reserved. Must be 18+ to play. Gambling can be addictive. Play responsibly.</p>
-        <div className="payment-icons">
-          <span className="pay-icon">GCash</span>
-          <span className="pay-icon">Maya</span>
-          <span className="pay-icon">UnionBank</span>
-          <span className="pay-icon">BDO</span>
-          <span className="pay-icon">BPI</span>
-          <span className="pay-icon">₿ Crypto</span>
-        </div>
       </div>
       <div className="responsible-gaming">
         <div className="age-badge" style={{ flexShrink: 0 }}>18+</div>
