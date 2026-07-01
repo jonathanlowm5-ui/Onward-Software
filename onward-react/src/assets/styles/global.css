@@ -2511,7 +2511,7 @@ footer{
 #sidebar-nav{
   width:248px;
   flex-shrink:0;
-  background:var(--bg2);
+  background:#000;
   border-right:1px solid var(--border);
   position:sticky;
   top:96px;
