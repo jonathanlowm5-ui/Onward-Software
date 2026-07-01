@@ -4632,8 +4632,12 @@ html,body{ -webkit-tap-highlight-color:transparent; }
 body{ overscroll-behavior-y:none; }
 img{ -webkit-user-drag:none; user-drag:none; }
 
-/* Give content breathing room above the fixed bottom nav */
-#page-content{ padding-bottom:calc(72px + env(safe-area-inset-bottom)); }
+/* Give content breathing room above the fixed bottom nav — only on mobile
+   widths where that nav is shown (≤640px). On desktop it left a dead gap
+   above the footer. */
+@media(max-width:640px){
+  #page-content{ padding-bottom:calc(72px + env(safe-area-inset-bottom)); }
+}
 
 /* ======================================================
    HEADER  —  make the category-pill row behave on phones
