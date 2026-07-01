@@ -2500,8 +2500,9 @@ footer{
 
 #page-wrapper{
   display:flex;
-  align-items:flex-start;      /* let the sidebar size to its own content */
-  min-height:calc(100vh - 64px);
+  align-items:stretch;         /* sidebar + content share the same height */
+  /* No viewport-height floor: the footer hugs the content instead of being
+     pushed to the bottom of the screen, so there is no empty band above it. */
 }
 
 /* Desktop sidebar: the COLUMN stretches the full height of the page (down to
