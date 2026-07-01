@@ -3,6 +3,8 @@ import { useUI } from '../context/UIContext';
 import { useAuth } from '../context/AuthContext';
 import { listPlayers, blockPlayer, updatePlayer, deletePlayer, resetPlayerPassword } from '../services/playerService';
 import { credit as creditWallet, debit as debitWallet } from '../services/walletService';
+import useCurrencyRates from '../hooks/useCurrencyRates';
+import { fmtMoney, amountNum, convert } from '../services/currencyService';
 
 /* ---- Players dataset (demo fallback) ----
    [username, realName, rank, id, cur, email, phone, bal, dep, vip, vipColor, active, ip, joined, hl] */
@@ -71,7 +73,8 @@ const dupLabel = {
 };
 
 export default function AllPlayers() {
-  const { toast } = useUI();
+  const { toast, currency: reportCur } = useUI();
+  const { rates } = useCurrencyRates();
   const { can } = useAuth();
   const [players, setPlayers] = useState([]);
   const [, setLoading] = useState(true);
@@ -287,6 +290,14 @@ export default function AllPlayers() {
 
   const PM = pmIdx >= 0 ? players[pmIdx] : null;
 
+  // Show an amount in the player's OWN currency, with the reporting-currency
+  // equivalent underneath when the admin has a different currency selected.
+  const money2 = (v, cur) => {
+    const own = fmtMoney(amountNum(v), cur);
+    if (!reportCur || reportCur === cur) return <>{own}</>;
+    return (<>{own}<span style={{ display: 'block', fontSize: 11, color: 'var(--muted,#8898b8)' }}>≈ {fmtMoney(convert(v, cur, reportCur, rates), reportCur)}</span></>);
+  };
+
   const renderRow = (p, i) => {
     const [user, name, , pid, cur, email, phone, bal, dep, vip, vc, act, ip, joined, hl] = p;
     return (
@@ -295,7 +306,7 @@ export default function AllPlayers() {
         <td><span className="pname"><a onClick={() => openPlayer(i)}>{user}</a><span className="rank"><span className="realname">{name}</span></span></span></td>
         <td><span className="idchip">{pid}</span><span className="curchip">{cur}</span></td>
         <td>{email}</td><td>{phone}</td>
-        <td className="bal">{bal}</td><td>{dep}</td>
+        <td className="bal">{money2(bal, cur)}</td><td>{money2(dep, cur)}</td>
         <td><span className={`vipchip vip-${vc}`}>{vip}</span></td>
         <td><span className={act ? 'st-on' : 'st-off'}>{act ? 'Active' : 'Suspended'}</span></td>
         <td className="ipmono">{ip}</td><td>{joined}</td>
@@ -480,7 +491,11 @@ export default function AllPlayers() {
 
   return (
     <>
-      <h1 className="hero-h">All Players</h1><div className="hero-sub">{players.length.toLocaleString()} registered player{players.length === 1 ? '' : 's'}.</div>
+      <h1 className="hero-h">All Players</h1>
+      <div className="hero-sub">
+        {players.length.toLocaleString()} registered player{players.length === 1 ? '' : 's'}.
+        {' '}Total balance ≈ <b style={{ color: 'var(--gold,#f4b223)' }}>{fmtMoney(players.reduce((a, p) => a + convert(p[7], p[4] || 'PHP', reportCur, rates), 0), reportCur)}</b> <span style={{ color: 'var(--muted,#8898b8)' }}>({reportCur})</span>
+      </div>
       <div className="card">
         <div className="filter-collapse">
           <span className="ttl">🔍 Filter Players</span><span className="cnt">11 fields</span>
