@@ -588,7 +588,7 @@ body::before{
   display:flex;
   gap:12px;
   width:max-content;
-  animation:providersTick 35s linear infinite;
+  animation:providersTick 90s linear infinite;
 }
 .providers-ticker:hover{ animation-play-state:paused; }
 @keyframes providersTick{
