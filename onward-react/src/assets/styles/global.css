@@ -1828,7 +1828,10 @@ img.jp-jackpot-crown{width:24px;height:24px;object-fit:contain;vertical-align:mi
 footer{
   background:var(--bg2);
   border-top:1px solid var(--border);
-  margin-top:80px;
+  /* No top margin: the sidebar column must touch the footer (a margin sits
+     outside the page wrapper, so the sidebar background can't fill it).
+     Spacing above comes from the last section's own bottom padding. */
+  margin-top:0;
 }
 .footer-inner{
   max-width:1400px;margin:0 auto;
