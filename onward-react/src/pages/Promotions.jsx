@@ -48,6 +48,33 @@ const SHOWCASE_RELOAD = [
     description: 'A special 75% weekend reload up to ₱8,000 — Saturdays and Sundays only.' },
 ];
 
+// Tournament showcase — rendered with the same pb-card banner style as the
+// promotions above (gradient stands in for the banner artwork).
+const TOURNAMENTS = [
+  { title: 'PIXEL RUSH', desc: 'During time: 21 days', badge: '6 DAYS LEFT', badgeIcon: '🕐',
+    bg: 'linear-gradient(135deg,#1a0a5e 0%,#2d1280 40%,#0d47a1 100%)',
+    pills: [{ text: '799.57K ₱' }, { text: '2000 FS', cls: 'fs' }] },
+  { title: 'FAST TOURNAMENT #3', desc: 'During time: 2 hours', badge: '01:51:15 LEFT', badgeIcon: '🕐',
+    bg: 'linear-gradient(135deg,#8b0000 0%,#c0152a 50%,#a31c29 100%)',
+    pills: [{ text: '18.45K ₱' }] },
+  { title: 'Lucky Races by 3 Oaks Gaming', desc: 'Play daily tournaments and trigger Lucky Drops to win a share of 151,000 EUR plus extra rewards.',
+    badge: '01.05.2026 – 07.01.2027', provider: '3 OAKS',
+    bg: 'linear-gradient(135deg,#6d0020 0%,#8b0000 50%,#5a0010 100%)',
+    pills: [{ text: '€2,500,000', cls: 'euro' }] },
+  { title: 'Drops & Wins by Pragmatic Play', desc: 'Total Prize Pool: 25,000,000 EUR',
+    badge: '04.03.2026 – 03.03.2027', provider: 'PRAGMATIC PLAY',
+    bg: 'linear-gradient(135deg,#0a1a0a 0%,#1a2a10 50%,#243018 100%)' },
+  { title: 'Spin Express by Gamzix', desc: 'Total yearly prize pool: 1,000,000 EUR',
+    badge: '01.01.2026 – 03.01.2027', provider: 'GAMZIX',
+    bg: 'linear-gradient(135deg,#0a1428 0%,#1a2840 50%,#243050 100%)' },
+  { title: 'Platipus Network Tournament', desc: 'Total Prize Pool: 125,000 EUR',
+    badge: '29.01.2026 – 19.09.2026', provider: 'Platipus',
+    bg: 'linear-gradient(135deg,#2a0a00 0%,#4a1500 50%,#6a2800 100%)' },
+  { title: 'BGaming Millions of Drops', desc: '€1,000,000 — 77k+ prizes',
+    badge: '01.01.2026 – 01.01.2027',
+    bg: 'linear-gradient(135deg,#4a0080 0%,#7c00c0 50%,#9c10d0 100%)' },
+];
+
 // Which section IDs are visible for each filter tab.
 const WELCOME_TIERS = [
   { icon: '🪙', img: wStep1, pct: '125%', detail: 'UP TO ₱3,970+100FS' },
@@ -323,102 +350,28 @@ export default function Promotions() {
           </div>
         </div>{/* /promo-section-reload */}
 
-        {/* TOURNAMENTS */}
+        {/* TOURNAMENTS — cards share the promotion (pb-card) banner style */}
         <div id="promo-section-tournaments" style={show('tournaments')}>
           <div className="promo-sub-title">TOURNAMENTS</div>
-          <div className="tourn-grid">
-
-            {/* Pixel Rush */}
-            <div className="tourn-card" onClick={() => go('tournaments')} style={{ minHeight: '200px' }}>
-              <div className="tourn-card-bg" style={{ background: 'linear-gradient(135deg,#1a0a5e 0%,#2d1280 40%,#0d47a1 100%)' }}></div>
-              <div className="tourn-card-overlay"></div>
-              <div className="tourn-badge"><span className="tourn-badge-icon">🕐</span> 6 DAYS LEFT</div>
-              <div className="tourn-content">
-                <div className="tourn-title">PIXEL RUSH</div>
-                <div className="tourn-duration">During time: 21 days</div>
-                <div className="tourn-prizes" style={{ marginTop: '8px' }}>
-                  <div className="tourn-prize-pill">799.57K ₱</div>
-                  <div className="tourn-prize-pill fs">2000 FS</div>
+          <div className="promo-bonus-grid">
+            {TOURNAMENTS.map((t, i) => (
+              <div className="pb-card tournament" key={'tourn-' + i} onClick={() => go('tournaments')}>
+                <div className="pb-banner-box" style={{ backgroundImage: t.bg }}>
+                  <div className="tourn-badge">{t.badgeIcon && <span className="tourn-badge-icon">{t.badgeIcon}</span>}{t.badge}</div>
+                  {t.provider && <div className="tourn-provider">{t.provider}</div>}
+                  <div className="pb-banner-text">
+                    <div className="pb-title">{t.title}</div>
+                    <div className="pb-detail">{t.desc}</div>
+                  </div>
                 </div>
+                {t.pills && (
+                  <div className="tourn-prizes" style={{ marginBottom: 12 }}>
+                    {t.pills.map((pl, j) => <div key={j} className={'tourn-prize-pill' + (pl.cls ? ' ' + pl.cls : '')}>{pl.text}</div>)}
+                  </div>
+                )}
+                <button className="wh-tier-btn primary" style={{ width: '100%' }}>Join now</button>
               </div>
-            </div>
-
-            {/* Fast Tournament #3 */}
-            <div className="tourn-card" onClick={() => go('tournaments')} style={{ minHeight: '200px' }}>
-              <div className="tourn-card-bg" style={{ background: 'linear-gradient(135deg,#8b0000 0%,#c0152a 50%,#a31c29 100%)' }}></div>
-              <div className="tourn-card-overlay"></div>
-              <div className="tourn-badge"><span className="tourn-badge-icon">🕐</span> 01:51:15 LEFT</div>
-              <div className="tourn-content">
-                <div className="tourn-title">FAST TOURNAMENT #3</div>
-                <div className="tourn-duration">During time: 2 hours</div>
-                <div className="tourn-prizes" style={{ marginTop: '8px' }}>
-                  <div className="tourn-prize-pill">18.45K ₱</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Lucky Races */}
-            <div className="tourn-card" onClick={() => go('tournaments')} style={{ minHeight: '200px' }}>
-              <div className="tourn-card-bg" style={{ background: 'linear-gradient(135deg,#6d0020 0%,#8b0000 50%,#5a0010 100%)' }}></div>
-              <div className="tourn-card-overlay"></div>
-              <div className="tourn-badge">01.05.2026 – 07.01.2027</div>
-              <div className="tourn-provider">3 OAKS</div>
-              <div className="tourn-content">
-                <div className="tourn-title">Lucky Races by 3 Oaks Gaming</div>
-                <div className="tourn-desc">Play daily tournaments and trigger Lucky Drops to win a share of 151,000 EUR plus extra rewards.</div>
-                <div className="tourn-prizes">
-                  <div className="tourn-prize-pill euro">€2,500,000</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Drops & Wins */}
-            <div className="tourn-card" onClick={() => go('tournaments')} style={{ minHeight: '200px' }}>
-              <div className="tourn-card-bg" style={{ background: 'linear-gradient(135deg,#0a1a0a 0%,#1a2a10 50%,#243018 100%)' }}></div>
-              <div className="tourn-card-overlay"></div>
-              <div className="tourn-badge">04.03.2026 – 03.03.2027</div>
-              <div className="tourn-provider">PRAGMATIC PLAY</div>
-              <div className="tourn-content">
-                <div className="tourn-title">Drops &amp; Wins by Pragmatic Play</div>
-                <div className="tourn-desc">Total Prize Pool: 25,000,000 EUR</div>
-              </div>
-            </div>
-
-            {/* Spin Express */}
-            <div className="tourn-card" onClick={() => go('tournaments')} style={{ minHeight: '200px' }}>
-              <div className="tourn-card-bg" style={{ background: 'linear-gradient(135deg,#0a1428 0%,#1a2840 50%,#243050 100%)' }}></div>
-              <div className="tourn-card-overlay"></div>
-              <div className="tourn-badge">01.01.2026 – 03.01.2027</div>
-              <div className="tourn-provider">GAMZIX</div>
-              <div className="tourn-content">
-                <div className="tourn-title">Spin Express by Gamzix</div>
-                <div className="tourn-desc">Total yearly prize pool: 1,000,000 EUR</div>
-              </div>
-            </div>
-
-            {/* Platipus Network */}
-            <div className="tourn-card" onClick={() => go('tournaments')} style={{ minHeight: '200px' }}>
-              <div className="tourn-card-bg" style={{ background: 'linear-gradient(135deg,#2a0a00 0%,#4a1500 50%,#6a2800 100%)' }}></div>
-              <div className="tourn-card-overlay"></div>
-              <div className="tourn-badge">29.01.2026 – 19.09.2026</div>
-              <div className="tourn-provider">Platipus</div>
-              <div className="tourn-content">
-                <div className="tourn-title">Platipus Network Tournament</div>
-                <div className="tourn-desc">Total Prize Pool: 125,000 EUR</div>
-              </div>
-            </div>
-
-            {/* BGaming Millions */}
-            <div className="tourn-card" onClick={() => go('tournaments')} style={{ minHeight: '200px' }}>
-              <div className="tourn-card-bg" style={{ background: 'linear-gradient(135deg,#4a0080 0%,#7c00c0 50%,#9c10d0 100%)' }}></div>
-              <div className="tourn-card-overlay"></div>
-              <div className="tourn-badge">01.01.2026 – 01.01.2027</div>
-              <div className="tourn-content">
-                <div className="tourn-title">BGaming Millions of Drops</div>
-                <div className="tourn-desc">€1,000,000 — 77k+ prizes</div>
-              </div>
-            </div>
-
+            ))}
           </div>
         </div>{/* /promo-section-tournaments */}
 

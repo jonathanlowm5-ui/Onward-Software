@@ -1238,6 +1238,12 @@ body::before{
 }
 .pb-banner-text .pb-title{margin-bottom:6px}
 .pb-banner-text .pb-detail{margin:0}
+/* Tournament cards reuse the promo banner style — keep the date/provider
+   chips compact so they clear the overlaid title. */
+.pb-card.tournament .pb-banner-box .tourn-badge{top:8px;left:8px;padding:3px 8px;font-size:9.5px}
+.pb-card.tournament .pb-banner-box .tourn-provider{top:8px;right:8px;padding:3px 8px;font-size:9.5px}
+.pb-card.tournament .pb-banner-text{padding-top:14px}
+.pb-card.tournament .tourn-prize-pill.euro{font-size:14px}
 
 /* ===== Promotion detail modal ===== */
 .promo-detail-banner{
