@@ -2465,3 +2465,47 @@ tr.hl-full td{background:rgba(226,59,78,.12)}
 @media (prefers-reduced-motion:reduce){
   *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
 }
+
+/* ===== Tournament game picker (escapes the generic .pm-fld input/label rules) ===== */
+.tgp-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.tgp-chip{
+  display:inline-flex;align-items:center;gap:6px;
+  background:rgba(90,169,255,.14);border:1px solid rgba(90,169,255,.3);color:#8fc2ff;
+  border-radius:999px;padding:3px 10px;font-size:.68rem;font-weight:700;
+}
+.tgp-chip button{background:none;border:none;color:#8fc2ff;cursor:pointer;font-size:.75rem;padding:0;line-height:1}
+.tgp-chip button:hover{color:#fff}
+.tgp-list{
+  max-height:200px;overflow-y:auto;
+  border:1px solid var(--border);border-radius:9px;
+  background:var(--panel-2);padding:4px;
+}
+.tgp-row{
+  display:flex;align-items:center;gap:10px;width:100%;
+  padding:6px 8px;border-radius:7px;
+  background:none;border:none;cursor:pointer;text-align:left;font-family:inherit;
+  color:var(--text);font-size:var(--fs-sm);font-weight:600;
+}
+.tgp-row:hover{background:var(--panel-3)}
+.tgp-check{
+  width:16px;height:16px;flex:0 0 16px;border-radius:4px;
+  border:1.5px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:900;color:#06091a;background:transparent;
+}
+.tgp-row.on .tgp-check{background:var(--gold);border-color:var(--gold)}
+.tgp-thumb{
+  width:30px;height:22px;flex:0 0 30px;border-radius:5px;object-fit:cover;display:block;
+  background:var(--panel-3);
+}
+.tgp-thumb-ph{
+  width:30px;height:22px;flex:0 0 30px;border-radius:5px;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--panel-3);font-size:12px;
+}
+.tgp-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tgp-prov{
+  color:var(--muted);font-size:.6rem;font-weight:800;
+  letter-spacing:.5px;text-transform:uppercase;flex-shrink:0;
+}
+.tgp-empty{color:var(--muted);font-size:.72rem;padding:10px}

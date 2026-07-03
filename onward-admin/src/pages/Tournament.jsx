@@ -195,25 +195,31 @@ export default function Tournament() {
               <div className="pm-fld" style={{ marginTop: 12 }}>
                 <label>Selected games ({form.games.length ? form.games.length + ' selected' : 'none selected = all games count'})</label>
                 {form.games.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                  <div className="tgp-chips">
                     {form.games.map((g) => (
-                      <span key={g} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'rgba(90,169,255,.15)', color: '#8fc2ff', borderRadius: 999, padding: '3px 9px', fontSize: 11, fontWeight: 700 }}>
-                        {g}<button onClick={() => toggleGame(g)} style={{ background: 'none', border: 'none', color: '#8fc2ff', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}>✕</button>
+                      <span key={g} className="tgp-chip">
+                        {g}<button title="Remove" onClick={() => toggleGame(g)}>✕</button>
                       </span>
                     ))}
                   </div>
                 )}
-                <input value={gameQ} onChange={(e) => setGameQ(e.target.value)} placeholder="Search games to add…" style={{ marginBottom: 6 }} />
-                <div style={{ maxHeight: 160, overflowY: 'auto', border: '1px solid var(--border,#243049)', borderRadius: 8, padding: 6 }}>
+                <input value={gameQ} onChange={(e) => setGameQ(e.target.value)} placeholder="🔍 Search games to add…" style={{ marginBottom: 6 }} />
+                <div className="tgp-list">
                   {pickerGames.length === 0
-                    ? <div style={{ color: 'var(--muted)', fontSize: 12, padding: 6 }}>{allGames.length ? 'No games match.' : 'Game list unavailable.'}</div>
-                    : pickerGames.map((g) => (
-                      <label key={g.id ?? g.name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 6px', cursor: 'pointer', fontSize: 12.5, color: 'var(--text,#dfe6f5)' }}>
-                        <input type="checkbox" checked={form.games.includes(g.name)} onChange={() => toggleGame(g.name)} />
-                        <span style={{ flex: 1 }}>{g.name}</span>
-                        <span style={{ color: 'var(--muted)', fontSize: 10.5 }}>{g.provider}</span>
-                      </label>
-                    ))}
+                    ? <div className="tgp-empty">{allGames.length ? 'No games match this search.' : 'Game list unavailable.'}</div>
+                    : pickerGames.map((g) => {
+                      const on = form.games.includes(g.name);
+                      return (
+                        <button type="button" key={g.id ?? g.name} className={`tgp-row${on ? ' on' : ''}`} onClick={() => toggleGame(g.name)}>
+                          <span className="tgp-check">{on ? '✓' : ''}</span>
+                          {g.image
+                            ? <img className="tgp-thumb" src={g.image} alt="" loading="lazy" />
+                            : <span className="tgp-thumb-ph">🎰</span>}
+                          <span className="tgp-name">{g.name}</span>
+                          <span className="tgp-prov">{g.provider}</span>
+                        </button>
+                      );
+                    })}
                 </div>
               </div>
 
