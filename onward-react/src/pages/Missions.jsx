@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import useSectionNav from '../hooks/useSectionNav';
 import { useUI } from '../context/UIContext';
+import { useAuth } from '../context/AuthContext';
 import PageBanner from '../components/common/PageBanner.jsx';
 import usePageHero from '../hooks/usePageHero';
 import api from '../services/api';
@@ -17,34 +18,51 @@ const MISSIONS = [
 
 export default function Missions() {
   const go = useSectionNav();
-  const { toast } = useUI();
+  const { toast, openModal } = useUI();
+  const { isLoggedIn, refreshProfile } = useAuth();
   const hero = usePageHero('missions');
 
-  // Admin-created missions replace the showcase when any exist. Progress
-  // starts at 0 of the target (per-player tracking comes with the bets/txn
-  // ledger); rewards are credited by support/admin for now.
+  // Admin-created missions replace the showcase when any exist. Logged-in
+  // players get their real progress (login streak, deposits, referrals) from
+  // /missions/me and can claim completed ones; guests see them at 0.
   const [apiMissions, setApiMissions] = useState(null);
-  useEffect(() => {
-    let alive = true;
-    api.get('/missions?active=1')
-      .then((r) => { if (alive && Array.isArray(r.data) && r.data.length) setApiMissions(r.data); })
+  const load = useCallback(() => {
+    api.get(isLoggedIn ? '/missions/me' : '/missions?active=1')
+      .then((r) => { if (Array.isArray(r.data) && r.data.length) setApiMissions(r.data); })
       .catch(() => {});
-    return () => { alive = false; };
-  }, []);
+  }, [isLoggedIn]);
+  useEffect(() => { load(); }, [load]);
 
   const missions = apiMissions
     ? apiMissions.map((m) => ({
+      id: m.id,
       icon: m.icon || '🎯',
       title: m.title,
       desc: m.desc || (m.duration ? `Duration: ${m.duration}` : ''),
-      progress: m.target ? `0 / ${m.target}` : (m.duration || '—'),
-      pct: '0%',
+      progress: m.claimed
+        ? '✔ Completed'
+        : m.target ? `${m.progress ?? 0} / ${m.target}` : (m.duration || '—'),
+      pct: `${m.claimed ? 100 : (m.pct ?? 0)}%`,
       reward: m.reward ? `🎁 ${m.reward}` : '',
-      claimable: false,
+      claimable: !!m.claimable,
+      claimed: !!m.claimed,
     }))
     : MISSIONS;
 
-  const missionClaim = () => toast('Reward claimed!', 'success');
+  const missionClaim = async (m) => {
+    if (!isLoggedIn) { openModal('register'); return; }
+    if (!m.id) { toast('Reward claimed!', 'success'); return; } // showcase fallback
+    try {
+      const { data } = await api.post('/missions/claim', { id: m.id });
+      toast(data.credited > 0
+        ? `🎉 ${data.reward} credited to your balance!`
+        : `🎉 Reward claimed! ${data.reward || ''} will be added to your account.`, 'success');
+      load();
+      refreshProfile?.(); // reflect the new balance in the header
+    } catch (e) {
+      toast('❌ ' + (e?.response?.data?.error || 'Could not claim'), 'error');
+    }
+  };
 
   return (
     <div id="view-missions">
@@ -80,8 +98,10 @@ export default function Missions() {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ fontSize: '13px', color: 'var(--gold)', fontWeight: 800 }}>{m.reward}</div>
-                {m.claimable ? (
-                  <button onClick={missionClaim} style={{ background: 'linear-gradient(135deg,#f0c040,#d4a017)', color: '#1a1206', border: 'none', padding: '9px 20px', borderRadius: '9px', fontSize: '13px', fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }} data-i18n="mission_claim">Claim</button>
+                {m.claimed ? (
+                  <button disabled style={{ background: 'rgba(34,197,94,.14)', color: '#4ade80', border: '1px solid rgba(34,197,94,.35)', padding: '9px 18px', borderRadius: '9px', fontSize: '13px', fontWeight: 800, cursor: 'default', fontFamily: 'inherit' }}>✔ Claimed</button>
+                ) : m.claimable ? (
+                  <button onClick={() => missionClaim(m)} style={{ background: 'linear-gradient(135deg,#f0c040,#d4a017)', color: '#1a1206', border: 'none', padding: '9px 20px', borderRadius: '9px', fontSize: '13px', fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }} data-i18n="mission_claim">Claim</button>
                 ) : (
                   <button disabled style={{ background: 'rgba(255,255,255,.06)', color: 'var(--text-muted)', border: '1px solid var(--border)', padding: '9px 18px', borderRadius: '9px', fontSize: '13px', fontWeight: 700, cursor: 'default', fontFamily: 'inherit' }} data-i18n="mission_inprogress">In progress</button>
                 )}

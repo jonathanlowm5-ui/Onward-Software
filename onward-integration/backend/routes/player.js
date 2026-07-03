@@ -138,7 +138,17 @@ router.post('/login', async (req, res) => {
   }
 
   player = ensurePlayerCode(store, player) || player; // backfill legacy/demo players
-  player = store.update(PLAYERS, player.id, { lastLoginAt: new Date().toISOString() }) || player;
+  // Daily login streak (drives "login" missions): +1 on consecutive days,
+  // unchanged on a same-day re-login, reset to 1 after a missed day.
+  const today = new Date().toISOString().slice(0, 10);
+  let loginStreak = Number(player.loginStreak || 0);
+  if (player.lastLoginDay !== today) {
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    loginStreak = player.lastLoginDay === yesterday ? loginStreak + 1 : 1;
+  }
+  player = store.update(PLAYERS, player.id, {
+    lastLoginAt: new Date().toISOString(), lastLoginDay: today, loginStreak,
+  }) || player;
   await recordLogin(store, player, req, 'login');
   res.json({ token: signPlayer(player), player: view(player) });
 });
