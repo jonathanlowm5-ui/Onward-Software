@@ -103,11 +103,15 @@ export default function Promotions() {
   // server records are shown here — when none exist the built-in showcase below
   // remains as-is.
   const [apiPromos, setApiPromos] = useState([]);
+  const [apiTourns, setApiTourns] = useState([]);
   useEffect(() => {
     let alive = true;
     api.get('/promotions?active=1')
       .then((r) => { if (alive && Array.isArray(r.data)) setApiPromos(r.data); })
       .catch(() => { /* keep the built-in showcase if the API is unreachable */ });
+    api.get('/tournaments?active=1')
+      .then((r) => { if (alive && Array.isArray(r.data)) setApiTourns(r.data); })
+      .catch(() => { /* showcase fallback */ });
     return () => { alive = false; };
   }, []);
 
@@ -174,6 +178,38 @@ export default function Promotions() {
   }
 
   const openPromoDetail = (promo) => openModal('promo', promo || null);
+
+  // Tournaments: admin-created ones (banner upload, buy-in, provider/games)
+  // replace the built-in showcase when any exist. Clicking opens the promo
+  // detail modal with the join condition and covered games.
+  const fmtTd = (s) => (s ? String(s).replace('T', ' ').slice(0, 16) : '');
+  const tournGames = (t) => (t.games?.length
+    ? `🎮 ${t.games.slice(0, 5).join(', ')}${t.games.length > 5 ? ` +${t.games.length - 5} more` : ''}`
+    : (t.provider ? `🎮 All ${t.provider} games` : '🎮 All games count'));
+  const tournCards = apiTourns.length
+    ? apiTourns.map((t, i) => ({
+      title: t.title,
+      desc: t.desc,
+      badge: (t.start || t.end) ? `${fmtTd(t.start) || 'NOW'} – ${fmtTd(t.end) || 'ONGOING'}` : 'LIVE',
+      provider: t.provider,
+      bgImage: t.banner,
+      bg: TOURNAMENTS[i % TOURNAMENTS.length].bg,
+      pills: [
+        t.prize && { text: t.prize },
+        t.prizeFs && { text: t.prizeFs, cls: 'fs' },
+        { text: `🎟 ${t.buyIn || 'Free to join'}`, cls: 'buyin' },
+      ].filter(Boolean),
+      onClick: () => openPromoDetail({
+        title: t.title,
+        description: t.desc,
+        image: t.banner,
+        startDate: t.start,
+        endDate: t.end,
+        buttonText: 'Join Now',
+        lines: [`🎟 ${t.buyIn || 'Free to join'}`, tournGames(t)],
+      }),
+    }))
+    : TOURNAMENTS.map((t) => ({ ...t, onClick: () => go('tournaments') }));
 
   // Backend promos split into the right sections by type.
   const reloadPromos = visiblePromos.filter((p) => String(p.type || '').toLowerCase() === 'reload');
@@ -354,9 +390,9 @@ export default function Promotions() {
         <div id="promo-section-tournaments" style={show('tournaments')}>
           <div className="promo-sub-title">TOURNAMENTS</div>
           <div className="promo-bonus-grid">
-            {TOURNAMENTS.map((t, i) => (
-              <div className="pb-card tournament" key={'tourn-' + i} onClick={() => go('tournaments')}>
-                <div className="pb-banner-box" style={{ backgroundImage: t.bg }}>
+            {tournCards.map((t, i) => (
+              <div className="pb-card tournament" key={'tourn-' + i} onClick={t.onClick}>
+                <div className="pb-banner-box" style={{ backgroundImage: t.bgImage ? `url(${t.bgImage})` : t.bg }}>
                   <div className="tourn-badge">{t.badgeIcon && <span className="tourn-badge-icon">{t.badgeIcon}</span>}{t.badge}</div>
                   {t.provider && <div className="tourn-provider">{t.provider}</div>}
                   <div className="pb-banner-text">

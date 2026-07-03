@@ -63,6 +63,7 @@ app.use('/api/page-banners', require('./routes/pagebanners'));
 app.use('/api/social-links', require('./routes/social'));
 app.use('/api/currency-rates', require('./routes/currencyrates'));
 app.use('/api/lottery', require('./routes/lottery'));
+app.use('/api/tournaments', require('./routes/tournaments'));
 
 app.get('/api/health', (req, res) => res.json({ ok: true, service: 'onward-api' }));
 

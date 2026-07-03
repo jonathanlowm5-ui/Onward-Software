@@ -1244,6 +1244,11 @@ body::before{
 .pb-card.tournament .pb-banner-box .tourn-provider{top:8px;right:8px;padding:3px 8px;font-size:9.5px}
 .pb-card.tournament .pb-banner-text{padding-top:14px}
 .pb-card.tournament .tourn-prize-pill.euro{font-size:14px}
+.tourn-prize-pill.buyin{
+  background:rgba(90,169,255,.16);color:#8fc2ff;
+  font-size:11.5px;font-weight:700;
+  border:1px solid rgba(90,169,255,.3);
+}
 
 /* ===== Promotion detail modal ===== */
 .promo-detail-banner{
