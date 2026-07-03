@@ -1,8 +1,11 @@
+import { useEffect, useState } from 'react';
 import useSectionNav from '../hooks/useSectionNav';
 import { useUI } from '../context/UIContext';
 import PageBanner from '../components/common/PageBanner.jsx';
 import usePageHero from '../hooks/usePageHero';
+import api from '../services/api';
 
+// Built-in showcase (used while the admin hasn't created any missions).
 const MISSIONS = [
   { icon: '🔥', title: 'Daily Login Streak', desc: 'Log in 7 days in a row', progress: '4 / 7', pct: '57%', reward: '🎁 ₱50', claimable: false },
   { icon: '💰', title: 'First Deposit', desc: 'Make your first deposit', progress: '1 / 1', pct: '100%', reward: '🎁 50 FS', claimable: true },
@@ -16,6 +19,30 @@ export default function Missions() {
   const go = useSectionNav();
   const { toast } = useUI();
   const hero = usePageHero('missions');
+
+  // Admin-created missions replace the showcase when any exist. Progress
+  // starts at 0 of the target (per-player tracking comes with the bets/txn
+  // ledger); rewards are credited by support/admin for now.
+  const [apiMissions, setApiMissions] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    api.get('/missions?active=1')
+      .then((r) => { if (alive && Array.isArray(r.data) && r.data.length) setApiMissions(r.data); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  const missions = apiMissions
+    ? apiMissions.map((m) => ({
+      icon: m.icon || '🎯',
+      title: m.title,
+      desc: m.desc || (m.duration ? `Duration: ${m.duration}` : ''),
+      progress: m.target ? `0 / ${m.target}` : (m.duration || '—'),
+      pct: '0%',
+      reward: m.reward ? `🎁 ${m.reward}` : '',
+      claimable: false,
+    }))
+    : MISSIONS;
 
   const missionClaim = () => toast('Reward claimed!', 'success');
 
@@ -38,7 +65,7 @@ export default function Missions() {
           </PageBanner>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(290px,1fr))', gap: '16px' }}>
-          {MISSIONS.map((m, i) => (
+          {missions.map((m, i) => (
             <div key={i} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '13px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: 'rgba(240,192,64,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '23px', flexShrink: 0 }}>{m.icon}</div>
