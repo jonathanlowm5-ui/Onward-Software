@@ -18,6 +18,9 @@ export default function Sidebar() {
   const { sidebarOpen, closeSidebar, toast } = useUI();
   const { logout } = useAuth();
   const [openCat, setOpenCat] = useState(null);
+  // A category containing the active page auto-opens; remember when the user
+  // explicitly collapses it so the auto-open doesn't force it back open.
+  const [userClosed, setUserClosed] = useState(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [counts, setCounts] = useState({});
 
@@ -52,6 +55,7 @@ export default function Sidebar() {
 
   const go = (id) => {
     navigate(id === 'dashboard' ? '/' : `/${id}`);
+    setUserClosed(null); // navigating re-enables auto-open for the new page's group
     if (window.innerWidth <= 768) closeSidebar();
     window.scrollTo({ top: 0 });
   };
@@ -75,10 +79,15 @@ export default function Sidebar() {
               </div>
             );
           }
-          const isOpen = openCat === m.id || m.sub.some((s) => s.id === activeId);
+          const isOpen = openCat === m.id
+            || (userClosed !== m.id && m.sub.some((s) => s.id === activeId));
+          const toggleCat = () => {
+            if (isOpen) { setOpenCat(null); setUserClosed(m.id); }
+            else { setOpenCat(m.id); setUserClosed(null); }
+          };
           return (
             <div className={`sb-item${isOpen ? ' open' : ''}`} id={`mi-${m.id}`} key={m.id}>
-              <button className="sb-cat" onClick={() => setOpenCat(openCat === m.id ? null : m.id)}>
+              <button className="sb-cat" onClick={toggleCat}>
                 <span className="ic">{m.ic}</span>{m.cat}<span className="caret">▶</span>
               </button>
               <div className="sb-sub">
