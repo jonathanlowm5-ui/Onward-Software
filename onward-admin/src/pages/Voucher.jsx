@@ -20,7 +20,21 @@ const TYPES = [
 const TYPE_LABEL = Object.fromEntries(TYPES.map(([v, l]) => [v, l]));
 const TYPE_CLASS = Object.fromEntries(TYPES.map(([v, , c]) => [v, c]));
 
-const EMPTY = { id: '', code: '', enabled: true, type: 'cash', value: '', maxUses: 100, used: 0, expiry: '', minDeposit: '' };
+const AUDIENCES = [
+  ['all', '🌐 All players'],
+  ['deposited', '💳 Deposited players (any time)'],
+  ['deposit_today', '📅 Deposited today'],
+  ['deposit_3d', '🗓 Deposited in last 3 days'],
+  ['deposit_7d', '🗓 Deposited in last 7 days'],
+  ['no_deposit', '🆕 No deposit yet'],
+  ['selected', '🎯 Specific players'],
+];
+const AUD_LABEL = {
+  all: 'All', deposited: 'Deposited', deposit_today: 'Today dep.',
+  deposit_3d: '3-day dep.', deposit_7d: '7-day dep.', no_deposit: 'No deposit', selected: 'Specific',
+};
+
+const EMPTY = { id: '', code: '', enabled: true, type: 'cash', value: '', maxUses: 100, used: 0, expiry: '', minDeposit: '', audience: 'all', players: [] };
 
 // Random readable code like ONW-7K3F9Q.
 const randomCode = () => {
@@ -63,8 +77,9 @@ export default function Voucher() {
   const [editId, setEditId] = useState(null);
   const setF = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
-  const openNew = () => { setForm({ ...EMPTY, id: newId(), code: randomCode() }); setEditId(null); setOpen(true); };
-  const openEdit = (v) => { setForm({ ...EMPTY, ...v }); setEditId(v.id); setOpen(true); };
+  const [playersText, setPlayersText] = useState('');
+  const openNew = () => { setForm({ ...EMPTY, id: newId(), code: randomCode() }); setPlayersText(''); setEditId(null); setOpen(true); };
+  const openEdit = (v) => { setForm({ ...EMPTY, ...v }); setPlayersText((v.players || []).join('\n')); setEditId(v.id); setOpen(true); };
   const close = () => setOpen(false);
 
   const save = () => {
@@ -72,7 +87,12 @@ export default function Voucher() {
     if (!code) { toast('⚠ Code is required'); return; }
     if (!form.value.trim()) { toast('⚠ Value is required (e.g. ₱500, 100%, 50 FS)'); return; }
     if (vouchers.some((v) => v.code === code && v.id !== form.id)) { toast('⚠ That code already exists'); return; }
-    const rec = { ...form, code, maxUses: Math.max(1, Number(form.maxUses) || 100) };
+    const players = playersText.split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean);
+    if (form.audience === 'selected' && players.length === 0) {
+      toast('⚠ Add at least one player (username / player ID) for a specific-players voucher');
+      return;
+    }
+    const rec = { ...form, code, players, maxUses: Math.max(1, Number(form.maxUses) || 100) };
     const exists = vouchers.some((v) => v.id === form.id);
     const next = exists ? vouchers.map((v) => (v.id === form.id ? rec : v)) : [rec, ...vouchers];
     persist(next, editId ? 'Voucher updated 💾' : `Voucher generated ✅ ${code}`);
@@ -89,8 +109,8 @@ export default function Voucher() {
     else toast('Code: ' + c);
   };
   const exportVouchers = () => {
-    const rows = [['Code', 'Type', 'Value', 'Used', 'Max Uses', 'Expiry', 'Min Deposit', 'Status'],
-      ...vouchers.map((v) => [v.code, TYPE_LABEL[v.type] || v.type, v.value, v.used || 0, v.maxUses, v.expiry, v.minDeposit, isDead(v) ? 'Inactive' : 'Active'])];
+    const rows = [['Code', 'Type', 'Value', 'Audience', 'Used', 'Max Uses', 'Expiry', 'Min Deposit', 'Status'],
+      ...vouchers.map((v) => [v.code, TYPE_LABEL[v.type] || v.type, v.value, AUD_LABEL[v.audience] || 'All', v.used || 0, v.maxUses, v.expiry, v.minDeposit, isDead(v) ? 'Inactive' : 'Active'])];
     const csv = rows.map((r) => r.map((c) => '"' + String(c ?? '').replace(/"/g, '""') + '"').join(',')).join('\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
@@ -127,10 +147,10 @@ export default function Voucher() {
           </span>
         </div>
         <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}><table style={{ minWidth: 1020 }}>
-          <thead><tr><th>Code</th><th>Type</th><th>Value</th><th>Redeemed</th><th>Expiry</th><th>Min Deposit</th><th>Status</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Code</th><th>Type</th><th>Value</th><th>Who</th><th>Redeemed</th><th>Expiry</th><th>Min Deposit</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody>
             {shown.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--muted)', padding: 24 }}>
+              <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--muted)', padding: 24 }}>
                 {loaded ? (vouchers.length ? 'No vouchers match this filter.' : 'No vouchers yet — click “＋ Generate Voucher”.') : 'Loading…'}
               </td></tr>
             ) : shown.map((v) => {
@@ -140,6 +160,12 @@ export default function Voucher() {
                   <td><span className={`vcode ${dead ? 'dead' : ''}`}>{v.code}</span><button className="copy-btn" onClick={() => copyCode(v.code)} title="Copy code">📋</button></td>
                   <td><span className={`vtype ${TYPE_CLASS[v.type] || 'vt-cash'}`} style={dead ? { opacity: 0.5 } : undefined}>{TYPE_LABEL[v.type] || v.type}</span></td>
                   <td style={{ color: 'var(--gold)', fontWeight: 900 }}>{v.value}</td>
+                  <td>
+                    <span title={v.audience === 'selected' ? (v.players || []).join(', ') : undefined}
+                      style={{ fontSize: '.66rem', fontWeight: 800, padding: '2px 8px', borderRadius: 999, background: 'rgba(90,169,255,.14)', color: '#8fc2ff', whiteSpace: 'nowrap' }}>
+                      {AUD_LABEL[v.audience] || 'All'}{v.audience === 'selected' && v.players?.length ? ` (${v.players.length})` : ''}
+                    </span>
+                  </td>
                   <td><b>{v.used || 0}</b> <span style={{ color: 'var(--muted)' }}>/ {v.maxUses}</span></td>
                   <td className={dead ? 'exp-red' : ''}>{v.expiry || '—'}</td>
                   <td>{v.minDeposit || '—'}</td>
@@ -186,6 +212,18 @@ export default function Voucher() {
                 <div className="pm-fld"><label>Max Uses</label><input inputMode="numeric" value={form.maxUses} onChange={(e) => setF('maxUses', e.target.value)} placeholder="100" /></div>
                 <div className="pm-fld"><label>Expiry</label><input type="date" value={form.expiry} onChange={(e) => setF('expiry', e.target.value)} /></div>
               </div>
+              <div className="pm-fld" style={{ marginTop: 12 }}>
+                <label>Who can redeem</label>
+                <select value={form.audience} onChange={(e) => setF('audience', e.target.value)}>
+                  {AUDIENCES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                </select>
+              </div>
+              {form.audience === 'selected' && (
+                <div className="pm-fld" style={{ marginTop: 12 }}>
+                  <label>Players (username / player ID / email — one per line or comma-separated)</label>
+                  <textarea className="pwa-ta" value={playersText} onChange={(e) => setPlayersText(e.target.value)} placeholder={'juan_dc88\nONW1234567PHP\nplayer@email.com'} />
+                </div>
+              )}
               <div className="pm-fld" style={{ marginTop: 12 }}><label>Min Deposit (informational)</label><input value={form.minDeposit} onChange={(e) => setF('minDeposit', e.target.value)} placeholder="e.g. ₱500 — shown in exports/terms" /></div>
               <div className="pm-check" style={{ marginTop: 12 }}><input type="checkbox" checked={form.enabled !== false} onChange={(e) => setF('enabled', e.target.checked)} /><div><div className="t">Active</div><div className="d">Players can redeem this code</div></div></div>
               {editId && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 8 }}>Redeemed so far: <b>{form.used || 0}</b> / {form.maxUses}</div>}

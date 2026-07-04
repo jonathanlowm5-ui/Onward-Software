@@ -23,6 +23,9 @@ const { requirePerm } = require('../permissions');
 const router = express.Router();
 
 const TYPES = ['cash', 'pct', 'fs', 'nodeposit'];
+// Who may redeem: everyone, players with an approved deposit (ever / today /
+// last 3 or 7 days), players with NO deposit yet, or a hand-picked list.
+const AUDIENCES = ['all', 'deposited', 'deposit_today', 'deposit_3d', 'deposit_7d', 'no_deposit', 'selected'];
 const str = (v, n) => String(v == null ? '' : v).slice(0, n);
 let seq = 0;
 const newId = () => 'v' + Date.now().toString(36) + (seq++).toString(36);
@@ -48,6 +51,11 @@ function clean(v) {
     used: Math.max(0, Number(v.used) || 0),  // preserved across admin saves
     expiry: str(v.expiry, 40).trim(),        // date / datetime-local
     minDeposit: str(v.minDeposit, 60).trim(),
+    audience: AUDIENCES.includes(v.audience) ? v.audience : 'all',
+    // For audience "selected": usernames / player codes / emails, one per entry.
+    players: Array.isArray(v.players)
+      ? [...new Set(v.players.map((p) => str(p, 80).trim().toLowerCase()).filter(Boolean))].slice(0, 500)
+      : [],
     createdAt: v.createdAt || new Date().toISOString(),
   };
 }
@@ -99,6 +107,39 @@ router.post('/redeem', requirePlayer, (req, res) => {
   if ((v.used || 0) >= v.maxUses) return res.status(400).json({ error: 'This promocode has been fully redeemed' });
   if (player.vouchersRedeemed && player.vouchersRedeemed[v.code]) {
     return res.status(400).json({ error: 'You have already used this promocode' });
+  }
+
+  // Audience eligibility — based on the player's approved deposits.
+  const audience = v.audience || 'all';
+  if (audience !== 'all') {
+    if (audience === 'selected') {
+      const keys = [player.username, player.playerCode, player.email, String(player.id)]
+        .filter(Boolean).map((s) => String(s).toLowerCase());
+      if (!(v.players || []).some((p) => keys.includes(p))) {
+        return res.status(403).json({ error: 'This promocode is not available for your account' });
+      }
+    } else {
+      const deposits = store.list('transactions')
+        .filter((x) => String(x.playerId) === String(player.id) && x.type === 'deposit' && x.status === 'approved');
+      const latest = deposits.reduce((m, x) => Math.max(m, Date.parse(x.createdAt) || 0), 0);
+      const dayMs = 86400000;
+      const since = (days) => latest >= Date.now() - days * dayMs;
+      if (audience === 'no_deposit' && deposits.length > 0) {
+        return res.status(403).json({ error: 'This promocode is only for players who haven’t deposited yet' });
+      }
+      if (audience === 'deposited' && deposits.length === 0) {
+        return res.status(403).json({ error: 'This promocode requires a deposit first' });
+      }
+      if (audience === 'deposit_today' && !(deposits.length && since(1))) {
+        return res.status(403).json({ error: 'This promocode is for players who deposited today' });
+      }
+      if (audience === 'deposit_3d' && !(deposits.length && since(3))) {
+        return res.status(403).json({ error: 'This promocode is for players who deposited in the last 3 days' });
+      }
+      if (audience === 'deposit_7d' && !(deposits.length && since(7))) {
+        return res.status(403).json({ error: 'This promocode is for players who deposited in the last 7 days' });
+      }
+    }
   }
 
   // Cash-style rewards credit the balance instantly; % / FS rewards are
