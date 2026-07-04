@@ -1,30 +1,41 @@
 import { useState } from 'react';
 import Modal from './Modal.jsx';
 import { useUI } from '../../context/UIContext';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
 
 /*
- * Use Code modal (#usecode). Opened from the sidebar "Use Code" entry. Lets a
- * player enter a promocode to activate a bonus — a dedicated panel, separate
- * from the promotion detail view.
+ * Use Code modal (#usecode). Opened from the sidebar "Use Code" entry. Redeems
+ * an admin-generated voucher via POST /api/vouchers/redeem — money rewards are
+ * credited to the balance instantly, everything is validated server-side
+ * (expiry, max uses, one redemption per player).
  */
-const VALID_PROMO_CODES = ['WELCOME100', 'LEGOX', 'VIP500', 'FREESPIN55'];
-
 export default function UseCodeModal() {
-  const { activeModal, closeModal, toast } = useUI();
+  const { activeModal, closeModal, openModal, toast } = useUI();
+  const { isLoggedIn, refreshProfile } = useAuth();
   const open = activeModal === 'usecode';
   const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
 
   if (!open) return null;
 
-  const activate = () => {
+  const activate = async () => {
     const val = code.trim();
     if (!val) { toast('Please enter a promocode', 'error'); return; }
-    if (VALID_PROMO_CODES.includes(val.toUpperCase())) {
-      toast('🎉 Promocode activated! Your bonus has been added.', 'success');
+    if (!isLoggedIn) { closeModal(); openModal('login'); return; }
+    setBusy(true);
+    try {
+      const { data } = await api.post('/vouchers/redeem', { code: val });
+      toast(data.credited > 0
+        ? `🎉 ${data.value} credited to your balance!`
+        : `🎉 Code ${data.code} activated! ${data.value || ''} will be added to your account.`, 'success');
+      refreshProfile?.(); // header balance
       setCode('');
       closeModal();
-    } else {
-      toast('❌ Invalid promocode. Please try again.', 'error');
+    } catch (e) {
+      toast('❌ ' + (e?.response?.data?.error || 'Invalid promocode. Please try again.'), 'error');
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -54,12 +65,13 @@ export default function UseCodeModal() {
         />
         <button
           onClick={activate}
+          disabled={busy}
           style={{
-            width: '100%', padding: '13px', borderRadius: 10, border: 'none', cursor: 'pointer',
-            fontWeight: 900, fontSize: 15, color: '#1a1205',
+            width: '100%', padding: '13px', borderRadius: 10, border: 'none', cursor: busy ? 'wait' : 'pointer',
+            fontWeight: 900, fontSize: 15, color: '#1a1205', opacity: busy ? 0.7 : 1,
             background: 'linear-gradient(180deg,#ffd75e,#f0c040)', boxShadow: '0 8px 20px rgba(240,192,64,.32)',
           }}
-        >ACTIVATE</button>
+        >{busy ? 'CHECKING…' : 'ACTIVATE'}</button>
       </div>
     </Modal>
   );

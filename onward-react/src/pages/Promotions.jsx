@@ -11,8 +11,6 @@ import wStep2 from '../assets/welcome/welcome-step2.avif';
 import wStep3 from '../assets/welcome/welcome-step3.avif';
 import wStep4 from '../assets/welcome/welcome-step4.avif';
 
-const VALID_PROMO_CODES = ['WELCOME100', 'LEGOX', 'VIP500', 'FREESPIN55'];
-
 // Built-in showcase promotions (shown when/while the admin hasn't created its
 // own). Each carries full detail so the detail modal can render it properly.
 const SHOWCASE_BONUSES = [
@@ -163,17 +161,22 @@ export default function Promotions() {
     openModal('deposit');
   };
 
-  function activatePromoCode() {
+  async function activatePromoCode() {
     const val = promoCode.trim();
     if (!val) {
       toast('Please enter a promocode', 'error');
       return;
     }
-    if (VALID_PROMO_CODES.includes(val.toUpperCase())) {
-      toast('🎉 Promocode activated! Your bonus has been added.', 'success');
+    if (!isLoggedIn) { openModal('login'); return; }
+    try {
+      const { data } = await api.post('/vouchers/redeem', { code: val });
+      toast(data.credited > 0
+        ? `🎉 ${data.value} credited to your balance!`
+        : `🎉 Code ${data.code} activated! ${data.value || ''} will be added to your account.`, 'success');
+      refreshProfile?.();
       setPromoCode('');
-    } else {
-      toast('❌ Invalid promocode. Please try again.', 'error');
+    } catch (e) {
+      toast('❌ ' + (e?.response?.data?.error || 'Invalid promocode. Please try again.'), 'error');
     }
   }
 
