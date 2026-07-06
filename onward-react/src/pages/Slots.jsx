@@ -4,7 +4,7 @@ import { useUI } from '../context/UIContext';
 import GameCard from '../components/casino/GameCard.jsx';
 import useFavorites from '../hooks/useFavorites';
 import useGames from '../hooks/useGames';
-import { ALL_SLOTS, GAMES, ALL_GAME_ICONS, LIVE_GAMES, PROVIDERS, PROVIDER_LOGOS } from '../services/data/gameData';
+import { ALL_SLOTS, GAMES, ALL_GAME_ICONS, LIVE_GAMES, PROVIDERS, PROVIDER_LOGOS, POPULAR_GAMES } from '../services/data/gameData';
 
 // Every bundled game, so the "favorite" view can resolve a favourited id even if
 // it isn't a slot (live, table, etc.).
@@ -25,6 +25,7 @@ const CAT_KEYWORDS = {
 
 // Section titles per category.
 const CAT_TITLE = {
+  popular: '🔥 Popular Games',
   new: '🆕 New Games',
   crash: '⚡ Instant Games',
   roulette: '🎡 Roulette',
@@ -77,6 +78,8 @@ export default function Slots() {
       const flagged = ALL_SLOTS.filter((g) => g.badge === 'new');
       const seen = new Set(flagged.map((g) => g.id));
       list = [...flagged, ...ALL_SLOTS.slice(0, 48).filter((g) => !seen.has(g.id))];
+    } else if (catParam === 'popular') {
+      list = POPULAR_GAMES;
     } else if (catParam === 'roulette') {
       list = ALL_SLOTS.filter((g) => /roulette/i.test(g.name) || /roulette/i.test(g.provider || ''));
     } else if (catParam && CAT_KEYWORDS[catParam]) {

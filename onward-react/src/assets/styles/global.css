@@ -2090,6 +2090,47 @@ footer{
 .hdr-pill.giveaway{background:linear-gradient(110deg,#1565c0,#0a3d7a); }
 .hdr-pill.rewards{ background:linear-gradient(110deg,#e07b00,#a05600); }
 
+/* ── Flat category bar (replaces the pills): icon + label items in a subtle
+   rounded container, horizontally scrollable, active item lit up. ── */
+.hdr-cats{
+  display:flex;align-items:center;gap:2px;
+  flex:1;min-width:0;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.05);
+  border-radius:12px;
+  padding:3px 6px;
+  overflow-x:auto;
+  scrollbar-width:none;-ms-overflow-style:none;
+  -webkit-overflow-scrolling:touch;
+}
+.hdr-cats::-webkit-scrollbar{display:none}
+.hdr-cat{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:7px 12px;
+  background:transparent;border:none;border-radius:9px;
+  color:rgba(255,255,255,.62);
+  font-size:13.5px;font-weight:700;letter-spacing:.01em;
+  cursor:pointer;white-space:nowrap;
+  font-family:inherit;position:relative;
+  transition:color .15s, background .15s;
+}
+.hdr-cat:hover{color:#fff;background:rgba(255,255,255,.06)}
+.hdr-cat.active{color:#fff;background:rgba(255,255,255,.09)}
+/* Icons read as muted glyphs (like the reference) and light up when active */
+.hdr-cat-ico{
+  font-size:16px;line-height:1;
+  filter:grayscale(1) brightness(1.5);
+  transition:filter .15s;
+}
+.hdr-cat:hover .hdr-cat-ico,
+.hdr-cat.active .hdr-cat-ico{filter:none}
+.hdr-cat-badge{
+  background:#ff3b3b;color:#fff;
+  font-size:9px;font-weight:800;
+  padding:1px 5px;border-radius:100px;line-height:1.4;
+  margin-left:-2px;
+}
+
 /* Right side icon cluster — pinned top-right corner */
 .hdr-row1-right{
   position:absolute;
@@ -4666,6 +4707,10 @@ img{ -webkit-user-drag:none; user-drag:none; }
     gap:7px;
     min-height:48px;
   }
+
+  /* Compact category bar */
+  #site-header .hdr-cat{ padding:6px 9px; font-size:12px; gap:5px; }
+  #site-header .hdr-cat-ico{ font-size:14px; }
 
   /* Compact pills (icon + full label, no clipping) */
   #site-header .hdr-pill{
