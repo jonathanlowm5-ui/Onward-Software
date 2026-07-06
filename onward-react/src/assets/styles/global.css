@@ -6464,3 +6464,32 @@ img{ -webkit-user-drag:none; user-drag:none; }
 @media(max-width:640px){
   #game-grid .game-card:nth-child(n+13){ display:none !important; }
 }
+
+/* ===== Shared flat filter-tab style (matches the lobby Popular Games filter):
+   one rounded container, flat items, active lit up. Applied by adding the
+   seg-tabs class next to each row's existing classes — content unchanged. ===== */
+.seg-tabs{
+  display:inline-flex;align-items:center;gap:2px;
+  max-width:100%;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.05);
+  border-radius:12px;
+  padding:4px 6px;
+  overflow-x:auto;
+  flex-wrap:nowrap;
+  scrollbar-width:none;-ms-overflow-style:none;
+  -webkit-overflow-scrolling:touch;
+}
+.seg-tabs::-webkit-scrollbar{display:none}
+.seg-tabs > button{
+  flex:0 0 auto;
+  display:inline-flex;align-items:center;gap:7px;
+  padding:8px 14px;
+  background:transparent;border:none;border-radius:9px;
+  color:rgba(255,255,255,.62);
+  font-size:13.5px;font-weight:700;letter-spacing:.01em;
+  white-space:nowrap;cursor:pointer;font-family:inherit;
+  transition:color .15s, background .15s;
+}
+.seg-tabs > button:hover{color:#fff;background:rgba(255,255,255,.06)}
+.seg-tabs > button.active{color:#fff;background:rgba(255,255,255,.09)}

@@ -119,7 +119,7 @@ export default function Giveaways() {
         <div className="gw-topbar">
           <button className="gw-back-btn" onClick={() => go('lobby')} data-i18n="gw_back">← BACK</button>
           <div className="gw-page-title" data-i18n="gw_title">GIVEAWAYS</div>
-          <div className="gw-active-archive">
+          <div className="gw-active-archive seg-tabs">
             <button className={`gw-aa-btn ${tab === 'active' ? 'active' : ''}`} id="gw-active-btn" onClick={() => setTab('active')} data-i18n="misc_active">Active</button>
             <button className={`gw-aa-btn ${tab === 'archive' ? 'active' : ''}`} id="gw-archive-btn" onClick={() => setTab('archive')} data-i18n="misc_archive">Archive</button>
           </div>

@@ -892,7 +892,7 @@ function TransactionsPanel({ show }) {
     <div id="prof-tx-panel" style={{ display: show ? 'block' : 'none', flex: 1, minWidth: 0, background: 'var(--surface)', borderRadius: 16, overflow: 'hidden', padding: 28 }}>
 
       {/* Filter tabs */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }} id="tx-filter-tabs">
+      <div className="seg-tabs" style={{ marginBottom: 20 }} id="tx-filter-tabs">
         {FILTERS.map(([k, label, i18n]) => (
           <button key={k} className={'cat-btn' + (filter === k ? ' active' : '')} onClick={() => setFilter(k)} data-i18n={i18n}>{label}</button>
         ))}

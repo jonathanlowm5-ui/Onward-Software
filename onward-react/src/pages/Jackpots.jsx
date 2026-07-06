@@ -270,7 +270,7 @@ export default function Jackpots() {
         <div className="jp-fav">
           <div className="jp-fav-header">
             <div className="jp-fav-title" data-i18n="jp_all_games">All your Favorite Games</div>
-            <div className="jp-fav-tabs">
+            <div className="jp-fav-tabs seg-tabs">
               <button className={'jp-fav-tab' + (favTab === 'slots' ? ' active' : '')} onClick={() => setFavTab('slots')}>Slots</button>
               <button className={'jp-fav-tab' + (favTab === 'live' ? ' active' : '')} onClick={() => setFavTab('live')} data-i18n="jp_live_games">Live games</button>
             </div>

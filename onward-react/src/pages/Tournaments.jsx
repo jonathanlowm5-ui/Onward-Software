@@ -63,7 +63,7 @@ export default function Tournaments() {
             </div>
             <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px', marginLeft: '16px' }} data-i18n="trn_compete_desc">Compete, climb the leaderboard, win big prizes</div>
           </div>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <div className="seg-tabs">
             <button className={'trn-tab' + (tab === 'active' ? ' active' : '')} id="trn-tab-active" onClick={() => setTab('active')} data-i18n="trn_tab_active">🟢 Active</button>
             <button className={'trn-tab' + (tab === 'upcoming' ? ' active' : '')} id="trn-tab-upcoming" onClick={() => setTab('upcoming')} data-i18n="trn_tab_upcoming">🔜 Upcoming</button>
             <button className={'trn-tab' + (tab === 'finished' ? ' active' : '')} id="trn-tab-finished" onClick={() => setTab('finished')} data-i18n="trn_tab_finished">✅ Finished</button>

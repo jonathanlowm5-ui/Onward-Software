@@ -284,7 +284,7 @@ export default function Promotions() {
               <span className="promo-region-chip">🌏 {[viewerCountry, viewerCur].filter(Boolean).join(' · ')}</span>
             )}
           </div>
-          <div className="promo-filter-tabs">
+          <div className="promo-filter-tabs seg-tabs">
             <button
               className={`promo-ftab${activeTab === 'all' ? ' active' : ''}`}
               onClick={() => setActiveTab('all')}
