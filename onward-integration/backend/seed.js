@@ -144,6 +144,28 @@ module.exports = function seed() {
     store.saveSettings({ playersWipedV1: true, demoPlayerRemoved: true });
   }
 
+  // ---- sample missions (once, and only while none exist) ----
+  {
+    const st = store.getSettings();
+    if (!st.missionSamplesSeededV1 && !(Array.isArray(st.missions) && st.missions.length)) {
+      const fs2 = (n) => ({ target: String(n.t), reward: n.r });
+      store.saveSettings({
+        missions: [
+          { id: 'm-login7', enabled: true, icon: '🔥', title: 'Daily Login Streak', desc: 'Log in every day to climb the ladder', type: 'login', target: '', reward: '', duration: '7 days',
+            tiers: [{ t: 1, r: '2 FS' }, { t: 2, r: '2 FS' }, { t: 3, r: '5 FS' }, { t: 4, r: '5 FS' }, { t: 5, r: '10 FS' }, { t: 6, r: '10 FS' }, { t: 7, r: '₱50' }].map(fs2) },
+          { id: 'm-deposit-ladder', enabled: true, icon: '💰', title: 'Deposit Ladder', desc: 'Deposit more, earn more', type: 'deposit', target: '', reward: '', duration: 'Ongoing',
+            tiers: [{ t: '₱1,000', r: 'Free 10' }, { t: '₱2,000', r: 'Free 20' }, { t: '₱5,000', r: 'Free 50' }, { t: '₱10,000', r: '₱100' }].map((x) => ({ target: String(x.t), reward: x.r })) },
+          { id: 'm-first-deposit', enabled: true, icon: '💳', title: 'First Deposit', desc: 'Make your first deposit', type: 'deposit', target: '1', reward: '50 FS', duration: 'Once', tiers: [] },
+          { id: 'm-wager-ladder', enabled: true, icon: '🎲', title: 'Weekly Wager', desc: 'Wager to unlock rewards', type: 'wager', target: '', reward: '', duration: '7 days',
+            tiers: [{ t: '₱1,000', r: 'Free 10' }, { t: '₱2,000', r: 'Free 20' }, { t: '₱5,000', r: 'Free 50' }].map((x) => ({ target: String(x.t), reward: x.r })) },
+          { id: 'm-referral', enabled: true, icon: '🤝', title: 'Refer a Friend', desc: 'Invite 1 friend who registers', type: 'referral', target: '1', reward: '₱150', duration: 'Ongoing', tiers: [] },
+        ],
+        missionSamplesSeededV1: true,
+      });
+      console.log('Seeded 5 sample missions');
+    }
+  }
+
   // ---- default API configuration ----
   const s = store.getSettings();
   if (!s.environment) {

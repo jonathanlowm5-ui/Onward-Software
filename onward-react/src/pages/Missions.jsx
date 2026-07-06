@@ -128,7 +128,7 @@ export default function Missions() {
                     <div style={{ height: '8px', background: 'rgba(255,255,255,.08)', borderRadius: '6px', overflow: 'hidden' }}><div style={{ width: m.pct, height: '100%', background: 'linear-gradient(90deg,#f0c040,#d4a017)' }}></div></div>
                   </div>
 
-                  {m.tiers.length > 0 ? (
+                  {(m.tiers?.length || 0) > 0 ? (
                     /* Ladder — one row per tier, claimable independently */
                     <div style={{ maxHeight: 218, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6, paddingRight: 2 }}>
                       {m.tiers.map((t) => (
