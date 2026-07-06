@@ -6,6 +6,16 @@ import PageBanner from '../components/common/PageBanner.jsx';
 import usePageHero from '../hooks/usePageHero';
 import api from '../services/api';
 
+// Per-category card gradients (Rewards-style banner cards).
+const GRADS = {
+  login: 'linear-gradient(100deg,#d43a2a 0%,#f0741f 55%,#f7a21b 100%)',
+  deposit: 'linear-gradient(100deg,#123fbd 0%,#1e63e0 55%,#2f9bff 100%)',
+  wager: 'linear-gradient(100deg,#4c1fb8 0%,#6d28d9 55%,#9333ea 100%)',
+  referral: 'linear-gradient(100deg,#0b7a44 0%,#15a35a 55%,#22c55e 100%)',
+  game: 'linear-gradient(100deg,#0b5e74 0%,#0e7490 55%,#06b6d4 100%)',
+  other: 'linear-gradient(100deg,#28344a 0%,#3a4a68 55%,#4c5f85 100%)',
+};
+
 // Built-in showcase (used while the admin hasn't created any missions).
 const MISSIONS = [
   { icon: '🔥', title: 'Daily Login Streak', desc: 'Log in 7 days in a row', progress: '4 / 7', pct: '57%', reward: '🎁 ₱50', claimable: false },
@@ -106,62 +116,61 @@ export default function Missions() {
           </PageBanner>
         </div>
         {sections.map(([label, list]) => (
-          <div key={label || 'all'} style={{ marginBottom: 28 }}>
+          <div key={label || 'all'} style={{ marginBottom: 30 }}>
             {label && (
-              <div style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)', margin: '4px 0 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div className="msn-section-h">
                 {label}
-                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', background: 'rgba(255,255,255,.06)', borderRadius: 999, padding: '2px 9px' }}>{list.length}</span>
+                <span className="cnt">{list.length}</span>
               </div>
             )}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(290px,1fr))', gap: '16px' }}>
-              {list.map((m, i) => (
-                <div key={m.id || i} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '16px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '13px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: 'rgba(240,192,64,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '23px', flexShrink: 0 }}>{m.icon}</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 800, color: 'var(--text)', fontSize: '15px' }}>{m.title}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{m.desc}</div>
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '5px' }}><span data-i18n="mission_progress">Progress</span><span>{m.progress}</span></div>
-                    <div style={{ height: '8px', background: 'rgba(255,255,255,.08)', borderRadius: '6px', overflow: 'hidden' }}><div style={{ width: m.pct, height: '100%', background: 'linear-gradient(90deg,#f0c040,#d4a017)' }}></div></div>
-                  </div>
+            {list.map((m, i) => (
+              <div key={m.id || i} className="msn-card" style={{ background: GRADS[m.type] || GRADS.other }}>
+                <div className="msn-emoji" aria-hidden="true">{m.icon}</div>
+                <div className="msn-body">
+                  <div className="msn-title">{m.title}</div>
+                  {m.desc && <div className="msn-desc">{m.desc}</div>}
+                  {!m.claimed && (
+                    <div className="msn-progress"><div style={{ width: m.pct }}></div></div>
+                  )}
 
-                  {(m.tiers?.length || 0) > 0 ? (
-                    /* Ladder — one row per tier, claimable independently */
-                    <div style={{ maxHeight: 218, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6, paddingRight: 2 }}>
+                  {(m.tiers?.length || 0) > 0 && (
+                    /* Ladder — one row per rung, claimable independently */
+                    <div className="msn-tiers">
                       {m.tiers.map((t) => (
-                        <div key={t.index} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,.04)', borderRadius: 9, padding: '7px 10px' }}>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: t.claimable || t.claimed ? 'var(--text)' : 'var(--text-muted)', flex: 1, minWidth: 0 }}>
-                            {m.type === 'login' ? <>Day {t.target}</> : t.target}
-                          </span>
-                          <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--gold)', flexShrink: 0 }}>🎁 {t.reward}</span>
+                        <div key={t.index} className={'msn-tier' + (!t.claimed && !t.claimable ? ' locked' : '')}>
+                          <span className="lbl">{m.type === 'login' ? <>Day {t.target}</> : t.target}</span>
+                          <span className="rwd">🎁 {t.reward}</span>
                           {t.claimed ? (
-                            <span style={{ fontSize: 11, fontWeight: 800, color: '#4ade80', flexShrink: 0 }}>✔</span>
+                            <span className="st" style={{ color: '#7dffa9' }}>✔</span>
                           ) : t.claimable ? (
-                            <button onClick={() => missionClaim(m, t.index)} style={{ background: 'linear-gradient(135deg,#f0c040,#d4a017)', color: '#1a1206', border: 'none', padding: '5px 13px', borderRadius: '7px', fontSize: '11.5px', fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}>Claim</button>
+                            <button className="st claim-btn" onClick={() => missionClaim(m, t.index)}>CLAIM</button>
                           ) : (
-                            <span style={{ fontSize: 12, color: 'var(--text-muted)', flexShrink: 0 }}>🔒</span>
+                            <span className="st">🔒</span>
                           )}
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div style={{ fontSize: '13px', color: 'var(--gold)', fontWeight: 800 }}>{m.reward}</div>
-                      {m.claimed ? (
-                        <button disabled style={{ background: 'rgba(34,197,94,.14)', color: '#4ade80', border: '1px solid rgba(34,197,94,.35)', padding: '9px 18px', borderRadius: '9px', fontSize: '13px', fontWeight: 800, cursor: 'default', fontFamily: 'inherit' }}>✔ Claimed</button>
-                      ) : m.claimable ? (
-                        <button onClick={() => missionClaim(m)} style={{ background: 'linear-gradient(135deg,#f0c040,#d4a017)', color: '#1a1206', border: 'none', padding: '9px 20px', borderRadius: '9px', fontSize: '13px', fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }} data-i18n="mission_claim">Claim</button>
-                      ) : (
-                        <button disabled style={{ background: 'rgba(255,255,255,.06)', color: 'var(--text-muted)', border: '1px solid var(--border)', padding: '9px 18px', borderRadius: '9px', fontSize: '13px', fontWeight: 700, cursor: 'default', fontFamily: 'inherit' }} data-i18n="mission_inprogress">In progress</button>
-                      )}
-                    </div>
                   )}
                 </div>
-              ))}
-            </div>
+
+                <div className="msn-side">
+                  {(m.tiers?.length || 0) > 0 ? (
+                    <span className={'msn-chip' + (m.claimed ? ' done' : '')}>
+                      {m.claimed ? '✔ ALL CLAIMED' : <>{m.claimable ? '🎁' : '🔒'} {m.progress}</>}
+                    </span>
+                  ) : m.claimed ? (
+                    <span className="msn-chip done">✔ CLAIMED</span>
+                  ) : m.claimable ? (
+                    <button className="msn-claim" onClick={() => missionClaim(m)} data-i18n="mission_claim">CLAIM</button>
+                  ) : (
+                    <span className="msn-chip">🔒 {m.progress}</span>
+                  )}
+                  {!(m.tiers?.length) && m.reward && (
+                    <span style={{ fontSize: 12.5, fontWeight: 800, color: '#ffd75e', textShadow: '0 1px 4px rgba(0,0,0,.4)' }}>{m.reward}</span>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         ))}
       </div>

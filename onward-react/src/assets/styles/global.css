@@ -6493,3 +6493,83 @@ img{ -webkit-user-drag:none; user-drag:none; }
 }
 .seg-tabs > button:hover{color:#fff;background:rgba(255,255,255,.06)}
 .seg-tabs > button.active{color:#fff;background:rgba(255,255,255,.09)}
+
+/* ===== Missions — gradient banner cards (Rewards-style) ===== */
+.msn-section-h{
+  display:flex;align-items:center;gap:8px;
+  font-size:18px;font-weight:800;color:var(--text);
+  margin:6px 0 14px;
+}
+.msn-section-h .cnt{
+  font-size:11px;font-weight:800;color:rgba(255,255,255,.75);
+  background:rgba(255,255,255,.08);border-radius:999px;padding:2px 9px;
+}
+.msn-card{
+  position:relative;overflow:hidden;
+  border-radius:16px;
+  padding:20px 22px;
+  display:flex;align-items:center;gap:18px;
+  color:#fff;
+  box-shadow:0 10px 34px rgba(0,0,0,.35);
+  margin-bottom:14px;
+}
+.msn-emoji{
+  font-size:52px;line-height:1;flex-shrink:0;
+  filter:drop-shadow(0 6px 14px rgba(0,0,0,.35));
+}
+.msn-body{flex:1;min-width:0}
+.msn-title{
+  font-size:17px;font-weight:900;letter-spacing:.03em;text-transform:uppercase;
+  text-shadow:0 1px 6px rgba(0,0,0,.25);
+}
+.msn-desc{font-size:13px;color:rgba(255,255,255,.85);margin-top:3px;line-height:1.45}
+.msn-progress{
+  margin-top:10px;max-width:340px;
+  height:7px;border-radius:6px;background:rgba(0,0,0,.28);overflow:hidden;
+}
+.msn-progress > div{height:100%;background:linear-gradient(90deg,#ffd75e,#f0c040)}
+.msn-side{flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.msn-chip{
+  display:inline-flex;align-items:center;gap:6px;
+  background:rgba(255,255,255,.16);backdrop-filter:blur(4px);
+  border-radius:10px;padding:9px 16px;
+  font-size:12.5px;font-weight:800;letter-spacing:.04em;color:#fff;
+  white-space:nowrap;
+}
+.msn-chip.done{background:rgba(16,120,60,.55)}
+.msn-claim{
+  border:none;cursor:pointer;font-family:inherit;
+  background:linear-gradient(180deg,#ffbe2e,#f59e0b);
+  color:#231502;font-size:14px;font-weight:900;letter-spacing:.05em;
+  padding:12px 30px;border-radius:10px;
+  box-shadow:0 8px 22px rgba(0,0,0,.3);
+  transition:transform .12s,filter .12s;
+}
+.msn-claim:hover{transform:translateY(-1px);filter:brightness(1.06)}
+/* Ladder rows inside a card */
+.msn-tiers{
+  margin-top:12px;display:flex;flex-direction:column;gap:6px;
+  max-height:224px;overflow-y:auto;padding-right:4px;
+  scrollbar-width:thin;
+}
+.msn-tier{
+  display:flex;align-items:center;gap:10px;
+  background:rgba(0,0,0,.26);border-radius:10px;
+  padding:8px 12px;
+}
+.msn-tier .lbl{flex:1;min-width:0;font-size:13px;font-weight:800}
+.msn-tier .rwd{font-size:12.5px;font-weight:800;color:#ffd75e;white-space:nowrap}
+.msn-tier .st{flex-shrink:0;font-size:12px;font-weight:800}
+.msn-tier .st.claim-btn{
+  border:none;cursor:pointer;font-family:inherit;
+  background:linear-gradient(180deg,#ffbe2e,#f59e0b);color:#231502;
+  padding:5px 14px;border-radius:8px;font-size:11.5px;font-weight:900;
+}
+.msn-tier.locked{opacity:.75}
+@media(max-width:640px){
+  .msn-card{padding:16px;gap:12px;flex-wrap:wrap}
+  .msn-emoji{font-size:38px}
+  .msn-title{font-size:15px}
+  .msn-side{width:100%;flex-direction:row;justify-content:flex-end}
+  .msn-claim{padding:10px 22px;font-size:13px}
+}
