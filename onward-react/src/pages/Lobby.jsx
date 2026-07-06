@@ -14,13 +14,15 @@ import {
   POPULAR_GAMES, LIVE_GAMES, PROMOS, PROVIDERS, TOP_MATCHES,
 } from '../services/data/gameData';
 
+// Icon kept separate from the translatable label so switching language never
+// wipes the emoji (and the icon can render as a muted glyph until active).
 const CATS = [
-  { key: 'all', label: '🎰 All Games' },
-  { key: 'slots', label: '🎲 Slots', i18n: 'cat_slots' },
-  { key: 'table', label: '🃏 Table Games', i18n: 'cat_table' },
-  { key: 'live', label: '📡 Live' },
-  { key: 'fish', label: '🐟 Fishing', i18n: 'cat_fish' },
-  { key: 'crash', label: '🚀 Crash', i18n: 'cat_crash' },
+  { key: 'all', icon: '🎰', label: 'All Games' },
+  { key: 'slots', icon: '🎲', label: 'Slots', i18n: 'cat_slots' },
+  { key: 'table', icon: '🃏', label: 'Table Games', i18n: 'cat_table' },
+  { key: 'live', icon: '📡', label: 'Live' },
+  { key: 'fish', icon: '🐟', label: 'Fishing', i18n: 'cat_fish' },
+  { key: 'crash', icon: '🚀', label: 'Crash', i18n: 'cat_crash' },
 ];
 
 export default function Lobby() {
@@ -74,7 +76,10 @@ export default function Lobby() {
         </div>
         <div className="cats" id="cat-buttons">
           {CATS.map((c) => (
-            <button key={c.key} className={`cat-btn${cat === c.key ? ' active' : ''}`} onClick={() => setCat(c.key)} data-i18n={c.i18n}>{c.label}</button>
+            <button key={c.key} className={`cat-btn${cat === c.key ? ' active' : ''}`} onClick={() => setCat(c.key)}>
+              <span className="cat-btn-ico" aria-hidden="true">{c.icon}</span>
+              <span {...(c.i18n ? { 'data-i18n': c.i18n } : {})}>{c.label}</span>
+            </button>
           ))}
         </div>
         <div className="game-grid" id="game-grid">

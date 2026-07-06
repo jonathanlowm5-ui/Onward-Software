@@ -353,24 +353,6 @@ const NAV = [
   { id: 'promos', emoji: '🎁', text: 'Promotions', i18n: 'nav_promos' },
 ];
 
-// Flat category bar in the site header (icon + label, no pill background).
-// Each entry knows its route and how to detect it's the active one.
-const catQ = (loc) => new URLSearchParams(loc.search).get('cat');
-const HDR_CATS = [
-  { id: 'lobby', icon: '🎰', label: 'Lobby', i18n: 'nav_lobby', to: '/', match: (l) => l.pathname === '/' },
-  { id: 'popular', icon: '🔥', label: 'Popular', i18n: 'nav_popular', to: '/slots?cat=popular', match: (l) => l.pathname === '/slots' && catQ(l) === 'popular' },
-  { id: 'new', icon: '🆕', label: 'New', i18n: 'nav_new', to: '/slots?cat=new', match: (l) => l.pathname === '/slots' && catQ(l) === 'new' },
-  { id: 'instant', icon: '⚡', label: 'Instant Games', i18n: 'nav_instant', to: '/slots?cat=crash', match: (l) => l.pathname === '/slots' && catQ(l) === 'crash' },
-  { id: 'live', icon: '📡', label: 'Live Casino', i18n: 'nav_live', to: '/live', match: (l) => l.pathname === '/live' },
-  { id: 'slots', icon: '🎲', label: 'Slots', i18n: 'nav_slots', to: '/slots', match: (l) => l.pathname === '/slots' && !catQ(l) },
-  { id: 'roulette', icon: '🎡', label: 'Roulette', i18n: 'nav_roulette', to: '/slots?cat=roulette', match: (l) => l.pathname === '/slots' && catQ(l) === 'roulette' },
-  { id: 'table', icon: '🎴', label: 'Table Games', i18n: 'nav_table', to: '/slots?cat=table', match: (l) => l.pathname === '/slots' && catQ(l) === 'table' },
-  { id: 'poker', icon: '♠️', label: 'Poker', i18n: 'nav_poker', to: '/poker', match: (l) => l.pathname === '/poker' },
-  { id: 'lottery', icon: '🎫', label: 'Lottery', i18n: 'nav_lottery', to: '/lottery', match: (l) => l.pathname === '/lottery' },
-  { id: 'fish', icon: '🐟', label: 'Fish Games', i18n: 'nav_fish', to: '/fish', match: (l) => l.pathname === '/fish' },
-  { id: 'promos', icon: '🎁', label: 'Promotions', i18n: 'nav_promos', to: '/promotions', match: (l) => l.pathname === '/promotions', badge: '1' },
-  { id: 'giveaways', icon: '🎮', label: 'Giveaway', i18n: 'nav_giveaways', to: '/giveaways', match: (l) => l.pathname === '/giveaways' },
-];
 
 export default function Header() {
   const { toggleSidebar, openModal, currency, accountCurrency, fxConvert } = useUI();
@@ -469,18 +451,16 @@ export default function Header() {
       {/* ===== TWO-ROW SITE HEADER ===== */}
       <div id="site-header">
         <div className="hdr-row1">
-          {/* Flat category nav (icon + label, scrollable) — replaces the pills */}
-          <div className="hdr-cats">
-            {HDR_CATS.map((c) => {
-              const active = c.match(location);
-              return (
-                <button key={c.id} className={`hdr-cat${active ? ' active' : ''}`} onClick={() => { navigate(c.to); window.scrollTo({ top: 0 }); }}>
-                  <span className="hdr-cat-ico" aria-hidden="true">{c.icon}</span>
-                  <span className="hdr-cat-label" data-i18n={c.i18n}>{c.label}</span>
-                  {c.badge && <span className="hdr-cat-badge">{c.badge}</span>}
-                </button>
-              );
-            })}
+          <div className="hdr-pills-scroll">
+            <button className="hdr-pill promos" onClick={() => go('promos')}>
+              <span className="hdr-pill-icon">🎁</span>
+              <span className="hdr-pill-label" data-i18n="nav_promos">Promotions</span>
+              <span className="hdr-pill-badge">1</span>
+            </button>
+            <button className="hdr-pill giveaway" onClick={() => go('giveaways')}>
+              <span className="hdr-pill-icon">🎮</span>
+              <span className="hdr-pill-label" data-i18n="nav_giveaways">Giveaway</span>
+            </button>
           </div>
           <div className="hdr-row1-right">
             <CurrencySwitcher />
