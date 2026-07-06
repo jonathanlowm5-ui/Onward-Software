@@ -21,6 +21,17 @@ const str = (v, n) => String(v == null ? '' : v).slice(0, n);
 let seq = 0;
 const newId = () => 'm' + Date.now().toString(36) + (seq++).toString(36);
 
+// A tier is one rung of a mission ladder (e.g. login day 3 → "2 FS", or
+// wager ₱2,000 → "Free 20"). Missions without tiers keep the single
+// target/reward behaviour.
+function cleanTier(t) {
+  if (!t || typeof t !== 'object') return null;
+  const target = str(t.target, 60).trim();
+  const reward = str(t.reward, 80).trim();
+  if (!target || !reward) return null;
+  return { target, reward };
+}
+
 function clean(m) {
   if (!m || typeof m !== 'object') return null;
   const title = str(m.title, 160).trim();
@@ -35,6 +46,7 @@ function clean(m) {
     target: str(m.target, 60).trim(),     // e.g. "7", "₱10,000"
     reward: str(m.reward, 80).trim(),     // e.g. "₱200", "50 FS"
     duration: str(m.duration, 60).trim(), // e.g. "7 days", "Ongoing"
+    tiers: Array.isArray(m.tiers) ? m.tiers.map(cleanTier).filter(Boolean).slice(0, 60) : [],
   };
 }
 
@@ -74,7 +86,9 @@ function progressFor(mission, player) {
     const deps = store.list('transactions')
       .filter((x) => String(x.playerId) === String(player.id) && x.type === 'deposit' && x.status === 'approved');
     // "₱1,000" target = total deposited amount; plain "3" = number of deposits.
-    return isMoney(mission.target)
+    // For ladders the first tier's target decides which meaning applies.
+    const sample = (Array.isArray(mission.tiers) && mission.tiers[0]?.target) || mission.target;
+    return isMoney(sample)
       ? deps.reduce((s, x) => s + Number(x.amount || 0), 0)
       : deps.length;
   }
@@ -87,9 +101,39 @@ function progressFor(mission, player) {
 }
 
 function playerMissionView(m, player) {
+  const raw = progressFor(m, player);
+  const claimedMap = player.missionsClaimed || {};
+
+  // Tiered mission: every rung reports its own progress/claim state.
+  if (Array.isArray(m.tiers) && m.tiers.length) {
+    const tiers = m.tiers.map((t, i) => {
+      const tTarget = num(t.target) || 1;
+      const claimed = !!claimedMap[`${m.id}:${i}`];
+      return {
+        ...t,
+        index: i,
+        targetNum: tTarget,
+        claimed,
+        claimable: !claimed && raw >= tTarget,
+      };
+    });
+    const maxTarget = Math.max(...tiers.map((t) => t.targetNum));
+    const progress = Math.min(raw, maxTarget);
+    return {
+      ...m,
+      tiers,
+      target: maxTarget,
+      progress,
+      pct: Math.round((progress / maxTarget) * 100),
+      trackable: ['login', 'deposit', 'referral'].includes(m.type),
+      claimed: tiers.every((t) => t.claimed),
+      claimable: tiers.some((t) => t.claimable),
+    };
+  }
+
   const target = num(m.target) || 1;
-  const progress = Math.min(progressFor(m, player), target);
-  const claimed = !!(player.missionsClaimed && player.missionsClaimed[m.id]);
+  const progress = Math.min(raw, target);
+  const claimed = !!claimedMap[m.id];
   return {
     ...m,
     target,
@@ -108,7 +152,8 @@ router.get('/me', requirePlayer, (req, res) => {
   res.json(list().filter((m) => m.enabled !== false).map((m) => playerMissionView(m, player)));
 });
 
-// POST /api/missions/claim { id } — verify completion, credit the reward.
+// POST /api/missions/claim { id, tier? } — verify completion, credit the
+// reward. `tier` (index) is required for ladder missions.
 router.post('/claim', requirePlayer, (req, res) => {
   const player = store.get('players', req.auth.sub);
   if (!player) return res.status(404).json({ error: 'Player not found' });
@@ -116,14 +161,30 @@ router.post('/claim', requirePlayer, (req, res) => {
   if (!mission) return res.status(404).json({ error: 'Mission not found' });
 
   const v = playerMissionView(mission, player);
-  if (v.claimed) return res.status(400).json({ error: 'Reward already claimed' });
-  if (!v.claimable) return res.status(400).json({ error: 'Mission not completed yet' });
+  const hasTiers = Array.isArray(v.tiers) && v.tiers.length > 0;
+
+  let claimKey;
+  let reward;
+  if (hasTiers) {
+    const idx = Number(req.body?.tier);
+    const tier = Number.isInteger(idx) ? v.tiers[idx] : null;
+    if (!tier) return res.status(400).json({ error: 'Unknown mission tier' });
+    if (tier.claimed) return res.status(400).json({ error: 'Reward already claimed' });
+    if (!tier.claimable) return res.status(400).json({ error: 'Mission not completed yet' });
+    claimKey = `${mission.id}:${tier.index}`;
+    reward = tier.reward;
+  } else {
+    if (v.claimed) return res.status(400).json({ error: 'Reward already claimed' });
+    if (!v.claimable) return res.status(400).json({ error: 'Mission not completed yet' });
+    claimKey = mission.id;
+    reward = mission.reward;
+  }
 
   // Money rewards are credited to the balance immediately; other rewards
   // (e.g. free spins) are recorded as a bonus transaction for the operator.
-  const amount = isMoney(mission.reward) ? num(mission.reward) : 0;
+  const amount = isMoney(reward) ? num(reward) : 0;
   const patch = {
-    missionsClaimed: { ...(player.missionsClaimed || {}), [mission.id]: new Date().toISOString() },
+    missionsClaimed: { ...(player.missionsClaimed || {}), [claimKey]: new Date().toISOString() },
   };
   if (amount > 0) patch.balance = Number(player.balance || 0) + amount;
   const updated = store.update('players', player.id, patch);
@@ -134,13 +195,13 @@ router.post('/claim', requirePlayer, (req, res) => {
     amount,
     method: 'mission',
     status: 'approved',
-    note: `Mission reward: ${mission.title}${mission.reward ? ` (${mission.reward})` : ''}`,
+    note: `Mission reward: ${mission.title}${hasTiers ? ` — tier ${Number(req.body.tier) + 1}` : ''}${reward ? ` (${reward})` : ''}`,
   });
 
   res.json({
     ok: true,
     credited: amount,
-    reward: mission.reward,
+    reward,
     balance: Number(updated?.balance ?? player.balance ?? 0),
     mission: playerMissionView(mission, updated || player),
   });

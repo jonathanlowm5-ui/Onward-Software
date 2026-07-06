@@ -20,7 +20,19 @@ const TYPES = [
 ];
 const TYPE_LABEL = Object.fromEntries(TYPES);
 
-const EMPTY = { id: '', enabled: true, icon: '🎯', title: '', desc: '', type: 'deposit', target: '', reward: '', duration: '' };
+const EMPTY = { id: '', enabled: true, icon: '🎯', title: '', desc: '', type: 'deposit', target: '', reward: '', duration: '', tiers: [] };
+
+const numPart = (s) => {
+  const n = Number(String(s || '').replace(/[^0-9.]/g, ''));
+  return Number.isFinite(n) ? n : 0;
+};
+// Extend a numeric pattern: keep the text around the number, continue the step
+// between the last two rows (e.g. ₱1,000 → ₱2,000 continues to ₱3,000).
+const continueValue = (prev2, prev1) => {
+  const a = numPart(prev2), b = numPart(prev1);
+  const next = b + (b - a || b || 1);
+  return String(prev1).replace(/[0-9][0-9,.]*/, next.toLocaleString('en'));
+};
 
 export default function Mission() {
   const { toast } = useUI();
@@ -46,8 +58,29 @@ export default function Mission() {
   const setF = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
   const openNew = () => { setForm({ ...EMPTY, id: newId() }); setEditId(null); setOpen(true); };
-  const openEdit = (m) => { setForm({ ...EMPTY, ...m }); setEditId(m.id); setOpen(true); };
+  const openEdit = (m) => { setForm({ ...EMPTY, tiers: [], ...m }); setEditId(m.id); setOpen(true); };
   const close = () => setOpen(false);
+
+  /* ---------- tier ladder helpers ---------- */
+  const setTier = (i, k, v) => setForm((p) => ({
+    ...p, tiers: p.tiers.map((t, j) => (j === i ? { ...t, [k]: v } : t)),
+  }));
+  const addTier = () => setForm((p) => {
+    const n = p.tiers.length;
+    // Continue the pattern the admin set (targets AND rewards) when possible.
+    const t = n >= 2
+      ? { target: continueValue(p.tiers[n - 2].target, p.tiers[n - 1].target), reward: continueValue(p.tiers[n - 2].reward, p.tiers[n - 1].reward) }
+      : n === 1
+        ? { target: continueValue(p.tiers[0].target, p.tiers[0].target), reward: p.tiers[0].reward }
+        : { target: '1', reward: '' };
+    return { ...p, tiers: [...p.tiers, t] };
+  });
+  const delTier = (i) => setForm((p) => ({ ...p, tiers: p.tiers.filter((_, j) => j !== i) }));
+  // Daily-login ladder generator: N days, one rung per day.
+  const genDays = (days) => setForm((p) => {
+    const rewardEach = p.tiers[0]?.reward || p.reward || '2 FS';
+    return { ...p, type: 'login', tiers: Array.from({ length: days }, (_, i) => ({ target: String(i + 1), reward: rewardEach })) };
+  });
 
   const save = () => {
     if (!form.title.trim()) { toast('⚠ Title is required'); return; }
@@ -100,8 +133,8 @@ export default function Mission() {
               <tr key={m.id}>
                 <td><b>{m.icon} {m.title}</b>{m.desc && <div style={{ color: 'var(--muted)', fontSize: '.7rem', fontWeight: 500 }}>{m.desc}</div>}</td>
                 <td>{TYPE_LABEL[m.type] || m.type}</td>
-                <td>{m.target || '—'}</td>
-                <td style={{ color: 'var(--gold)', fontWeight: 900 }}>{m.reward || '—'}</td>
+                <td>{m.tiers?.length ? `${m.tiers.length}-step ladder` : (m.target || '—')}</td>
+                <td style={{ color: 'var(--gold)', fontWeight: 900 }}>{m.tiers?.length ? `${m.tiers[0].reward} → ${m.tiers[m.tiers.length - 1].reward}` : (m.reward || '—')}</td>
                 <td>{m.duration || '—'}</td>
                 <td><span className={m.enabled !== false ? 'on-chip' : 'off-chip'} style={{ cursor: 'pointer' }} onClick={() => toggle(m.id)}>{m.enabled !== false ? '✅ On' : '⬜ Off'}</span></td>
                 <td><button className="mini-btn gold" onClick={() => openEdit(m)}>✏️</button> <button className="del-btn" onClick={() => del(m.id)}>🗑</button></td>
@@ -135,9 +168,38 @@ export default function Mission() {
                 <div className="pm-fld"><label>Target</label><input value={form.target} onChange={(e) => setF('target', e.target.value)} placeholder="e.g. 7  ·  ₱10,000" /></div>
               </div>
               <div className="pm-grid" style={{ marginTop: 12 }}>
-                <div className="pm-fld"><label>Reward</label><input value={form.reward} onChange={(e) => setF('reward', e.target.value)} placeholder="e.g. ₱200  ·  50 FS" /></div>
+                <div className="pm-fld"><label>Reward {form.tiers.length ? '(ignored — ladder rewards below)' : ''}</label><input value={form.reward} onChange={(e) => setF('reward', e.target.value)} placeholder="e.g. ₱200  ·  50 FS" /></div>
                 <div className="pm-fld"><label>Duration</label><input value={form.duration} onChange={(e) => setF('duration', e.target.value)} placeholder="e.g. 7 days  ·  Ongoing" /></div>
               </div>
+
+              {/* Tier ladder — e.g. login day 1/2/3… or wager ₱1,000/₱2,000… */}
+              <div className="pm-fld" style={{ marginTop: 14 }}>
+                <label>Ladder tiers ({form.tiers.length ? `${form.tiers.length} steps` : 'none — single reward mission'})</label>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                  <button className="mini-btn" onClick={() => genDays(7)}>📅 7 days</button>
+                  <button className="mini-btn" onClick={() => genDays(15)}>📅 15 days</button>
+                  <button className="mini-btn" onClick={() => genDays(30)}>📅 30 days</button>
+                  <button className="mini-btn gold" onClick={addTier}>＋ Add tier{form.tiers.length >= 2 ? ' (continues your pattern)' : ''}</button>
+                  {form.tiers.length > 0 && <button className="del-btn" onClick={() => setF('tiers', [])}>Clear all</button>}
+                </div>
+                {form.tiers.length > 0 && (
+                  <div style={{ maxHeight: 220, overflowY: 'auto', border: '1px solid var(--border,#243049)', borderRadius: 9, padding: '6px 8px' }}>
+                    {form.tiers.map((t, i) => (
+                      <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                        <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--muted)', width: 34, flexShrink: 0 }}>#{i + 1}</span>
+                        <input value={t.target} onChange={(e) => setTier(i, 'target', e.target.value)} placeholder={form.type === 'login' ? 'Day (e.g. 3)' : 'Target (e.g. ₱1,000)'} style={{ flex: 1, minWidth: 0 }} />
+                        <span style={{ color: 'var(--muted)', flexShrink: 0 }}>→</span>
+                        <input value={t.reward} onChange={(e) => setTier(i, 'reward', e.target.value)} placeholder="Reward (e.g. Free 10 · ₱20)" style={{ flex: 1, minWidth: 0 }} />
+                        <button className="del-btn" style={{ flexShrink: 0 }} onClick={() => delTier(i)}>🗑</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>
+                  💡 Login ladders: target = day number. Wager/deposit ladders: target = amount (e.g. ₱1,000 → Free 10, ₱2,000 → Free 20). “＋ Add tier” continues the step you set.
+                </div>
+              </div>
+
               <div className="pm-check" style={{ marginTop: 12 }}><input type="checkbox" checked={form.enabled !== false} onChange={(e) => setF('enabled', e.target.checked)} /><div><div className="t">Active</div><div className="d">Show this mission to players</div></div></div>
             </div>
             <div className="pm-foot">
