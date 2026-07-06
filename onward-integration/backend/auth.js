@@ -19,7 +19,7 @@ if (!JWT_SECRET) {
   JWT_SECRET = 'dev-only-insecure-secret-do-not-use-in-prod';
   console.warn('[auth] JWT_SECRET not set — using an INSECURE dev secret (local only).');
 }
-const TOKEN_TTL = '12h';
+const TOKEN_TTL = '7d'; // admin sessions; expiry now forces a clean re-login in the UI
 
 function sign(user) {
   return jwt.sign({ sub: user.username, role: user.role || 'admin' }, JWT_SECRET, {
