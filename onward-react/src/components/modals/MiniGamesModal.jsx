@@ -360,7 +360,14 @@ function LuckyTicket({ config, onClose }) {
   );
 }
 
-const chip = { fontSize: 13, color: 'var(--text-muted,#8898b8)', background: 'rgba(255,255,255,.05)', border: '1px solid var(--border,#243049)', borderRadius: 999, padding: '5px 12px' };
+// Stat chips — flat style matching the seg-tabs filter items.
+const chip = {
+  fontSize: 13, fontWeight: 700, letterSpacing: '.01em',
+  color: 'rgba(255,255,255,.62)',
+  background: 'rgba(255,255,255,.06)', border: 'none',
+  borderRadius: 9, padding: '7px 13px',
+  display: 'inline-flex', alignItems: 'center', gap: 5,
+};
 const fwTitle = { fontFamily: "'Montserrat',sans-serif", fontWeight: 900, fontSize: 26, lineHeight: 1.05, textAlign: 'center', color: '#ffd75e', textShadow: '0 2px 0 #a8730a, 0 4px 8px rgba(0,0,0,.6)', letterSpacing: '.04em' };
 const ltStat = { background: 'rgba(255,255,255,.04)', border: '1px solid var(--border,#243049)', borderRadius: 12, padding: '11px 13px' };
 const ltLbl = { fontSize: 11, color: 'var(--text-muted,#8898b8)', textTransform: 'uppercase', letterSpacing: '.04em' };
@@ -393,9 +400,11 @@ export default function MiniGamesModal() {
         <span className="modal-title">🎡 Mini Games</span>
         <button className="modal-close" onClick={closeModal}>✕</button>
       </div>
-      <div style={{ display: 'flex', gap: 8, padding: '0 18px', marginTop: 6 }}>
-        {wheelOn && <TabBtn active={tab === 'wheel'} onClick={() => setTab('wheel')}>🎡 Fortune Wheel</TabBtn>}
-        {ticketOn && <TabBtn active={tab === 'ticket'} onClick={() => setTab('ticket')}>🎟️ Lucky Ticket</TabBtn>}
+      <div style={{ padding: '0 18px', marginTop: 6 }}>
+        <div className="seg-tabs">
+          {wheelOn && <TabBtn active={tab === 'wheel'} onClick={() => setTab('wheel')}>🎡 Fortune Wheel</TabBtn>}
+          {ticketOn && <TabBtn active={tab === 'ticket'} onClick={() => setTab('ticket')}>🎟️ Lucky Ticket</TabBtn>}
+        </div>
       </div>
       <div className="modal-body" style={{ paddingTop: 16 }}>
         {loading ? (
@@ -414,13 +423,9 @@ export default function MiniGamesModal() {
   );
 }
 
+// Flat tab item — styling comes from the shared .seg-tabs container.
 function TabBtn({ active, onClick, children }) {
   return (
-    <button onClick={onClick} style={{
-      padding: '8px 16px', borderRadius: 999, cursor: 'pointer', fontWeight: 800, fontSize: 14,
-      border: '1px solid ' + (active ? 'var(--gold,#f4b223)' : 'var(--border,#243049)'),
-      background: active ? 'rgba(244,178,35,.16)' : 'transparent',
-      color: active ? 'var(--gold,#f4b223)' : 'var(--text,#fff)',
-    }}>{children}</button>
+    <button className={active ? 'active' : ''} onClick={onClick}>{children}</button>
   );
 }
