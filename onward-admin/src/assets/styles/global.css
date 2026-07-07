@@ -1206,8 +1206,12 @@ td.apk-opcell{white-space:nowrap;text-align:right}
 .cms-title-cell .d{color:var(--muted);font-size:.72rem;margin-top:2px;max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cms-prio{font-weight:900;color:var(--gold)}
 .cms-act{display:flex;gap:7px;align-items:center}
-.cms-act .ed{background:var(--panel-2);border:1px solid var(--border);color:var(--blue);padding:6px 12px;border-radius:7px;font-size:.68rem;font-weight:800;cursor:pointer;display:inline-flex;gap:5px;align-items:center}
-.cms-act .rm{background:var(--red);border:none;color:#fff;padding:6px 10px;border-radius:7px;font-size:.72rem;cursor:pointer}
+/* Edit / delete buttons — styled globally so every page (tables, cards,
+   inline rows) gets the same look, not just .cms-act tables. */
+button.ed,.cms-act .ed{background:var(--panel-2);border:1px solid var(--border);color:var(--blue);padding:6px 12px;border-radius:7px;font-size:.68rem;font-weight:800;cursor:pointer;display:inline-flex;gap:5px;align-items:center;font-family:inherit;line-height:1.3;transition:border-color .15s,filter .15s}
+button.ed:hover{border-color:var(--blue)}
+button.rm,.cms-act .rm{background:var(--red);border:none;color:#fff;padding:6px 10px;border-radius:7px;font-size:.72rem;cursor:pointer;font-family:inherit;line-height:1.3;transition:filter .15s}
+button.rm:hover{filter:brightness(1.15)}
 .cms-chip{background:rgba(58,160,255,.13);color:var(--blue);font-size:.68rem;font-weight:800;padding:3px 10px;border-radius:11px}
 .cms-prev{width:34px;height:24px;border-radius:5px;background:linear-gradient(135deg,#2a3550,#1b2236);border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center;font-size:.8rem}
 .cms-num{color:var(--gold);font-weight:800}
