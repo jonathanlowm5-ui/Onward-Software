@@ -202,14 +202,14 @@ export default function WebDesign() {
           <div className="wd-row"><label>Gradient Start</label><div className="wd-col"><span className="hex">{wd.withdraw.c1.toUpperCase()}</span><input type="color" value={wd.withdraw.c1} onChange={(e) => setWithdraw('c1', e.target.value)} /></div></div>
           <div className="wd-row"><label>Gradient End</label><div className="wd-col"><span className="hex">{wd.withdraw.c2.toUpperCase()}</span><input type="color" value={wd.withdraw.c2} onChange={(e) => setWithdraw('c2', e.target.value)} /></div></div>
           <div className="wd-fld" style={{ margin: '6px 0' }}>
-            <label>3 Card Styles <span style={{ color: 'var(--gold)', fontWeight: 700 }}>· 1000 × 240 px each — players choose one</span></label>
+            <label>3 Card Styles <span style={{ color: 'var(--gold)', fontWeight: 700 }}>· 1000 × 630 px each (bank-card ratio) — players choose one</span></label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
               {[{ n: 1, c: '#1f4e79,#0e8a7a' }, { n: 2, c: '#5b2a86,#2d1b69' }, { n: 3, c: '#1fa05f,#0c5c39' }].map(({ n, c }) => {
                 const k = 'withdrawCard' + n;
                 return (
                   <div key={k} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 8 }}>
                     <div style={{ fontWeight: 800, fontSize: 12, marginBottom: 6 }}>Style {n}</div>
-                    <div style={{ width: '100%', aspectRatio: '1000 / 240', borderRadius: 6, overflow: 'hidden', marginBottom: 6, background: pageBanners[k] ? undefined : `linear-gradient(135deg,${c})` }}>
+                    <div style={{ width: '100%', aspectRatio: '1.586', borderRadius: 10, overflow: 'hidden', marginBottom: 6, background: pageBanners[k] ? undefined : `linear-gradient(135deg,${c})` }}>
                       {pageBanners[k] && <img src={pageBanners[k]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>

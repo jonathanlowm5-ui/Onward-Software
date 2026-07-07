@@ -1056,6 +1056,49 @@ body::before{
 .wd-tag{position:absolute;top:10px;left:50%;transform:translateX(-50%);font-size:8px;font-weight:800;color:#fff;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:5px;padding:1px 5px}
 .dep2-method{position:relative}
 .wd-dest{position:relative;overflow:hidden;border-radius:14px;padding:20px;background:linear-gradient(120deg,#15324a,#194a44 70%,#143240);border:1px solid #2a5a55}
+/* Real bank-card shape: 85.6 × 54 mm ratio, capped width, content pinned to
+   the top/bottom edges like a physical card. */
+.wd-dest--bankcard{
+  aspect-ratio:1.586/1;
+  width:100%;max-width:380px;
+  margin:0 auto;
+  display:flex;flex-direction:column;justify-content:space-between;
+  border-radius:18px;
+  box-shadow:0 14px 34px rgba(0,0,0,.4);
+}
+.wd-dest-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.wd-dest--bankcard .wd-dest-title{margin-bottom:0;font-size:16px}
+.wd-dest-bank{
+  font-size:12px;font-weight:900;letter-spacing:.14em;
+  color:rgba(255,255,255,.85);
+}
+.wd-chiprow{display:flex;align-items:center;gap:12px}
+.wd-chip{
+  width:42px;height:31px;border-radius:6px;
+  background:linear-gradient(135deg,#ecd27c,#c9992f);
+  border:1px solid rgba(0,0,0,.25);
+  position:relative;
+}
+.wd-chip::after{
+  content:'';position:absolute;inset:6px 5px;
+  border:1px solid rgba(0,0,0,.28);border-radius:3px;
+}
+.wd-nfc{width:22px;height:22px;color:rgba(255,255,255,.85)}
+.wd-dest-bottom{min-width:0}
+.wd-dest--bankcard .wd-dest-label{margin-bottom:4px;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em}
+.wd-dest--bankcard .wd-dest-input{
+  background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,.28);
+  border-radius:0;padding:4px 92px 6px 2px;
+  font-family:'Courier New',monospace;font-size:19px;font-weight:700;letter-spacing:.14em;
+  color:#fff;
+}
+.wd-dest--bankcard .wd-dest-input:focus{border-bottom-color:rgba(255,255,255,.7)}
+.wd-dest--bankcard .wd-brandrow{
+  position:absolute;right:16px;bottom:14px;margin:0;
+}
+@media(max-width:600px){
+  .wd-dest--bankcard{max-width:100%}
+}
 /* 3 selectable card styles above the withdrawal card */
 .wd-cardstyles{display:flex;gap:8px;margin-bottom:10px}
 .wd-cardstyle{width:42px;height:26px;border-radius:7px;border:2px solid rgba(255,255,255,.25);cursor:pointer;padding:0;transition:transform .12s,border-color .12s;background-size:cover;background-position:center}

@@ -163,11 +163,27 @@ export default function WithdrawModal() {
                 />
               ))}
             </div>
-            <div className="wd-dest" style={cardBgStyle}>
-              <div className="wd-dest-title">{destTitle}</div>
-              <div className="wd-dest-label">{destLabel}</div>
-              <input className="wd-dest-input" placeholder={destPh} value={dest} onChange={(e) => setDest(e.target.value)} />
-              {isCard && <div className="wd-brandrow"><span className="wd-bdg wd-visa">VISA</span><span className="wd-bdg wd-mc">●●</span></div>}
+            {/* Real bank-card proportions (85.6 × 54 → 1.586:1) */}
+            <div className="wd-dest wd-dest--bankcard" style={cardBgStyle}>
+              <div className="wd-dest-top">
+                <span className="wd-dest-title">{destTitle}</span>
+                {isCard && <span className="wd-dest-bank">ONWARD</span>}
+              </div>
+              {isCard && (
+                <div className="wd-chiprow">
+                  <span className="wd-chip" aria-hidden="true"></span>
+                  <svg className="wd-nfc" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 8.5a9 9 0 0 1 0 7" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                    <path d="M9.5 7a13 13 0 0 1 0 10" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                    <path d="M13 5.5a17 17 0 0 1 0 13" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  </svg>
+                </div>
+              )}
+              <div className="wd-dest-bottom">
+                <div className="wd-dest-label">{destLabel}</div>
+                <input className="wd-dest-input" placeholder={destPh} value={dest} onChange={(e) => setDest(e.target.value)} />
+                {isCard && <div className="wd-brandrow"><span className="wd-bdg wd-visa">VISA</span><span className="wd-bdg wd-mc">●●</span></div>}
+              </div>
             </div>
 
             <div className="wd-amt-label">Withdrawal amount</div>
