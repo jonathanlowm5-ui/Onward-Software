@@ -13,14 +13,29 @@ import api from '../../services/api';
  */
 const SEEN_KEY = 'onward_popouts_seen';
 
+// Frequency: 'session' hides after dismissal for this session, 'once' hides
+// forever on this browser, 'always' shows again on every page load.
 function loadSeen() {
-  try { return JSON.parse(sessionStorage.getItem(SEEN_KEY) || '[]'); } catch { return []; }
+  try {
+    const s = JSON.parse(sessionStorage.getItem(SEEN_KEY) || '[]');
+    const l = JSON.parse(localStorage.getItem(SEEN_KEY) || '[]');
+    return { session: s, once: l };
+  } catch { return { session: [], once: [] }; }
 }
-function markSeen(id) {
+function markSeen(p) {
+  const freq = p.frequency || 'session';
+  if (freq === 'always') return; // shows again next page load
   try {
     const seen = loadSeen();
-    if (!seen.includes(id)) sessionStorage.setItem(SEEN_KEY, JSON.stringify([...seen, id]));
+    const bucket = freq === 'once' ? 'once' : 'session';
+    const storage = freq === 'once' ? localStorage : sessionStorage;
+    if (!seen[bucket].includes(p.id)) storage.setItem(SEEN_KEY, JSON.stringify([...seen[bucket], p.id]));
   } catch { /* ignore */ }
+}
+function wasSeen(p, seen) {
+  const freq = p.frequency || 'session';
+  if (freq === 'always') return false;
+  return (freq === 'once' ? seen.once : seen.session).includes(p.id);
 }
 
 // Is `now` within the pop-out's optional [start, end] window?
@@ -61,7 +76,7 @@ export default function PopoutAnnouncement() {
         const now = Date.now();
         const vipLevel = profile?.vipLevel || 0;
         const list = Array.isArray(r.data?.popouts) ? r.data.popouts : [];
-        setQueue(list.filter((p) => p && p.enabled !== false && !seen.includes(p.id)
+        setQueue(list.filter((p) => p && p.enabled !== false && !wasSeen(p, seen)
           && (p.title || p.message || p.image)
           && scheduleActive(p, now)
           && audienceMatch(p, isLoggedIn, vipLevel)));
@@ -75,13 +90,13 @@ export default function PopoutAnnouncement() {
   const p = queue[0];
 
   const dismiss = () => {
-    markSeen(p.id);
+    markSeen(p);
     setQueue((q) => q.slice(1));
   };
 
   const go = () => {
     if (!p.link) return;
-    markSeen(p.id);
+    markSeen(p);
     if (/^https?:\/\//i.test(p.link)) {
       window.open(p.link, '_blank', 'noopener');
     } else {

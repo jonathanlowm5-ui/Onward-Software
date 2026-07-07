@@ -87,4 +87,11 @@ router.patch('/:id/reject', requireAuth, requirePerm('transactions.approve'), (r
   res.json(store.update(COLLECTION, req.params.id, { status: 'rejected', reason: req.body?.reason || '' }));
 });
 
+// ---- mark a non-cash reward (free spins etc.) as fulfilled by the operator ----
+router.patch('/:id/fulfill', requireAuth, (req, res) => {
+  const tx = store.get(COLLECTION, req.params.id);
+  if (!tx) return res.status(404).json({ error: 'Transaction not found' });
+  res.json(store.update(COLLECTION, req.params.id, { fulfilled: true, fulfilledAt: new Date().toISOString() }));
+});
+
 module.exports = router;

@@ -36,7 +36,9 @@ router.post('/login', (req, res) => {
 router.get('/me', requireAuth, (req, res) => {
   const user = store.findUser(req.user.sub);
   if (!user) return res.json({ user: { username: req.user.sub, role: req.user.role, permissions: [] } });
-  res.json({ user: publicUser(user) });
+  // Nudge the operator to rotate the seeded default credentials.
+  const usingDefaultPassword = !!(user.passwordHash && bcrypt.compareSync('admin123', user.passwordHash));
+  res.json({ user: { ...publicUser(user), usingDefaultPassword } });
 });
 
 // Change the logged-in admin's password.

@@ -69,18 +69,18 @@ export default function Missions() {
 
   // Group into category sections (Daily Login / Deposit / Wager / …).
   const SECTIONS = [
-    ['login', '📅 Daily Login'],
-    ['deposit', '💳 Deposit'],
-    ['wager', '🎲 Wager'],
-    ['referral', '🤝 Refer a Friend'],
-    ['game', '🎮 Games'],
-    ['other', '🎯 Missions'],
+    ['login', '📅', 'Daily Login', 'mission_sec_login'],
+    ['deposit', '💳', 'Deposit', 'mission_sec_deposit'],
+    ['wager', '🎲', 'Wager', 'mission_sec_wager'],
+    ['referral', '🤝', 'Refer a Friend', 'mission_sec_referral'],
+    ['game', '🎮', 'Games', 'mission_sec_game'],
+    ['other', '🎯', 'Missions', 'mission_sec_other'],
   ];
   const grouped = SECTIONS
-    .map(([type, label]) => [label, missions.filter((m) => (m.type || 'other') === type)])
-    .filter(([, list]) => list.length);
+    .map(([type, icon, label, i18n]) => [icon, label, i18n, missions.filter((m) => (m.type || 'other') === type)])
+    .filter(([, , , list]) => list.length);
   // Showcase fallback has no types — show it as one plain group.
-  const sections = apiMissions ? grouped : [['', missions]];
+  const sections = apiMissions ? grouped : [['', '', '', missions]];
 
   const missionClaim = async (m, tier) => {
     if (!isLoggedIn) { openModal('register'); return; }
@@ -115,11 +115,12 @@ export default function Missions() {
             </div>
           </PageBanner>
         </div>
-        {sections.map(([label, list]) => (
+        {sections.map(([icon, label, i18n, list]) => (
           <div key={label || 'all'} style={{ marginBottom: 30 }}>
             {label && (
               <div className="msn-section-h">
-                {label}
+                <span aria-hidden="true">{icon}</span>
+                <span data-i18n={i18n}>{label}</span>
                 <span className="cnt">{list.length}</span>
               </div>
             )}

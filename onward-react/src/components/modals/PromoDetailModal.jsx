@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import Modal from './Modal.jsx';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
@@ -22,6 +23,7 @@ function fmtDate(d) {
 export default function PromoDetailModal() {
   const { activeModal, modalData, closeModal, openModal, lang, currency, fxConvert } = useUI();
   const { profile } = useAuth();
+  const navigate = useNavigate();
   const open = activeModal === 'promo';
   if (!open) return null;
 
@@ -59,7 +61,9 @@ export default function PromoDetailModal() {
     closeModal();
     const link = String(p.buttonLink || '');
     if (link && /^https?:\/\//i.test(link)) { window.open(link, '_blank', 'noopener'); return; }
-    // Internal links (e.g. /deposit) and the default both open the deposit flow.
+    // Internal routes (e.g. /tournaments) navigate; /deposit and the default
+    // open the deposit flow like before.
+    if (link.startsWith('/') && link !== '/deposit') { navigate(link); return; }
     openModal('deposit');
   };
 

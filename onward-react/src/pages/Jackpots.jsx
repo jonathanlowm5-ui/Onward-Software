@@ -88,21 +88,28 @@ export default function Jackpots() {
     else openModal('game', { name: g.name, icon: g.icon });
   };
 
-  const [tiers, setTiers] = useState({ t1: 7740000, t2: 173550, t3: 16560, t4: 682200 });
-  const [mega, setMega] = useState(8610389.37);
-
+  // Progressive counters grow deterministically from a fixed epoch, so every
+  // player sees the SAME jackpot value at the same moment (and it no longer
+  // resets on refresh). A little sine wobble keeps the growth organic.
+  const JP_EPOCH = 1735689600000; // 2025-01-01
+  const jpAt = (base, perSec) => {
+    const secs = (Date.now() - JP_EPOCH) / 1000;
+    return base + secs * perSec + Math.sin(secs / 9) * perSec * 4;
+  };
+  const compute = () => ({
+    t1: jpAt(7740000, 1.15),
+    t2: jpAt(173550, 0.11),
+    t3: jpAt(16560, 0.021),
+    t4: jpAt(682200, 0.05),
+    mega: jpAt(8610389.37, 1.3),
+  });
+  const [jp, setJp] = useState(compute);
   useEffect(() => {
-    const id = setInterval(() => {
-      setTiers((prev) => ({
-        t1: prev.t1 + Math.floor(Math.random() * 2800 + 800),
-        t2: prev.t2 + Math.floor(Math.random() * 280 + 80),
-        t3: prev.t3 + Math.floor(Math.random() * 55 + 15),
-        t4: prev.t4 + Math.floor(Math.random() * 120 + 40),
-      }));
-      setMega((prev) => prev + Math.floor(Math.random() * 3200 + 900));
-    }, 1600);
+    const id = setInterval(() => setJp(compute()), 1600);
     return () => clearInterval(id);
   }, []);
+  const tiers = jp;
+  const mega = jp.mega;
 
   const playSlots = (e) => {
     e.stopPropagation();

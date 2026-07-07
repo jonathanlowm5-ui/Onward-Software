@@ -18,6 +18,7 @@
 const express = require('express');
 const store = require('../store');
 const { requireAuth, requirePlayer } = require('../auth');
+const { creditFor } = require('../fx');
 const { requirePerm } = require('../permissions');
 
 const router = express.Router();
@@ -142,9 +143,10 @@ router.post('/redeem', requirePlayer, (req, res) => {
     }
   }
 
-  // Cash-style rewards credit the balance instantly; % / FS rewards are
-  // recorded for the operator to fulfil (deposit-matched bonuses etc.).
-  const amount = isMoney(v.value) ? num(v.value) : 0;
+  // Cash-style rewards credit the balance instantly — converted to the
+  // player's account currency ("₱500" for a MYR player credits the RM
+  // equivalent). % / FS rewards are logged for the operator to fulfil.
+  const amount = isMoney(v.value) ? creditFor(v.value, player.currency) : 0;
   const patch = {
     vouchersRedeemed: { ...(player.vouchersRedeemed || {}), [v.code]: new Date().toISOString() },
   };
@@ -157,8 +159,11 @@ router.post('/redeem', requirePlayer, (req, res) => {
     playerId: player.id,
     type: 'bonus',
     amount,
+    currency: player.currency || 'PHP',
     method: 'voucher',
+    refId: v.id,
     status: 'approved',
+    fulfilled: amount > 0,
     note: `Voucher redeemed: ${v.code}${v.value ? ` (${v.value})` : ''}`,
   });
 

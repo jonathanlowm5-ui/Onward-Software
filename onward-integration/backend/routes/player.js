@@ -310,9 +310,12 @@ router.post('/deposit', requirePlayer, (req, res) => {
 router.post('/withdraw', requirePlayer, (req, res) => {
   const p = currentPlayer(req);
   const amount = Number(req.body?.amount || 0);
-  // A bound bank account is mandatory before any withdrawal.
+  // A bound bank account AND verified identity are mandatory before any
+  // withdrawal (standard anti-fraud gate).
   if (!bankBound(p.id))
     return res.status(403).json({ error: 'Please bind a bank account before withdrawing', code: 'BANK_REQUIRED' });
+  if ((p.kyc_status || 'unverified') !== 'approved')
+    return res.status(403).json({ error: 'Please complete KYC verification before withdrawing', code: 'KYC_REQUIRED' });
   if (!(amount >= 500)) return res.status(400).json({ error: 'Minimum withdrawal is 500' });
   if (amount > Number(p.balance || 0)) return res.status(400).json({ error: 'Amount exceeds balance' });
   const tx = store.insert('transactions', {
@@ -321,6 +324,35 @@ router.post('/withdraw', requirePlayer, (req, res) => {
     method: req.body?.method || 'Bank', accountId: req.body?.accountId || null, status: 'pending', note: '',
   });
   res.status(201).json(tx);
+});
+
+// ---------- player: notification feed (header bell) ----------
+// Recent account events derived from the player's transactions: credited
+// rewards, deposit/withdrawal status changes. Newest first, capped at 20.
+router.get('/notifications', requirePlayer, (req, res) => {
+  const rows = store.list('transactions')
+    .filter((t) => String(t.playerId) === String(req.auth.sub))
+    .sort((a, b) => (b.updatedAt || b.createdAt || '').localeCompare(a.updatedAt || a.createdAt || ''))
+    .slice(0, 20)
+    .map((t) => {
+      const amt = Number(t.amount || 0);
+      const cur = t.currency || 'PHP';
+      let icon = '💳'; let text = '';
+      if (t.type === 'bonus') {
+        icon = '🎁';
+        text = t.note || `Bonus credited: ${amt} ${cur}`;
+      } else if (t.type === 'deposit') {
+        icon = t.status === 'approved' ? '✅' : t.status === 'rejected' ? '❌' : '⏳';
+        text = `Deposit of ${amt} ${cur} ${t.status === 'approved' ? 'approved' : t.status === 'rejected' ? 'rejected' : 'pending review'}`;
+      } else if (t.type === 'withdrawal') {
+        icon = t.status === 'approved' ? '💸' : t.status === 'rejected' ? '❌' : '⏳';
+        text = `Withdrawal of ${amt} ${cur} ${t.status === 'approved' ? 'paid out' : t.status === 'rejected' ? 'rejected' : 'pending review'}`;
+      } else {
+        text = t.note || `${t.type} — ${amt} ${cur}`;
+      }
+      return { id: t.id, icon, text, at: t.updatedAt || t.createdAt || '' };
+    });
+  res.json(rows);
 });
 
 // ---------- player: transactions & game history ----------

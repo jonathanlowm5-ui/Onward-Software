@@ -209,6 +209,7 @@ export default function Promotions() {
         startDate: t.start,
         endDate: t.end,
         buttonText: 'Join Now',
+        buttonLink: '/tournaments', // go to the tournaments page, not deposit
         lines: [`🎟 ${t.buyIn || 'Free to join'}`, tournGames(t)],
       }),
     }))

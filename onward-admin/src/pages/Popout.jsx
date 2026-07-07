@@ -20,7 +20,13 @@ const LEVELS = [
   { v: 'critical', label: '🚨 Critical (red)' },
 ];
 
-const EMPTY_POP = { id: '', enabled: true, title: '', message: '', image: '', mobileImage: '', link: '', ctaText: '', audience: 'all', start: '', end: '' };
+const EMPTY_POP = { id: '', enabled: true, title: '', message: '', image: '', mobileImage: '', link: '', ctaText: '', audience: 'all', start: '', end: '', frequency: 'session' };
+
+const FREQS = [
+  ['session', '🔁 Once per session'],
+  ['once', '1️⃣ Once ever (per browser)'],
+  ['always', '📢 Every visit'],
+];
 
 const AUDIENCES = [
   { v: 'all', label: '🌐 All Players' },
@@ -223,11 +229,19 @@ export default function Popout() {
                 <div className="pm-fld"><label>Button Text</label><input value={form.ctaText} onChange={(e) => setF('ctaText', e.target.value)} placeholder="Learn More" /></div>
               </div>
 
-              <div className="pm-fld" style={{ marginTop: 12 }}>
-                <label>Target Audience</label>
-                <select value={form.audience} onChange={(e) => setF('audience', e.target.value)}>
-                  {AUDIENCES.map((a) => <option key={a.v} value={a.v}>{a.label}</option>)}
-                </select>
+              <div className="pm-grid" style={{ marginTop: 12 }}>
+                <div className="pm-fld">
+                  <label>Target Audience</label>
+                  <select value={form.audience} onChange={(e) => setF('audience', e.target.value)}>
+                    {AUDIENCES.map((a) => <option key={a.v} value={a.v}>{a.label}</option>)}
+                  </select>
+                </div>
+                <div className="pm-fld">
+                  <label>Show frequency</label>
+                  <select value={form.frequency} onChange={(e) => setF('frequency', e.target.value)}>
+                    {FREQS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                </div>
               </div>
 
               <div className="pm-grid" style={{ marginTop: 12 }}>

@@ -57,6 +57,8 @@ function cleanPopout(p) {
     audience: AUDIENCES.includes(p.audience) ? p.audience : 'all',
     start: str(p.start, 40).trim(), // datetime-local / ISO; empty = no start bound
     end: str(p.end, 40).trim(),     // empty = no end bound
+    // How often a visitor sees it: once ever, once per session, every visit.
+    frequency: ['once', 'session', 'always'].includes(p.frequency) ? p.frequency : 'session',
   };
 }
 

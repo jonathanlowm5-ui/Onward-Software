@@ -12,6 +12,7 @@
 const express = require('express');
 const store = require('../store');
 const { requireAuth, requirePlayer } = require('../auth');
+const { creditFor } = require('../fx');
 const { requirePerm } = require('../permissions');
 
 const router = express.Router();
@@ -97,7 +98,12 @@ function progressFor(mission, player) {
     if (!myCode) return 0;
     return store.list('players').filter((x) => (x.referralCode || '') === myCode).length;
   }
-  return 0; // wager / game / other — needs the bets ledger
+  if (t === 'wager' || t === 'game') {
+    const bets = store.list('bets').filter((x) => String(x.playerId) === String(player.id));
+    // Wager = total amount staked; game = number of bets/rounds played.
+    return t === 'wager' ? bets.reduce((s, x) => s + Number(x.amount || 0), 0) : bets.length;
+  }
+  return 0; // "other" — manual missions
 }
 
 function playerMissionView(m, player) {
@@ -125,7 +131,7 @@ function playerMissionView(m, player) {
       target: maxTarget,
       progress,
       pct: Math.round((progress / maxTarget) * 100),
-      trackable: ['login', 'deposit', 'referral'].includes(m.type),
+      trackable: ['login', 'deposit', 'referral', 'wager', 'game'].includes(m.type),
       claimed: tiers.every((t) => t.claimed),
       claimable: tiers.some((t) => t.claimable),
     };
@@ -139,7 +145,7 @@ function playerMissionView(m, player) {
     target,
     progress,
     pct: Math.round((progress / target) * 100),
-    trackable: ['login', 'deposit', 'referral'].includes(m.type),
+    trackable: ['login', 'deposit', 'referral', 'wager', 'game'].includes(m.type),
     claimed,
     claimable: !claimed && progress >= target,
   };
@@ -180,9 +186,10 @@ router.post('/claim', requirePlayer, (req, res) => {
     reward = mission.reward;
   }
 
-  // Money rewards are credited to the balance immediately; other rewards
-  // (e.g. free spins) are recorded as a bonus transaction for the operator.
-  const amount = isMoney(reward) ? num(reward) : 0;
+  // Money rewards are credited to the balance immediately — converted to the
+  // player's account currency ("₱500" for a MYR player credits the RM
+  // equivalent). Other rewards (free spins) are logged for fulfilment.
+  const amount = isMoney(reward) ? creditFor(reward, player.currency) : 0;
   const patch = {
     missionsClaimed: { ...(player.missionsClaimed || {}), [claimKey]: new Date().toISOString() },
   };
@@ -193,8 +200,11 @@ router.post('/claim', requirePlayer, (req, res) => {
     playerId: player.id,
     type: 'bonus',
     amount,
+    currency: player.currency || 'PHP',
     method: 'mission',
+    refId: mission.id,
     status: 'approved',
+    fulfilled: amount > 0, // money is credited instantly; FS needs the operator
     note: `Mission reward: ${mission.title}${hasTiers ? ` — tier ${Number(req.body.tier) + 1}` : ''}${reward ? ` (${reward})` : ''}`,
   });
 

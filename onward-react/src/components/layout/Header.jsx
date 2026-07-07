@@ -7,7 +7,8 @@ import useSectionNav from '../../hooks/useSectionNav';
 import { IMG0 as LOGO } from '../../assets/images';
 import PlayerAvatar from '../common/PlayerAvatar';
 import { POPULAR_GAMES, ALL_SLOTS } from '../../services/data/gameData';
-import { launchGame as resolveLaunch } from '../../services/gamesService';
+import { launchGame as resolveLaunch, fetchPromotions } from '../../services/gamesService';
+import api from '../../services/api';
 
 // Flag + short name shown on the header language button for the active language.
 const LANG_FLAGS = {
@@ -354,6 +355,76 @@ const NAV = [
 ];
 
 
+// Header bell — a real notification feed of the player's account events
+// (rewards credited, deposit/withdrawal status). Polls while open + on mount.
+function NotifBell() {
+  const { openModal } = useUI();
+  const { isLoggedIn } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState([]);
+  const [seenAt, setSeenAt] = useState(() => {
+    try { return localStorage.getItem('onward_notif_seen') || ''; } catch { return ''; }
+  });
+
+  useEffect(() => {
+    if (!isLoggedIn) { setItems([]); return undefined; }
+    let alive = true;
+    const load = () => api.get('/player/notifications')
+      .then((r) => { if (alive && Array.isArray(r.data)) setItems(r.data); })
+      .catch(() => {});
+    load();
+    const id = setInterval(load, 45000);
+    return () => { alive = false; clearInterval(id); };
+  }, [isLoggedIn]);
+
+  const unseen = items.filter((n) => !seenAt || (n.at || '') > seenAt).length;
+  const toggle = () => {
+    if (!isLoggedIn) { openModal('login'); return; }
+    setOpen((o) => {
+      const next = !o;
+      if (next && items.length) {
+        const latest = items[0]?.at || new Date().toISOString();
+        setSeenAt(latest);
+        try { localStorage.setItem('onward_notif_seen', latest); } catch { /* ignore */ }
+      }
+      return next;
+    });
+  };
+
+  return (
+    <>
+      <button className="hdr-icon-btn" title="Notifications" onClick={(e) => { e.stopPropagation(); toggle(); }}>
+        🔔
+        {unseen > 0 && <span className="notif-dot"></span>}
+      </button>
+      {open && createPortal(
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 5000 }} />
+          <div style={{ position: 'fixed', top: 52, right: 12, zIndex: 5001, width: 330, maxWidth: 'calc(100vw - 20px)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, boxShadow: '0 20px 60px rgba(0,0,0,.6)', overflow: 'hidden' }}>
+            <div style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text)', borderBottom: '1px solid var(--border)', fontSize: 14 }}>🔔 Notifications</div>
+            <div style={{ maxHeight: 380, overflowY: 'auto' }}>
+              {items.length === 0 ? (
+                <div style={{ padding: '28px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                  No notifications yet — deposits, rewards and payouts show up here.
+                </div>
+              ) : items.map((n) => (
+                <div key={n.id} style={{ display: 'flex', gap: 10, padding: '11px 16px', borderBottom: '1px solid rgba(255,255,255,.04)', alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: 18, flexShrink: 0 }}>{n.icon}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, color: 'var(--text)', lineHeight: 1.45 }}>{n.text}</div>
+                    <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 2 }}>{String(n.at || '').replace('T', ' ').slice(0, 16)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>,
+        document.body
+      )}
+    </>
+  );
+}
+
 export default function Header() {
   const { toggleSidebar, openModal, currency, accountCurrency, fxConvert } = useUI();
   const { isLoggedIn, profile, logout } = useAuth();
@@ -364,6 +435,14 @@ export default function Header() {
   // Self-contained account menu (avatar). Local state + a portal to <body> so it
   // can never be clipped or out-stacked by the header.
   const [acctOpen, setAcctOpen] = useState(false);
+
+  // Real promotions count on the header badge (was a hardcoded "1").
+  const [promoCount, setPromoCount] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    fetchPromotions().then((list) => { if (alive) setPromoCount(Array.isArray(list) ? list.length : 0); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
   const goSection = (section) => { setAcctOpen(false); navigate('/profile', { state: { section } }); };
 
   // Logout: clear the session token (done in AuthContext) then return to the
@@ -455,7 +534,7 @@ export default function Header() {
             <button className="hdr-pill promos" onClick={() => go('promos')}>
               <span className="hdr-pill-icon">🎁</span>
               <span className="hdr-pill-label" data-i18n="nav_promos">Promotions</span>
-              <span className="hdr-pill-badge">1</span>
+              {promoCount > 0 && <span className="hdr-pill-badge">{promoCount}</span>}
             </button>
             <button className="hdr-pill giveaway" onClick={() => go('giveaways')}>
               <span className="hdr-pill-icon">🎮</span>
@@ -465,10 +544,7 @@ export default function Header() {
           <div className="hdr-row1-right">
             <CurrencySwitcher />
             <LangSwitcher />
-            <button className="hdr-icon-btn" title="Notifications">
-              🔔
-              <span className="notif-dot"></span>
-            </button>
+            <NotifBell />
           </div>
         </div>
 

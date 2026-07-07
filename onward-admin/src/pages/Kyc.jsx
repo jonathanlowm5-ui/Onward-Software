@@ -80,7 +80,7 @@ export default function Kyc() {
 
   useEffect(() => {
     let active = true;
-    (async () => {
+    const loadQueue = async () => {
       try {
         const data = await listKYC();
         const list = Array.isArray(data) ? data : data?.items || data?.data || [];
@@ -90,8 +90,10 @@ export default function Kyc() {
       } finally {
         if (active) setLoading(false);
       }
-    })();
-    return () => { active = false; };
+    };
+    loadQueue();
+    const id = setInterval(loadQueue, 20000); // approval queue: poll for new requests
+    return () => { active = false; clearInterval(id); };
   }, []);
 
   const pend = queue.filter((k) => k.st === 'pending').length;
