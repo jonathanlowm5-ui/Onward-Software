@@ -70,6 +70,7 @@ app.use('/api/bets', require('./routes/bets'));
 app.use('/api/support-pages', require('./routes/supportpages'));
 app.use('/api/marketing', require('./routes/marketing'));
 app.use('/api/top-buttons', require('./routes/topbuttons'));
+app.use('/api/web-design', require('./routes/webdesign'));
 
 app.get('/api/health', (req, res) => res.json({ ok: true, service: 'onward-api' }));
 

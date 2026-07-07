@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useUI } from '../../context/UIContext';
 import useSectionNav from '../../hooks/useSectionNav';
 import useFavorites from '../../hooks/useFavorites';
+import useWebDesign from '../../hooks/useWebDesign';
 // Uploaded sidebar icons (replace the emoji on the Casino panel menu).
 import icFortune from '../../assets/sidebar/fortune-wheel.avif';
 import icTournament from '../../assets/sidebar/tournament.avif';
@@ -41,6 +42,7 @@ export default function Sidebar() {
   const [openGroups, setOpenGroups] = useState({});
   const { closeSidebar, openModal, sidebarOpen } = useUI();
   const { count: favCount } = useFavorites();
+  const wd = useWebDesign(); // admin Website Design: optional sidebar logo
   const go = useSectionNav();
   const navigate = useNavigate();
 
@@ -62,6 +64,14 @@ export default function Sidebar() {
   return (
     <aside id="sidebar-nav" className={sidebarOpen ? 'open' : ''}>
       <div className="sb-inner">
+        {/* Admin-configured sidebar logo (Website Design → Side Panel Logo) */}
+        {wd?.logo?.text && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '13px 16px 9px', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
+            {wd.logo.emoji && <span style={{ fontSize: 20 }} aria-hidden="true">{wd.logo.emoji}</span>}
+            <span style={{ fontWeight: 900, letterSpacing: '.06em', fontSize: 15, color: 'var(--text)' }}>{wd.logo.text}</span>
+          </div>
+        )}
+
         {/* Casino / Sport Tabs */}
         <div className="sb-tabs">
           <button className={`sb-tab${tab === 'casino' ? ' active' : ''}`} id="tab-casino" onClick={() => setTab('casino')}>

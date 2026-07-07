@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import Header from './Header.jsx';
+import useWebDesign from '../../hooks/useWebDesign';
 import NotificationTicker from './NotificationTicker.jsx';
 import PopoutAnnouncement from './PopoutAnnouncement.jsx';
 import Sidebar from './Sidebar.jsx';
@@ -13,8 +14,17 @@ import { useUI } from '../../context/UIContext';
 export default function Layout() {
   const { sidebarOpen, toggleSidebar } = useUI();
 
+  // Admin Website Design overrides (only present once the admin saves them):
+  // primary CTA button colours + the VIP hero background.
+  const wd = useWebDesign();
+  const wdCss = wd ? `
+    ${wd.btnBg ? `.btn-primary,.hdr-deposit-btn{background:${wd.btnBg} !important;color:${wd.btnTx || '#10131c'} !important;}` : ''}
+    ${wd.vip?.c1 ? `.vip-hero{background:linear-gradient(110deg,${wd.vip.c1},${wd.vip.c2 || wd.vip.c1}) !important;}` : ''}
+  ` : '';
+
   return (
     <>
+      {wdCss && <style id="wd-overrides">{wdCss}</style>}
       <Header />
 
       {/* MOBILE SIDEBAR OVERLAY */}

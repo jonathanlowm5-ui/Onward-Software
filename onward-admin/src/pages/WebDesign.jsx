@@ -31,12 +31,39 @@ const DEFAULT_WD = {
 export default function WebDesign() {
   const { toast } = useUI();
   const [wd, setWd] = useState(DEFAULT_WD);
+  const [saving, setSaving] = useState(false);
+
+  // Load the saved design (merges over the built-in defaults).
+  useEffect(() => {
+    import('../services/api').then(({ default: api }) =>
+      api.get('/web-design').then((r) => {
+        const d = r.data || {};
+        if (Object.keys(d).length) {
+          setWd((p) => ({
+            ...p,
+            logo: { ...p.logo, ...(d.logo || {}) },
+            btnBg: d.btnBg || p.btnBg,
+            btnTx: d.btnTx || p.btnTx,
+            withdraw: { ...p.withdraw, ...(d.withdraw || {}) },
+            vip: { ...p.vip, ...(d.vip || {}) },
+          }));
+        }
+      }).catch(() => {}));
+  }, []);
 
   const setLogo = (k, v) => setWd((p) => ({ ...p, logo: { ...p.logo, [k]: v } }));
   const setField = (k, v) => setWd((p) => ({ ...p, [k]: v }));
   const setWithdraw = (k, v) => setWd((p) => ({ ...p, withdraw: { ...p.withdraw, [k]: v } }));
   const setVip = (k, v) => setWd((p) => ({ ...p, vip: { ...p.vip, [k]: v } }));
-  const save = () => toast('Website design saved ✔ — applied to front-end');
+  const save = async () => {
+    setSaving(true);
+    try {
+      const { default: api } = await import('../services/api');
+      await api.put('/web-design', { logo: wd.logo, btnBg: wd.btnBg, btnTx: wd.btnTx, withdraw: wd.withdraw, vip: wd.vip });
+      toast('Website design saved ✔ — live on the player site');
+    } catch (e) { toast('⚠ ' + (e.message || 'Save failed')); }
+    finally { setSaving(false); }
+  };
 
   // Page hero banners (uploadable, consistent size on the player site).
   const [pageBanners, setPageBanners] = useState({});
@@ -68,8 +95,16 @@ export default function WebDesign() {
           <h1 className="hero-h">🎨 Website Design</h1>
           <div className="hero-sub">Customize the player-facing front-end look — logo, colors, cards &amp; banners.</div>
         </div>
-        <button className="btn-pm-save" onClick={save}>💾 Save Design</button>
+        <button className="btn-pm-save" onClick={save} disabled={saving}>{saving ? 'Saving…' : '💾 Save Design'}</button>
       </div>
+
+      {/* Floating save — this page is long; keep the button always reachable */}
+      <button
+        className="btn-pm-save"
+        onClick={save}
+        disabled={saving}
+        style={{ position: 'fixed', right: 22, bottom: 22, zIndex: 900, boxShadow: '0 10px 30px rgba(0,0,0,.5)', padding: '13px 22px' }}
+      >{saving ? 'Saving…' : '💾 Save Design'}</button>
 
       {/* Page hero banners — uploadable, one consistent size */}
       <div className="card" style={{ marginBottom: 'var(--pad)' }}>

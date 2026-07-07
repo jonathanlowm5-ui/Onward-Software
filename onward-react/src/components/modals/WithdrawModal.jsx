@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useUI } from '../../context/UIContext';
 import usePageBanner from '../../hooks/usePageBanner';
+import useWebDesign from '../../hooks/useWebDesign';
 import { useAuth } from '../../context/AuthContext';
 import { withdraw } from '../../services/playersService';
 
@@ -46,8 +47,11 @@ export default function WithdrawModal() {
   const cardImg1 = usePageBanner('withdrawCard1');
   const cardImg2 = usePageBanner('withdrawCard2');
   const cardImg3 = usePageBanner('withdrawCard3');
+  // Style 1's gradient follows the admin's Website Design "Withdrawal Card"
+  // colours once saved; styles 2/3 keep their built-in palettes.
+  const wd = useWebDesign();
   const CARD_STYLES = [
-    { id: 1, grad: 'linear-gradient(135deg,#1f4e79,#0e8a7a)', img: cardImg1 },
+    { id: 1, grad: `linear-gradient(135deg,${wd?.withdraw?.c1 || '#1f4e79'},${wd?.withdraw?.c2 || '#0e8a7a'})`, img: cardImg1 },
     { id: 2, grad: 'linear-gradient(135deg,#5b2a86,#2d1b69)', img: cardImg2 },
     { id: 3, grad: 'linear-gradient(135deg,#1fa05f,#0c5c39)', img: cardImg3 },
   ];
