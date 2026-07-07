@@ -4,6 +4,7 @@ import Layout from './components/layout/Layout.jsx';
 
 // Code-split each view so the heavy bundled game art only loads where needed.
 const Lobby = lazy(() => import('./pages/Lobby.jsx'));
+const Support = lazy(() => import('./pages/Support.jsx'));
 const Slots = lazy(() => import('./pages/Slots.jsx'));
 const Sports = lazy(() => import('./pages/Sports.jsx'));
 const Lottery = lazy(() => import('./pages/Lottery.jsx'));
@@ -47,6 +48,7 @@ export default function App() {
                 <Route path="profile" element={<Profile />} />
                 <Route path="missions" element={<Missions />} />
                 <Route path="giveaways" element={<Giveaways />} />
+                <Route path="support/:key" element={<Support />} />
                 <Route path="*" element={<Lobby />} />
               </Routes>
             </Suspense>

@@ -4,6 +4,7 @@ import useSectionNav from '../../hooks/useSectionNav';
 import useSocialLinks from '../../hooks/useSocialLinks';
 import { SOCIALS } from '../../services/social';
 import { IMG0 as LOGO } from '../../assets/images';
+import api from '../../services/api';
 
 export default function Footer() {
   const go = useSectionNav();
@@ -14,6 +15,19 @@ export default function Footer() {
 
   const footerGoTable = () => navigate('/slots?cat=table');
   const footerGoCrash = () => navigate('/slots?cat=crash');
+
+  // Support pages (admin-editable content) + Live Chat.
+  const goSupport = (key) => (e) => { e.preventDefault(); navigate(`/support/${key}`); window.scrollTo({ top: 0 }); };
+  const openLiveChat = (e) => {
+    e.preventDefault();
+    api.get('/support-pages')
+      .then((r) => {
+        const url = r.data?.liveChatUrl;
+        if (url) window.open(url, '_blank', 'noopener');
+        else navigate('/support/contact'); // no chat configured yet → contact page
+      })
+      .catch(() => navigate('/support/contact'));
+  };
 
   return (
     <footer>
@@ -68,12 +82,12 @@ export default function Footer() {
         <div className="footer-col">
           <h4 data-i18n="ftr_support">Support</h4>
           <ul>
-            <li><a href="#" data-i18n="ftr_help">Help Center</a></li>
-            <li><a href="#" data-i18n="ftr_live_chat">Live Chat</a></li>
-            <li><a href="#" data-i18n="ftr_terms">Terms of Service</a></li>
-            <li><a href="#" data-i18n="ftr_privacy">Privacy Policy</a></li>
-            <li><a href="#" data-i18n="prof_responsible">Responsible Gaming</a></li>
-            <li><a href="#" data-i18n="ftr_contact">Contact Us</a></li>
+            <li><a href="#" onClick={goSupport('help')} data-i18n="ftr_help">Help Center</a></li>
+            <li><a href="#" onClick={openLiveChat} data-i18n="ftr_live_chat">Live Chat</a></li>
+            <li><a href="#" onClick={goSupport('terms')} data-i18n="ftr_terms">Terms of Service</a></li>
+            <li><a href="#" onClick={goSupport('privacy')} data-i18n="ftr_privacy">Privacy Policy</a></li>
+            <li><a href="#" onClick={goSupport('responsible')} data-i18n="prof_responsible">Responsible Gaming</a></li>
+            <li><a href="#" onClick={goSupport('contact')} data-i18n="ftr_contact">Contact Us</a></li>
           </ul>
         </div>
       </div>
