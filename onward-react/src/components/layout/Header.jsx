@@ -443,6 +443,22 @@ export default function Header() {
     fetchPromotions().then((list) => { if (alive) setPromoCount(Array.isArray(list) ? list.length : 0); }).catch(() => {});
     return () => { alive = false; };
   }, []);
+
+  // Admin-designed top banner buttons (Web Design → Top Banner Buttons):
+  // label, icon, gradient, target URL, on/off + optional bar background.
+  const [topCfg, setTopCfg] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    api.get('/top-buttons').then((r) => { if (alive && r.data?.buttons) setTopCfg(r.data); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  const topButtons = (topCfg?.buttons || []).filter((b) => b.enabled !== false);
+  const goTopButton = (b) => {
+    const url = String(b.url || '/');
+    if (/^https?:\/\//i.test(url)) { window.open(url, '_blank', 'noopener'); return; }
+    navigate(url.startsWith('/') ? url : `/${url}`);
+    window.scrollTo({ top: 0 });
+  };
   const goSection = (section) => { setAcctOpen(false); navigate('/profile', { state: { section } }); };
 
   // Logout: clear the session token (done in AuthContext) then return to the
@@ -529,17 +545,28 @@ export default function Header() {
 
       {/* ===== TWO-ROW SITE HEADER ===== */}
       <div id="site-header">
-        <div className="hdr-row1">
+        <div className="hdr-row1" style={topCfg?.bg ? { background: topCfg.bg } : undefined}>
           <div className="hdr-pills-scroll">
-            <button className="hdr-pill promos" onClick={() => go('promos')}>
-              <span className="hdr-pill-icon">🎁</span>
-              <span className="hdr-pill-label" data-i18n="nav_promos">Promotions</span>
-              {promoCount > 0 && <span className="hdr-pill-badge">{promoCount}</span>}
-            </button>
-            <button className="hdr-pill giveaway" onClick={() => go('giveaways')}>
-              <span className="hdr-pill-icon">🎮</span>
-              <span className="hdr-pill-label" data-i18n="nav_giveaways">Giveaway</span>
-            </button>
+            {topButtons.length > 0 ? topButtons.map((b) => (
+              <button key={b.id} className="hdr-pill" style={{ background: `linear-gradient(110deg,${b.c1},${b.c2})` }} onClick={() => goTopButton(b)}>
+                <span className="hdr-pill-icon">{b.icon}</span>
+                <span className="hdr-pill-label">{b.label}</span>
+                {b.badge && promoCount > 0 && <span className="hdr-pill-badge">{promoCount}</span>}
+              </button>
+            )) : (
+              /* fallback while the config loads / API unreachable */
+              <>
+                <button className="hdr-pill promos" onClick={() => go('promos')}>
+                  <span className="hdr-pill-icon">🎁</span>
+                  <span className="hdr-pill-label" data-i18n="nav_promos">Promotions</span>
+                  {promoCount > 0 && <span className="hdr-pill-badge">{promoCount}</span>}
+                </button>
+                <button className="hdr-pill giveaway" onClick={() => go('giveaways')}>
+                  <span className="hdr-pill-icon">🎮</span>
+                  <span className="hdr-pill-label" data-i18n="nav_giveaways">Giveaway</span>
+                </button>
+              </>
+            )}
           </div>
           <div className="hdr-row1-right">
             <CurrencySwitcher />

@@ -36,9 +36,6 @@ export default function WebDesign() {
   const setField = (k, v) => setWd((p) => ({ ...p, [k]: v }));
   const setWithdraw = (k, v) => setWd((p) => ({ ...p, withdraw: { ...p.withdraw, [k]: v } }));
   const setVip = (k, v) => setWd((p) => ({ ...p, vip: { ...p.vip, [k]: v } }));
-  const setBanner = (i, k, v) =>
-    setWd((p) => ({ ...p, banners: p.banners.map((b, idx) => (idx === i ? { ...b, [k]: v } : b)) }));
-
   const save = () => toast('Website design saved ✔ — applied to front-end');
 
   // Page hero banners (uploadable, consistent size on the player site).
@@ -237,26 +234,7 @@ export default function WebDesign() {
         </div>
       </div>
 
-      <div className="wd-card" style={{ marginTop: 16 }}>
-        <h3>🏟️ Top Banner Buttons</h3>
-        <div className="wd-d">The category buttons across the top of the front-end (Casino, Sport, etc.).</div>
-        {wd.banners.map((b, i) => (
-          <div className="wd-ban-row" key={i}>
-            <input className="wd-txt" value={b.name} onChange={(e) => setBanner(i, 'name', e.target.value)} />
-            <div className="wd-col"><span className="hex">Start</span><input type="color" value={b.c1} onChange={(e) => setBanner(i, 'c1', e.target.value)} /></div>
-            <div className="wd-col"><span className="hex">End</span><input type="color" value={b.c2} onChange={(e) => setBanner(i, 'c2', e.target.value)} /></div>
-            <span style={{ fontSize: '1.3rem', textAlign: 'center' }}>{b.e}</span>
-          </div>
-        ))}
-        <div className="wd-prev-label">Preview</div>
-        <div className="wd-banners">
-          {wd.banners.map((b, i) => (
-            <div className="wd-pill" key={i} style={{ background: `linear-gradient(135deg,${b.c1},${b.c2})` }}>
-              <span className="pe">{b.e}</span>{b.name}
-            </div>
-          ))}
-        </div>
-      </div>
+      <TopBannerButtonsCard />
     </>
   );
 }
@@ -338,6 +316,98 @@ function SocialLinksCard() {
         ))}
       </div>
       <button className="gss-savebtn" disabled={busy} onClick={save}>{busy ? 'Saving…' : 'Save Social Links'}</button>
+    </div>
+  );
+}
+
+
+/*
+ * Top Banner Buttons — LIVE editor for the header pills on the player site
+ * (/api/top-buttons): label, icon, gradient colours, target URL, on/off per
+ * button, plus the bar background colour. Saved buttons apply immediately.
+ */
+function TopBannerButtonsCard() {
+  const { toast } = useUI();
+  const [cfg, setCfg] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    import('../services/api').then(({ default: api }) =>
+      api.get('/top-buttons').then((r) => setCfg(r.data)).catch(() => setCfg({ bg: '', buttons: [] })));
+  }, []);
+
+  const setBtn = (i, k, v) => setCfg((p) => ({ ...p, buttons: p.buttons.map((b, j) => (j === i ? { ...b, [k]: v } : b)) }));
+  const addBtn = () => setCfg((p) => ({ ...p, buttons: [...p.buttons, { id: '', label: 'New Button', icon: '🎯', c1: '#b81a5a', c2: '#7d0d3d', url: '/', enabled: true, badge: false }] }));
+  const delBtn = (i) => setCfg((p) => ({ ...p, buttons: p.buttons.filter((_, j) => j !== i) }));
+  const move = (i, dir) => setCfg((p) => {
+    const arr = [...p.buttons];
+    const j = i + dir;
+    if (j < 0 || j >= arr.length) return p;
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+    return { ...p, buttons: arr };
+  });
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      const { default: api } = await import('../services/api');
+      const r = await api.put('/top-buttons', cfg);
+      setCfg(r.data);
+      toast('Top banner buttons saved ✔ — live on the player site');
+    } catch (e) { toast('⚠ ' + (e.message || 'Save failed')); }
+    finally { setBusy(false); }
+  };
+
+  if (!cfg) return <div className="wd-card" style={{ marginTop: 16 }}><h3>🏟️ Top Banner Buttons</h3><div className="wd-d">Loading…</div></div>;
+  const inp = { padding: '7px 10px', borderRadius: 8, background: 'var(--bg3,#0b1224)', color: 'var(--text,#fff)', border: '1px solid var(--border,#243049)', fontFamily: 'inherit', fontSize: 13 };
+
+  return (
+    <div className="wd-card" style={{ marginTop: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <h3 style={{ marginBottom: 0 }}>🏟️ Top Banner Buttons</h3>
+        <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          <button className="mini-btn" onClick={addBtn}>＋ Add button</button>
+          <button className="btn-search" onClick={save} disabled={busy}>{busy ? 'Saving…' : '💾 Save'}</button>
+        </span>
+      </div>
+      <div className="wd-d">The category buttons across the top of the player site. Toggle which show, set colours, icon and where each one sends the customer (internal route like /promotions or a full https:// URL).</div>
+
+      <div className="wd-row" style={{ marginBottom: 10 }}>
+        <label>Bar background</label>
+        <div className="wd-col">
+          <span className="hex">{(cfg.bg || 'default').toUpperCase()}</span>
+          <input type="color" value={cfg.bg || '#0c1120'} onChange={(e) => setCfg((p) => ({ ...p, bg: e.target.value }))} />
+          {cfg.bg && <button className="del-btn" onClick={() => setCfg((p) => ({ ...p, bg: '' }))}>Reset</button>}
+        </div>
+      </div>
+
+      {cfg.buttons.map((b, i) => (
+        <div key={b.id || i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', opacity: b.enabled === false ? 0.55 : 1 }}>
+          <label className="switch" title="Show on the player site"><input type="checkbox" checked={b.enabled !== false} onChange={(e) => setBtn(i, 'enabled', e.target.checked)} /><span className="slider"></span></label>
+          <input style={{ ...inp, width: 52, textAlign: 'center', fontSize: 16 }} value={b.icon} onChange={(e) => setBtn(i, 'icon', e.target.value)} title="Icon (emoji)" />
+          <input style={{ ...inp, width: 140 }} value={b.label} onChange={(e) => setBtn(i, 'label', e.target.value)} placeholder="Label" />
+          <div className="wd-col"><span className="hex">Start</span><input type="color" value={b.c1} onChange={(e) => setBtn(i, 'c1', e.target.value)} /></div>
+          <div className="wd-col"><span className="hex">End</span><input type="color" value={b.c2} onChange={(e) => setBtn(i, 'c2', e.target.value)} /></div>
+          <input style={{ ...inp, flex: 1, minWidth: 180 }} value={b.url} onChange={(e) => setBtn(i, 'url', e.target.value)} placeholder="/promotions or https://…" title="Where the button sends the customer" />
+          <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--muted)' }} title="Show the live promotions count badge">
+            <input type="checkbox" checked={!!b.badge} onChange={(e) => setBtn(i, 'badge', e.target.checked)} /> badge
+          </label>
+          <span style={{ display: 'flex', gap: 4 }}>
+            <button className="mini-btn" onClick={() => move(i, -1)} title="Move left">←</button>
+            <button className="mini-btn" onClick={() => move(i, 1)} title="Move right">→</button>
+            <button className="del-btn" onClick={() => delBtn(i)}>🗑</button>
+          </span>
+        </div>
+      ))}
+
+      <div className="wd-prev-label">Preview (enabled buttons only)</div>
+      <div className="wd-banners" style={cfg.bg ? { background: cfg.bg, padding: 10, borderRadius: 10 } : undefined}>
+        {cfg.buttons.filter((b) => b.enabled !== false).map((b, i) => (
+          <div className="wd-pill" key={i} style={{ background: `linear-gradient(110deg,${b.c1},${b.c2})` }}>
+            <span className="pe">{b.icon}</span>{b.label}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
