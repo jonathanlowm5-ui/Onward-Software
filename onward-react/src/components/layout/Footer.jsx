@@ -37,11 +37,10 @@ export default function Footer() {
             <img src={LOGO} alt="Onward" style={{ height: '36px', width: 'auto', objectFit: 'contain', display: 'block' }} />
           </div>
           <p data-i18n="ftr_brand_desc">
-            Philippines' premier online casino platform. Licensed by PAGCOR. Play responsibly and enjoy the thrill of world-class gaming from the comfort of your home.
+            Your premier online casino platform. Play responsibly and enjoy the thrill of world-class gaming from the comfort of your home.
           </p>
           <div style={{ display: 'flex', gap: '12px', marginTop: '20px' }}>
             <div className="age-badge">18+</div>
-            <div style={{ padding: '6px 12px', borderRadius: '8px', background: 'var(--surface)', border: '1px solid var(--border)', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }} data-i18n="ftr_licensed">PAGCOR Licensed</div>
             <div style={{ padding: '6px 12px', borderRadius: '8px', background: 'var(--surface)', border: '1px solid var(--border)', fontSize: '12px', fontWeight: 700, color: 'var(--green)' }} data-i18n="ftr_ssl">SSL Secure</div>
           </div>
           {activeSocials.length > 0 && (
@@ -97,7 +96,7 @@ export default function Footer() {
       <div className="responsible-gaming">
         <div className="age-badge" style={{ flexShrink: 0 }}>18+</div>
         <p className="rg-text" data-i18n="ftr_rg_text">
-          Onward promotes responsible gambling. If you feel you may have a gambling problem, please contact PAGCOR's Responsible Gambling Hotline or seek help from a qualified professional. This site is strictly for players aged 18 and above.
+          Onward promotes responsible gambling. If you feel you may have a gambling problem, please seek help from a qualified professional. This site is strictly for players aged 18 and above.
         </p>
       </div>
     </footer>
