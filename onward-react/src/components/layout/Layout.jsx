@@ -3,6 +3,7 @@ import Header from './Header.jsx';
 import useWebDesign from '../../hooks/useWebDesign';
 import NotificationTicker from './NotificationTicker.jsx';
 import PopoutAnnouncement from './PopoutAnnouncement.jsx';
+import FloatingImages from './FloatingImages.jsx';
 import Sidebar from './Sidebar.jsx';
 import Footer from './Footer.jsx';
 import H5BottomNav from './H5BottomNav.jsx';
@@ -52,6 +53,7 @@ export default function Layout() {
       <Dropdowns />
       <Toaster />
       <PopoutAnnouncement />
+      <FloatingImages />
     </>
   );
 }
