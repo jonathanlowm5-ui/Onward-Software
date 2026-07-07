@@ -68,6 +68,7 @@ app.use('/api/missions', require('./routes/missions'));
 app.use('/api/vouchers', require('./routes/vouchers'));
 app.use('/api/bets', require('./routes/bets'));
 app.use('/api/support-pages', require('./routes/supportpages'));
+app.use('/api/marketing', require('./routes/marketing'));
 
 app.get('/api/health', (req, res) => res.json({ ok: true, service: 'onward-api' }));
 

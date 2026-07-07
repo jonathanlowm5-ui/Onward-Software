@@ -77,7 +77,15 @@ router.patch('/:id/approve', requireAuth, requirePerm('transactions.approve'), (
   if (tx.status === 'approved') return res.json(tx);
   const sign = tx.type === 'withdrawal' ? -1 : 1;
   if (tx.playerId) adjustBalance(tx.playerId, sign * Number(tx.amount || 0));
-  res.json(store.update(COLLECTION, req.params.id, { status: 'approved' }));
+  const updated = store.update(COLLECTION, req.params.id, { status: 'approved' });
+  // Marketing automation: fire first_deposit once per player.
+  if (tx.type === 'deposit' && tx.playerId) {
+    const others = store.list(COLLECTION).some((t) =>
+      t.id !== tx.id && String(t.playerId) === String(tx.playerId) && t.type === 'deposit' && t.status === 'approved');
+    const player = store.get('players', tx.playerId);
+    if (!others && player) require('../marketing/auto').trigger('first_deposit', player, { Amount: Number(tx.amount || 0).toLocaleString() });
+  }
+  res.json(updated);
 });
 
 // ---- reject ----

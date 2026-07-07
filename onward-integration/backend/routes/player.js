@@ -116,6 +116,7 @@ router.post('/register', async (req, res) => {
     registrationUserAgent: String(req.headers['user-agent'] || ''),
   });
   await recordLogin(store, player, req, 'register');
+  require('../marketing/auto').trigger('registration', player);
   res.status(201).json({ token: signPlayer(player), player: view(player) });
 });
 
@@ -330,6 +331,10 @@ router.post('/withdraw', requirePlayer, (req, res) => {
 // Recent account events derived from the player's transactions: credited
 // rewards, deposit/withdrawal status changes. Newest first, capped at 20.
 router.get('/notifications', requirePlayer, (req, res) => {
+  // Marketing / automation in-app messages for this player.
+  const msgs = store.list('player_messages')
+    .filter((m) => String(m.playerId) === String(req.auth.sub))
+    .map((m) => ({ id: m.id, icon: m.icon || '📣', text: (m.title ? m.title + ' — ' : '') + (m.text || ''), at: m.createdAt || '' }));
   const rows = store.list('transactions')
     .filter((t) => String(t.playerId) === String(req.auth.sub))
     .sort((a, b) => (b.updatedAt || b.createdAt || '').localeCompare(a.updatedAt || a.createdAt || ''))
@@ -352,7 +357,7 @@ router.get('/notifications', requirePlayer, (req, res) => {
       }
       return { id: t.id, icon, text, at: t.updatedAt || t.createdAt || '' };
     });
-  res.json(rows);
+  res.json([...msgs, ...rows].sort((a, b) => (b.at || '').localeCompare(a.at || '')).slice(0, 20));
 });
 
 // ---------- player: transactions & game history ----------

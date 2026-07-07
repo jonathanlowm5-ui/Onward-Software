@@ -119,6 +119,7 @@ router.patch('/:id/approve', requireAuth, requirePerm('kyc.approve'), (req, res)
   const updated = store.update(COLLECTION, req.params.id, {
     status: 'approved', note: req.body?.note || '', bonusGiven: bonus > 0 ? bonus : (k.bonusGiven || 0),
   });
+  if (player) require('../marketing/auto').trigger('kyc_approved', player);
   res.json({ ...updated, bonusCredited: bonus });
 });
 

@@ -22,6 +22,7 @@ const ALL_PERMISSIONS = [
   'kyc.approve',        // approve / reject KYC + verify email/mobile
   'transactions.approve',
   'settings.manage',    // site settings, KYC bonus, currency rates, etc.
+  'marketing.manage',   // campaigns, providers, automations, ads
   'content.manage',     // promotions, banners, games, mini-games, page content
   'agents.manage',      // approve / reject agent applications
   'admins.manage',      // create / edit / delete admin accounts
@@ -33,7 +34,7 @@ const ROLE_PERMS = {
   manager: [
     'players.edit', 'players.status', 'players.adjust', 'players.resetpw',
     'players.kick', 'kyc.approve', 'transactions.approve',
-    'settings.manage', 'content.manage', 'agents.manage',
+    'settings.manage', 'content.manage', 'agents.manage', 'marketing.manage',
   ],
   admin: [
     'players.status', 'players.kick', 'kyc.approve', 'transactions.approve',
