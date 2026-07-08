@@ -166,6 +166,46 @@ module.exports = function seed() {
     }
   }
 
+  // ---- demo player for testing the agent application flow ----
+  // Fully verified (email + mobile + approved KYC) so the Agent page shows the
+  // application form immediately. Login: demoagent / Demo1234
+  {
+    const st = store.getSettings();
+    const exists = store.list('players').some((p) => (p.username || '').toLowerCase() === 'demoagent');
+    if (!st.demoAgentSeededV1 && !exists) {
+      const { generatePlayerCode } = require('./playerUtils');
+      const demo = store.insert('players', {
+        playerCode: generatePlayerCode(store, 'PHP'),
+        username: 'demoagent',
+        email: 'demoagent@onward.test',
+        fullName: 'Demo Agent',
+        phone: '+639170000001',
+        currency: 'PHP',
+        dob: '1990-01-01',
+        country: 'PH',
+        referralCode: '',
+        passwordHash: bcrypt.hashSync('Demo1234', 10),
+        role: 'player',
+        status: 'active',
+        balance: 0,
+        bonus: 0,
+        kyc_status: 'approved',
+        kycBonusGiven: true, // don't hand the demo account the KYC bonus
+        emailVerified: true,
+        mobileVerified: true,
+        twoFactorEnabled: false,
+        vipLevel: 0,
+      });
+      // Bound bank account so the withdrawal-setup modal doesn't block the demo.
+      store.insert('bank_accounts', {
+        playerId: demo.id, bankName: 'GCash', holder: 'Demo Agent',
+        accountNumber: '09170000001', status: 'active',
+      });
+      store.saveSettings({ demoAgentSeededV1: true });
+      console.log('Seeded demo agent-flow player (demoagent / Demo1234)');
+    }
+  }
+
   // ---- default API configuration ----
   const s = store.getSettings();
   if (!s.environment) {
