@@ -7,6 +7,16 @@ import api from '../../services/api';
 import telegramLogo from '../../assets/social/telegram.svg';
 import googleLogo from '../../assets/social/google.svg';
 
+// Agent/referral code carried on share links (?ref=CODE) — remembered for the
+// session so the register form is pre-filled even if the modal opens later.
+const refFromUrl = () => {
+  try {
+    const u = new URLSearchParams(window.location.search).get('ref');
+    if (u) { sessionStorage.setItem('onward_ref', u); return u; }
+    return sessionStorage.getItem('onward_ref') || '';
+  } catch { return ''; }
+};
+
 const EMPTY_REG = {
   name: '', username: '', email: '', phone: '',
   country: '', dob: '', currency: 'PHP', password: '', confirm: '', referral: '',
@@ -49,8 +59,8 @@ export default function AuthModal() {
   // Login form
   const [loginUser, setLoginUser] = useState('');
   const [loginPass, setLoginPass] = useState('');
-  // Register form
-  const [reg, setReg] = useState(EMPTY_REG);
+  // Register form (referral pre-filled from a shared agent link, if any)
+  const [reg, setReg] = useState(() => ({ ...EMPTY_REG, referral: refFromUrl() }));
   // Currencies offered at registration come from the admin (enabled list).
   const [currencies, setCurrencies] = useState(CURRENCIES);
   useEffect(() => {

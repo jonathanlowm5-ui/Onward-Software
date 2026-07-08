@@ -258,6 +258,55 @@ router.get('/me/commission', requirePlayer, (req, res) => {
     .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')));
 });
 
+// Agent funds a downline member from their own balance (deposit or bonus gift).
+// Guarded by the agent's account password; member must be in the downline.
+router.post('/me/transfer', requirePlayer, (req, res) => {
+  const agent = agentForPlayer(req.auth.sub);
+  if (!agent) return res.status(403).json({ error: 'Not an agent' });
+  if ((agent.status || 'active') !== 'active') return res.status(403).json({ error: 'Agent account is not active' });
+
+  const b = req.body || {};
+  const kind = b.kind === 'bonus' ? 'bonus' : 'deposit';
+  const amount = Number(b.amount || 0);
+  const username = String(b.username || '').trim().toLowerCase();
+  if (!username) return res.status(400).json({ error: 'Member username is required' });
+  if (!(amount > 0)) return res.status(400).json({ error: 'Enter a valid amount' });
+
+  const me = store.get(PLAYERS, req.auth.sub);
+  if (!me) return res.status(404).json({ error: 'Player not found' });
+  const bcrypt = require('bcryptjs');
+  if (!b.password || !bcrypt.compareSync(String(b.password), me.passwordHash || '')) {
+    return res.status(403).json({ error: 'Wrong fund password (use your account password)' });
+  }
+  if (Number(me.balance || 0) < amount) {
+    return res.status(400).json({ error: `Insufficient balance (you have ${Number(me.balance || 0).toLocaleString()})` });
+  }
+
+  const member = store.list(PLAYERS).find((p) => (p.username || '').toLowerCase() === username);
+  if (!member) return res.status(404).json({ error: 'Member not found' });
+  if ((member.referralCode || member.referral_code || '') !== agent.code) {
+    return res.status(403).json({ error: 'That player is not in your downline' });
+  }
+
+  store.update(PLAYERS, me.id, { balance: Number(me.balance || 0) - amount });
+  store.update(PLAYERS, member.id, { balance: Number(member.balance || 0) + amount });
+  store.insert('transactions', {
+    playerId: me.id, username: me.username, currency: me.currency || '',
+    type: 'transfer', amount, method: 'agent-transfer', source: 'agent-out',
+    status: 'approved', note: `${kind === 'bonus' ? 'Bonus gift' : 'Deposit'} to ${member.username}${b.note ? ' — ' + b.note : ''}`,
+  });
+  store.insert('transactions', {
+    playerId: member.id, username: member.username, currency: member.currency || '',
+    type: kind === 'bonus' ? 'bonus' : 'deposit', amount, method: 'agent', source: 'agent-transfer',
+    status: 'approved', note: `From agent ${agent.code}${b.note ? ' — ' + b.note : ''}`,
+  });
+  notify(member.id, kind === 'bonus' ? '🎁 Bonus from your agent' : '💳 Deposit from your agent',
+    `${amount.toLocaleString()} ${member.currency || ''} was credited to your balance by your agent.`);
+
+  const updated = store.get(PLAYERS, me.id);
+  res.json({ ok: true, balance: Number(updated.balance || 0), member: member.username, amount, kind });
+});
+
 /* =============================================================== ADMIN == */
 
 // Dashboard — KPIs + simple time-series for charts.

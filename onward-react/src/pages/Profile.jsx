@@ -7,6 +7,7 @@ import useSectionNav from '../hooks/useSectionNav';
 import useWelcomePromo from '../hooks/useWelcomePromo';
 import { resolvePromoBanner } from '../utils/promoTerms';
 import * as playersService from '../services/playersService';
+import api from '../services/api';
 
 /* ── Sample data mirroring the original inline JS ── */
 const GH_DEMO = [
@@ -86,25 +87,6 @@ const TX_STATUS_STYLE = {
   pending: { color: '#fbbf24', label: 'Pending' },
   processing: { color: '#38bdf8', label: 'Processing' },
 };
-
-const AG_MEMBERS_DATA = [
-  { name: 'juan***', deposit: 85000, winloss: -22400, status: 'active' },
-  { name: 'maria***', deposit: 32000, winloss: -8400, status: 'active' },
-  { name: 'pedro***', deposit: 420000, winloss: -98000, status: 'active' },
-  { name: 'lea***', deposit: 8500, winloss: 12000, status: 'active' },
-  { name: 'carlos***', deposit: 3000, winloss: -800, status: 'pending' },
-];
-const AG_REPORT_ROWS = [
-  { label: 'Total Player Losses', thisMonth: 180000, lastMonth: 152000 },
-  { label: 'Total Player Wins', thisMonth: 156000, lastMonth: 133000 },
-  { label: 'Gross Win/Loss', thisMonth: 24000, lastMonth: 19000 },
-  { label: '(-) Promo Deduction 5%', thisMonth: -1200, lastMonth: -950 },
-  { label: '(-) Platform Fee 3%', thisMonth: -720, lastMonth: -570 },
-  { label: '(-) Game Provider 2%', thisMonth: -480, lastMonth: -380 },
-  { label: '(-) Payment Fee 1%', thisMonth: -240, lastMonth: -190 },
-  { label: 'Net Profit', thisMonth: 21360, lastMonth: 16910 },
-  { label: 'Your Share (30%)', thisMonth: 6408, lastMonth: 5073 },
-];
 
 const peso = (v, frac = 0) => '₱' + v.toLocaleString('en', { minimumFractionDigits: frac });
 
@@ -1256,17 +1238,39 @@ function GameHistoryPanel({ show }) {
   );
 }
 
-/* ════════════ AGENT PANEL ════════════ */
+/* ════════════ AGENT PANEL — wired to /api/agents ════════════ */
+const AG_STATUS_META = {
+  pending: { icon: '⏳', label: 'Pending Review', color: '#f97316', desc: "Your application is in the review queue. We'll notify you once it moves." },
+  document_review: { icon: '📄', label: 'Document Review', color: '#4da3ff', desc: 'Our team is reviewing your documents right now.' },
+  under_investigation: { icon: '🔍', label: 'Under Investigation', color: '#9b6dff', desc: 'Additional checks are in progress. We may contact you.' },
+  need_more_documents: { icon: '📎', label: 'More Documents Needed', color: '#ffd166', desc: 'Action needed — upload the requested documents below.' },
+  rejected: { icon: '✗', label: 'Rejected', color: '#ff5c5c', desc: 'Unfortunately your application was not approved.' },
+};
+
 function AgentPanel({ show, toast }) {
   const { profile } = useAuth();
-  const [status, setStatus] = useState('none'); // none | pending | approved
-  const code = 'AGENT88';
-
-  // Agent details & referral link are gated behind a verified account: the
-  // player must have an APPROVED KYC before they can apply, view, or share any
-  // agent information. Until then we show a locked notice that points them to
-  // the Identity Verification (KYC) section.
   const kycApproved = (profile?.kyc_status || 'unverified') === 'approved';
+  const [data, setData] = useState(null);   // { application, agent, history } | null
+  const [elig, setElig] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [reapply, setReapply] = useState(false);
+  const [tick, setTick] = useState(0);
+  const reload = () => { setReapply(false); setTick((t) => t + 1); };
+
+  useEffect(() => {
+    if (!show || !kycApproved) return;
+    let alive = true;
+    setLoading(true);
+    api.get('/agents/me')
+      .then((r) => { if (alive) { setData(r.data); setElig(null); } })
+      .catch(() => {
+        if (!alive) return;
+        setData(null);
+        api.get('/agents/eligibility').then((r) => { if (alive) setElig(r.data); }).catch(() => {});
+      })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [show, kycApproved, tick]);
 
   if (!kycApproved) {
     return (
@@ -1288,21 +1292,42 @@ function AgentPanel({ show, toast }) {
     );
   }
 
+  const agent = data?.agent && data.agent.status !== 'blacklisted' ? data.agent : null;
+  const application = data?.application || null;
+  const showStatus = !agent && application && !(application.status === 'rejected' && reapply);
+  const showForm = !agent && !showStatus;
+  const missingVerify = elig && !elig.eligible;
+
   return (
     <div id="prof-agent-panel" style={{ display: show ? 'block' : 'none', flex: 1, minWidth: 0, background: 'var(--surface)', borderRadius: 16, overflow: 'hidden' }}>
+      {loading && <div style={{ padding: 48, textAlign: 'center', color: 'rgba(255,255,255,.4)', fontSize: 13 }}>Loading agent status…</div>}
 
-      {/* APPLY SCREEN (shown when not approved) */}
-      <div id="ag-apply-screen" style={{ display: status === 'approved' ? 'none' : 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 32px', textAlign: 'center', minHeight: 420 }}>
-        <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(240,192,64,.12)', border: '2px solid rgba(240,192,64,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, marginBottom: 20 }}>🧑‍💼</div>
-        <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', marginBottom: 8 }} data-i18n="agent_title">Become an Agent</div>
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,.45)', maxWidth: 340, lineHeight: 1.6, marginBottom: 28 }} data-i18n="agent_subtitle">Join our Profit Share Program and earn commissions on every player you refer. Fill in the form below to apply.</div>
+      {!loading && agent && <AgentDashboard agent={agent} suspended={data.agent.status === 'suspended'} toast={toast} />}
 
-        <AgentApplyForm show={status === 'none'} toast={toast} onSubmit={() => setStatus('pending')} />
-        <AgentPendingScreen show={status === 'pending'} onApprove={() => { setStatus('approved'); toast('🎉 Agent account approved!', 'success'); }} />
-      </div>
+      {!loading && showStatus && (
+        <AgentStatusScreen application={application} history={data?.history || []} toast={toast} onReload={reload} onReapply={() => setReapply(true)} />
+      )}
 
-      {/* DASHBOARD SCREEN (shown when approved) */}
-      <AgentDashboard show={status === 'approved'} code={code} toast={toast} />
+      {!loading && showForm && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 32px', textAlign: 'center' }}>
+          <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(240,192,64,.12)', border: '2px solid rgba(240,192,64,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, marginBottom: 20 }}>🧑‍💼</div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', marginBottom: 8 }} data-i18n="agent_title">Become an Agent</div>
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,.45)', maxWidth: 340, lineHeight: 1.6, marginBottom: 24 }}>Earn CPA + revenue-share commission on every player you refer. Fill in the form below to apply.</div>
+          {missingVerify ? (
+            <div style={{ width: '100%', maxWidth: 380, textAlign: 'left', background: 'rgba(249,115,22,.08)', border: '1px solid rgba(249,115,22,.3)', borderRadius: 12, padding: 16 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#f97316', marginBottom: 10 }}>Almost there — verify your account first</div>
+              {[['kycApproved', 'KYC verified'], ['emailVerified', 'Email verified'], ['mobileVerified', 'Mobile verified']].map(([k, l]) => (
+                <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: elig[k] ? '#22c55e' : 'rgba(255,255,255,.5)', marginBottom: 6 }}>
+                  <span>{elig[k] ? '✅' : '⬜'}</span> {l}
+                </div>
+              ))}
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', marginTop: 8 }}>Complete the missing steps in the Verification section, then come back here.</div>
+            </div>
+          ) : (
+            <AgentApplyForm profile={profile} toast={toast} onDone={reload} />
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -1322,51 +1347,98 @@ const agInputStyle = { width: '100%', padding: '11px 14px', background: 'var(--b
 const agFocus = (e) => { e.target.style.borderColor = 'var(--gold)'; };
 const agBlur = (e) => { e.target.style.borderColor = 'var(--border)'; };
 
-function AgentApplyForm({ show, toast, onSubmit }) {
-  const utilRef = useRef(null);
-  const doc2Ref = useRef(null);
-  const [util, setUtil] = useState(null);
-  const [doc2, setDoc2] = useState(null);
-  const fields = useRef({});
+// Read-only field pre-filled from the verified account, with a green tick.
+function AgentVerified({ label, value }) {
+  return (
+    <div>
+      <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.07em', color: 'rgba(255,255,255,.4)', display: 'block', marginBottom: 6 }}>{label}</label>
+      <div style={{ position: 'relative' }}>
+        <input style={{ ...agInputStyle, paddingRight: 92, border: '1.5px solid rgba(34,197,94,.45)', background: 'rgba(34,197,94,.07)', cursor: 'not-allowed' }} value={value || ''} readOnly tabIndex={-1} />
+        <span style={{ position: 'absolute', right: 9, top: '50%', transform: 'translateY(-50%)', fontSize: 10, fontWeight: 800, color: '#22c55e', background: 'rgba(34,197,94,.15)', border: '1px solid rgba(34,197,94,.4)', borderRadius: 12, padding: '3px 8px' }}>✓ Verified</span>
+      </div>
+    </div>
+  );
+}
 
-  const handleFile = (e, key, setter) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    if (file.size > 10 * 1024 * 1024) { toast('File too large. Max 10MB.', 'error'); e.target.value = ''; return; }
-    setter(file.name);
-  };
-
-  const submit = () => {
-    const f = fields.current;
-    if (!f.name?.value.trim() || !f.phone?.value.trim()) {
-      toast('Please fill in all required fields.', 'error'); return;
-    }
-    if (!util) { toast('Please upload your Utility Bill.', 'error'); return; }
-    if (!doc2) { toast('Please upload your Supporting Document.', 'error'); return; }
-    if (!f.ecName?.value.trim() || !f.ecPhone?.value.trim()) { toast('Please fill in Emergency Contact details.', 'error'); return; }
-    onSubmit();
-    toast('Application submitted! Under review.', 'success');
-  };
-
-  const UploadBox = ({ id, inputRef, accept, icon, fname, onChange }) => (
-    <label id={id + '-box'} htmlFor={id + '-input'} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '18px 14px', border: '1.5px dashed ' + (fname ? 'rgba(34,197,94,.5)' : 'rgba(255,255,255,.15)'), borderRadius: 10, cursor: 'pointer', background: fname ? 'rgba(34,197,94,.06)' : 'rgba(255,255,255,.03)', transition: 'border-color .2s' }}>
-      <input type="file" id={id + '-input'} ref={inputRef} accept={accept} style={{ display: 'none' }} onChange={onChange} />
-      <span id={id + '-icon'} style={{ fontSize: 24 }}>{fname ? '✅' : icon}</span>
-      <span id={id + '-label'} style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.5)' }} data-i18n="agent_click_upload">{fname ? 'File selected' : 'Click to upload'}</span>
-      <span id={id + '-fname'} style={{ fontSize: 11, color: 'var(--gold)', display: fname ? 'block' : 'none' }}>{fname}</span>
-      <span style={{ fontSize: 10, color: 'rgba(255,255,255,.25)' }}>JPG · PNG · PDF · Max 10MB</span>
+function AgentUploadBox({ id, icon, fname, uploading, onFile }) {
+  return (
+    <label htmlFor={id + '-input'} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '18px 14px', border: '1.5px dashed ' + (fname ? 'rgba(34,197,94,.5)' : 'rgba(255,255,255,.15)'), borderRadius: 10, cursor: 'pointer', background: fname ? 'rgba(34,197,94,.06)' : 'rgba(255,255,255,.03)', transition: 'border-color .2s' }}>
+      <input type="file" id={id + '-input'} accept=".jpg,.jpeg,.png,.pdf" style={{ display: 'none' }} onChange={(e) => onFile(e.target.files?.[0])} />
+      <span style={{ fontSize: 24 }}>{uploading ? '⏳' : fname ? '✅' : icon}</span>
+      <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.5)' }}>{uploading ? 'Uploading…' : fname ? 'Uploaded — click to replace' : 'Click to upload'}</span>
+      {fname && <span style={{ fontSize: 11, color: 'var(--gold)' }}>{fname}</span>}
+      <span style={{ fontSize: 10, color: 'rgba(255,255,255,.25)' }}>JPG · PNG · PDF · Max 8MB</span>
     </label>
   );
+}
+
+function AgentApplyForm({ profile, toast, onDone }) {
+  const fields = useRef({});
+  const [uploads, setUploads] = useState({}); // { selfie:{name,url}, util:{..}, doc2:{..} }
+  const [busyKey, setBusyKey] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const pick = async (key, file) => {
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) { toast('File too large. Max 8MB.', 'error'); return; }
+    setBusyKey(key);
+    try {
+      const { url } = await playersService.uploadFile(file, 'agent');
+      setUploads((p) => ({ ...p, [key]: { name: file.name, url } }));
+      toast('Uploaded ✔', 'success');
+    } catch (e) { toast('Upload failed: ' + (e.response?.data?.error || e.message), 'error'); }
+    finally { setBusyKey(''); }
+  };
+
+  const submit = async () => {
+    const f = fields.current;
+    if (!f.bank?.value.trim() || !f.holder?.value.trim() || !f.acct?.value.trim()) { toast('Please fill in your banking details.', 'error'); return; }
+    if (!uploads.selfie) { toast('Please upload your Selfie with ID.', 'error'); return; }
+    if (!uploads.util) { toast('Please upload your Utility Bill.', 'error'); return; }
+    if (!uploads.doc2) { toast('Please upload your Supporting Document.', 'error'); return; }
+    if (!f.ecName?.value.trim() || !f.ecPhone?.value.trim()) { toast('Please fill in Emergency Contact details.', 'error'); return; }
+    setSending(true);
+    try {
+      await api.post('/agents/apply', {
+        fullName: profile?.fullName || '', phone: profile?.phone || '', email: profile?.email || '',
+        dob: profile?.dob || '', country: profile?.country || '',
+        emergencyContact: `${f.ecName.value.trim()}${f.ecRel?.value ? ' (' + f.ecRel.value + ')' : ''} · ${f.ecPhone.value.trim()}`,
+        bankName: f.bank.value.trim(), bankAccountName: f.holder.value.trim(), bankAccountNo: f.acct.value.trim(),
+        selfieWithId: uploads.selfie.url,
+        documents: [
+          { name: 'Utility Bill — ' + uploads.util.name, url: uploads.util.url },
+          { name: 'Supporting Document — ' + uploads.doc2.name, url: uploads.doc2.url },
+        ],
+      });
+      toast('Application submitted! 🎉 Under review.', 'success');
+      onDone();
+    } catch (e) { toast(e.response?.data?.error || 'Could not submit application', 'error'); }
+    finally { setSending(false); }
+  };
 
   return (
-    <div id="ag-apply-form" style={{ display: show ? 'block' : 'none', width: '100%', maxWidth: 380, textAlign: 'left' }}>
+    <div id="ag-apply-form" style={{ width: '100%', maxWidth: 380, textAlign: 'left' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
-        <AgentField label="Full Name">
-          <input ref={(el) => (fields.current.name = el)} id="ag-apply-name" type="text" placeholder="Your full name" data-i18n-placeholder="agent_name_ph" style={agInputStyle} onFocus={agFocus} onBlur={agBlur} />
+        <AgentVerified label="Full Name (KYC verified)" value={profile?.fullName} />
+        <AgentVerified label="Mobile (verified)" value={profile?.phone} />
+        <AgentVerified label="Email (verified)" value={profile?.email} />
+
+        {/* DIVIDER */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0' }}>
+          <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.08)' }}></div>
+          <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.3)' }}>Banking — for commission payouts</span>
+          <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.08)' }}></div>
+        </div>
+        <AgentField label="Bank / E-wallet" required>
+          <input ref={(el) => (fields.current.bank = el)} type="text" placeholder="e.g. BDO, GCash…" style={agInputStyle} onFocus={agFocus} onBlur={agBlur} />
         </AgentField>
-        <AgentField label="Contact Number">
-          <input ref={(el) => (fields.current.phone = el)} id="ag-apply-phone" type="tel" placeholder="+63 9XX XXX XXXX" style={agInputStyle} onFocus={agFocus} onBlur={agBlur} />
+        <AgentField label="Account Holder Name" required>
+          <input ref={(el) => (fields.current.holder = el)} type="text" defaultValue={profile?.fullName || ''} placeholder="Account holder" style={agInputStyle} onFocus={agFocus} onBlur={agBlur} />
         </AgentField>
+        <AgentField label="Account Number" required>
+          <input ref={(el) => (fields.current.acct = el)} type="text" placeholder="Account / mobile number" style={agInputStyle} onFocus={agFocus} onBlur={agBlur} />
+        </AgentField>
+
         {/* DIVIDER */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0' }}>
           <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.08)' }}></div>
@@ -1374,18 +1446,20 @@ function AgentApplyForm({ show, toast, onSubmit }) {
           <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.08)' }}></div>
         </div>
 
-        {/* Utility Bill Upload */}
+        <div>
+          <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.07em', color: 'rgba(255,255,255,.4)', display: 'block', marginBottom: 4 }}>Selfie with ID <span style={{ color: 'var(--red)', fontSize: 10 }}>*</span></label>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', marginBottom: 8 }}>A clear photo of you holding your IC / passport — face and ID details must be readable</div>
+          <AgentUploadBox id="ag-selfie" icon="🤳" fname={uploads.selfie?.name} uploading={busyKey === 'selfie'} onFile={(file) => pick('selfie', file)} />
+        </div>
         <div>
           <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.07em', color: 'rgba(255,255,255,.4)', display: 'block', marginBottom: 4 }}><span data-i18n="agent_util_bill">Utility Bill</span> <span style={{ color: 'var(--red)', fontSize: 10 }}>*</span></label>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', marginBottom: 8 }} data-i18n="agent_util_desc">Electricity, water, or internet bill — must show your name &amp; address (issued within 3 months)</div>
-          <UploadBox id="ag-util" inputRef={utilRef} accept=".jpg,.jpeg,.png,.pdf" icon="🧾" fname={util} onChange={(e) => handleFile(e, 'util', setUtil)} />
+          <AgentUploadBox id="ag-util" icon="🧾" fname={uploads.util?.name} uploading={busyKey === 'util'} onFile={(file) => pick('util', file)} />
         </div>
-
-        {/* Second Document Upload */}
         <div>
           <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.07em', color: 'rgba(255,255,255,.4)', display: 'block', marginBottom: 4 }}><span data-i18n="agent_support_doc">Supporting Document</span> <span style={{ color: 'var(--red)', fontSize: 10 }}>*</span></label>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', marginBottom: 8 }} data-i18n="agent_support_desc">Bank statement, government-issued ID, or lease agreement (issued within 6 months)</div>
-          <UploadBox id="ag-doc2" inputRef={doc2Ref} accept=".jpg,.jpeg,.png,.pdf" icon="📄" fname={doc2} onChange={(e) => handleFile(e, 'doc2', setDoc2)} />
+          <AgentUploadBox id="ag-doc2" icon="📄" fname={uploads.doc2?.name} uploading={busyKey === 'doc2'} onFile={(file) => pick('doc2', file)} />
         </div>
 
         {/* DIVIDER */}
@@ -1395,15 +1469,12 @@ function AgentApplyForm({ show, toast, onSubmit }) {
           <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.08)' }}></div>
         </div>
 
-        {/* Emergency Contact Name */}
         <div>
           <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.07em', color: 'rgba(255,255,255,.4)', display: 'block', marginBottom: 6 }}><span data-i18n="agent_ec_name">Emergency Contact Name</span> <span style={{ color: 'var(--red)', fontSize: 10 }}>*</span></label>
-          <input ref={(el) => (fields.current.ecName = el)} id="ag-ec-name" type="text" placeholder="Full name" data-i18n-placeholder="agent_full_name_ph" style={agInputStyle} onFocus={agFocus} onBlur={agBlur} />
+          <input ref={(el) => (fields.current.ecName = el)} type="text" placeholder="Full name" style={agInputStyle} onFocus={agFocus} onBlur={agBlur} />
         </div>
-
-        {/* Emergency Contact Relationship */}
         <AgentField label="Relationship">
-          <select id="ag-ec-rel" defaultValue="" style={{ ...agInputStyle, cursor: 'pointer' }} onFocus={agFocus} onBlur={agBlur}>
+          <select ref={(el) => (fields.current.ecRel = el)} defaultValue="" style={{ ...agInputStyle, cursor: 'pointer' }} onFocus={agFocus} onBlur={agBlur}>
             <option value="" data-i18n="agent_select_rel">Select relationship</option>
             <option data-i18n="agent_rel_spouse">Spouse / Partner</option>
             <option data-i18n="agent_rel_parent">Parent</option>
@@ -1413,58 +1484,119 @@ function AgentApplyForm({ show, toast, onSubmit }) {
             <option data-i18n="agent_rel_other">Other</option>
           </select>
         </AgentField>
-
-        {/* Emergency Contact Number */}
         <div>
           <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.07em', color: 'rgba(255,255,255,.4)', display: 'block', marginBottom: 6 }}><span data-i18n="agent_ec_number">Emergency Contact Number</span> <span style={{ color: 'var(--red)', fontSize: 10 }}>*</span></label>
-          <input ref={(el) => (fields.current.ecPhone = el)} id="ag-ec-phone" type="tel" placeholder="+63 9XX XXX XXXX" style={agInputStyle} onFocus={agFocus} onBlur={agBlur} />
+          <input ref={(el) => (fields.current.ecPhone = el)} type="tel" placeholder="+63 9XX XXX XXXX" style={agInputStyle} onFocus={agFocus} onBlur={agBlur} />
         </div>
-      </div>{/* /fields */}
-      <button onClick={submit} style={{ width: '100%', padding: 13, background: 'linear-gradient(135deg,var(--gold),var(--gold-dark))', border: 'none', borderRadius: 10, color: '#06091a', fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '.03em', transition: 'opacity .2s' }} data-i18n="agent_submit">SUBMIT APPLICATION</button>
+      </div>
+      <button onClick={submit} disabled={sending} style={{ width: '100%', padding: 13, background: 'linear-gradient(135deg,var(--gold),var(--gold-dark))', border: 'none', borderRadius: 10, color: '#06091a', fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '.03em', opacity: sending ? 0.6 : 1 }} data-i18n="agent_submit">{sending ? 'SUBMITTING…' : 'SUBMIT APPLICATION'}</button>
       <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', textAlign: 'center', marginTop: 10 }} data-i18n="agent_terms_agree">By applying you agree to our Agent Terms &amp; Conditions</div>
     </div>
   );
 }
 
-function AgentPendingScreen({ show, onApprove }) {
+/* ── live application status (real workflow) ── */
+function AgentStatusScreen({ application, history, toast, onReload, onReapply }) {
+  const meta = AG_STATUS_META[application.status] || AG_STATUS_META.pending;
+  const [busy, setBusy] = useState(false);
+
+  const uploadMore = async (file) => {
+    if (!file) return;
+    setBusy(true);
+    try {
+      const { url } = await playersService.uploadFile(file, 'agent');
+      await api.post('/agents/me/documents', { documents: [{ name: file.name, url }] });
+      toast('Documents sent — back under review ✔', 'success');
+      onReload();
+    } catch (e) { toast(e.response?.data?.error || 'Upload failed', 'error'); }
+    finally { setBusy(false); }
+  };
+
   return (
-    <div id="ag-pending-screen" style={{ display: show ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-      <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(249,115,22,.12)', border: '2px solid rgba(249,115,22,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>⏳</div>
-      <div style={{ fontSize: 18, fontWeight: 800, color: '#fff' }} data-i18n="agent_submitted">Application Submitted!</div>
-      <div style={{ fontSize: 13, color: 'rgba(255,255,255,.45)', maxWidth: 300, lineHeight: 1.6, textAlign: 'center' }}>Your application is under review. We'll notify you within 24–48 hours once approved.</div>
-      <div style={{ background: 'rgba(249,115,22,.1)', border: '1px solid rgba(249,115,22,.25)', borderRadius: 10, padding: '12px 20px', fontSize: 12, color: 'rgba(255,255,255,.5)' }}>Status: <strong style={{ color: '#f97316' }}>Pending Review</strong></div>
-      {/* DEMO only: approve button */}
-      <button onClick={onApprove} style={{ marginTop: 8, padding: '8px 20px', background: 'rgba(34,197,94,.15)', border: '1px solid rgba(34,197,94,.3)', borderRadius: 8, color: '#22c55e', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>[DEMO] Approve my application</button>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '44px 32px' }}>
+      <div style={{ width: 64, height: 64, borderRadius: '50%', background: meta.color + '1f', border: `2px solid ${meta.color}55`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>{meta.icon}</div>
+      <div style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>Agent Application</div>
+      <div style={{ background: meta.color + '14', border: `1px solid ${meta.color}40`, borderRadius: 10, padding: '10px 20px', fontSize: 13, fontWeight: 800, color: meta.color }}>{meta.icon} {meta.label}</div>
+      <div style={{ fontSize: 13, color: 'rgba(255,255,255,.45)', maxWidth: 330, lineHeight: 1.6, textAlign: 'center' }}>{meta.desc}</div>
+      {application.remarks && application.status !== 'pending' && (
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,.6)', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 8, padding: '10px 14px', maxWidth: 340 }}>💬 {application.remarks}</div>
+      )}
+
+      {application.status === 'need_more_documents' && (
+        <label style={{ padding: '10px 22px', background: 'linear-gradient(135deg,var(--gold),var(--gold-dark))', borderRadius: 10, color: '#06091a', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>
+          <input type="file" accept=".jpg,.jpeg,.png,.pdf" style={{ display: 'none' }} onChange={(e) => uploadMore(e.target.files?.[0])} />
+          {busy ? 'Uploading…' : '⬆ Upload requested documents'}
+        </label>
+      )}
+
+      {application.status === 'rejected'
+        ? <button onClick={onReapply} style={{ padding: '9px 22px', background: 'rgba(34,197,94,.15)', border: '1px solid rgba(34,197,94,.3)', borderRadius: 8, color: '#22c55e', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>📝 Apply again</button>
+        : <button onClick={onReload} style={{ padding: '8px 20px', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.12)', borderRadius: 8, color: 'rgba(255,255,255,.6)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>🔄 Check status</button>}
+
+      {history.length > 0 && (
+        <div style={{ width: '100%', maxWidth: 360, marginTop: 8, textAlign: 'left' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(255,255,255,.35)', marginBottom: 8 }}>History</div>
+          {history.slice().reverse().map((h, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, fontSize: 12, padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
+              <span style={{ color: 'var(--gold)' }}>•</span>
+              <span style={{ flex: 1, color: 'rgba(255,255,255,.7)' }}><b>{h.action}</b>{h.remarks ? <span style={{ color: 'rgba(255,255,255,.4)' }}> — {h.remarks}</span> : ''}</span>
+              <span style={{ color: 'rgba(255,255,255,.3)', fontSize: 11, flexShrink: 0 }}>{h.createdAt ? new Date(h.createdAt).toLocaleDateString() : ''}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function AgentDashboard({ show, code, toast }) {
+/* ── approved agent dashboard (live data) ── */
+function AgentDashboard({ agent, suspended, toast }) {
   const [stab, setStab] = useState('overview');
-  const active = AG_MEMBERS_DATA.filter((m) => m.status === 'active').length;
-  const grossWL = AG_MEMBERS_DATA.reduce((s, m) => s + m.winloss, 0);
-  const netComm = Math.max(0, Math.round(grossWL * -1 * 0.3 * 0.71));
-  const link = 'https://legox.com/agent/' + code;
+  const [downline, setDownline] = useState([]);
+  const [comms, setComms] = useState([]);
+  const [balance, setBalance] = useState(null);
+  const [tick, setTick] = useState(0);
+  const refresh = () => setTick((t) => t + 1);
+
+  useEffect(() => {
+    let alive = true;
+    api.get('/agents/me/downline').then((r) => { if (alive && Array.isArray(r.data)) setDownline(r.data); }).catch(() => {});
+    api.get('/agents/me/commission').then((r) => { if (alive && Array.isArray(r.data)) setComms(r.data); }).catch(() => {});
+    playersService.getWallet().then((w) => { if (alive) setBalance(Number(w.balance ?? w.total ?? 0)); }).catch(() => {});
+    return () => { alive = false; };
+  }, [tick]);
+
+  const stats = agent.stats || {};
+  const code = agent.code;
+  const link = `${window.location.origin}/?ref=${code}`;
 
   const stabStyleBase = { padding: '11px 18px', background: 'none', border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' };
   const stabStyle = (id) => ({ ...stabStyleBase, borderBottom: '2px solid ' + (stab === id ? '#f0c040' : 'transparent'), color: stab === id ? '#f0c040' : 'rgba(255,255,255,.4)' });
 
   return (
-    <div id="ag-dashboard-screen" style={{ display: show ? 'block' : 'none' }}>
+    <div id="ag-dashboard-screen">
       {/* Header */}
       <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(255,255,255,.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ fontSize: 17, fontWeight: 800, color: '#fff' }}>🧑‍💼 Agent Dashboard</div>
-            <span style={{ background: 'rgba(34,197,94,.15)', border: '1px solid rgba(34,197,94,.3)', color: '#22c55e', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20 }}>APPROVED</span>
+            {suspended
+              ? <span style={{ background: 'rgba(249,115,22,.15)', border: '1px solid rgba(249,115,22,.3)', color: '#f97316', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20 }}>SUSPENDED</span>
+              : <span style={{ background: 'rgba(34,197,94,.15)', border: '1px solid rgba(34,197,94,.3)', color: '#22c55e', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20 }}>APPROVED</span>}
           </div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', marginTop: 2 }}>Profit Share Program — commission based on Win/Loss after deductions</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', marginTop: 2 }}>CPA + RevShare commission on your referred players</div>
         </div>
         <div style={{ background: 'rgba(240,192,64,.12)', border: '1px solid rgba(240,192,64,.25)', borderRadius: 8, padding: '6px 14px', display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 10, color: 'rgba(255,255,255,.5)' }}>Agent Code</span>
           <span style={{ fontSize: 14, fontWeight: 900, color: 'var(--gold)', fontFamily: "'Montserrat',sans-serif" }} id="ag-code-display">{code}</span>
         </div>
       </div>
+
+      {suspended && (
+        <div style={{ margin: '14px 18px 0', background: 'rgba(249,115,22,.08)', border: '1px solid rgba(249,115,22,.3)', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#f97316', fontWeight: 700 }}>
+          ⏸ Your agent account is suspended — commissions and transfers are paused. Contact support.
+        </div>
+      )}
 
       {/* Sub tabs */}
       <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,.07)', overflowX: 'auto' }}>
@@ -1477,54 +1609,57 @@ function AgentDashboard({ show, code, toast }) {
 
       {/* ── OVERVIEW ── */}
       <div id="ag-panel-overview" style={{ display: stab === 'overview' ? 'block' : 'none', padding: 18 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(255,255,255,.35)', marginBottom: 12 }}>This Month</div>
+        <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(255,255,255,.35)', marginBottom: 12 }}>Live Performance</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 16 }}>
-          <AgentKpi color="#f0c040" label="Net Commission" i18n="agent_commission" value={'₱' + netComm.toLocaleString()} sub="after all deductions" />
-          <AgentKpi color="#38bdf8" label="Active Players" i18n="agent_active" value={active} sub="in your downline" />
-          <AgentKpi color="#22c55e" label="Player Net Loss" i18n="agent_net_loss" value={'₱' + Math.abs(grossWL).toLocaleString()} sub="gross win/loss" />
+          <AgentKpi color="#f0c040" label="Commission Earned" i18n="agent_commission" value={peso(Math.round(stats.earned || 0))} sub={peso(Math.round(stats.pending || 0)) + ' pending'} />
+          <AgentKpi color="#38bdf8" label="Active Players" i18n="agent_active" value={`${stats.activePlayers ?? 0}/${stats.players ?? downline.length}`} sub="depositing / total" />
+          <AgentKpi color="#22c55e" label="Downline GGR" i18n="agent_net_loss" value={peso(Math.round(stats.ggr || 0))} sub="all time" />
         </div>
 
         {/* Quick access grid */}
         <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(255,255,255,.35)', marginBottom: 12 }} data-i18n="agent_quick">Quick Access</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <QuickBtn onClick={() => setStab('report')} bg="rgba(240,192,64,.15)" icon="📈" title="Win/Loss Report" titleI18n="agent_wl" sub="Profit after deductions" />
-          <QuickBtn onClick={() => setStab('members')} bg="rgba(56,189,248,.15)" icon="👥" title="Member Records" titleI18n="agent_records" sub="Admin-approved only" />
+          <QuickBtn onClick={() => setStab('report')} bg="rgba(240,192,64,.15)" icon="📈" title="Commission Report" titleI18n="agent_wl" sub="CPA + RevShare records" />
+          <QuickBtn onClick={() => setStab('members')} bg="rgba(56,189,248,.15)" icon="👥" title="Member Records" titleI18n="agent_records" sub={`${downline.length} referred player${downline.length === 1 ? '' : 's'}`} />
           <QuickBtn onClick={() => setStab('finance')} bg="rgba(240,192,64,.15)" icon="💰" title="Finance Center" titleI18n="agent_finance" sub="Deposit for members" />
-          <QuickBtn onClick={() => setStab('share')} bg="rgba(232,41,58,.15)" icon="🔗" title="Share Link" titleI18n="agent_share" sub="Invite sub-agents" subI18n="agent_invite" />
+          <QuickBtn onClick={() => setStab('share')} bg="rgba(232,41,58,.15)" icon="🔗" title="Share Code" titleI18n="agent_share" sub="Grow your downline" subI18n="agent_invite" />
         </div>
 
-        {/* How Agent commission works */}
+        {/* How commission works */}
         <div style={{ marginTop: 16, background: 'rgba(232,41,58,.06)', border: '1px solid rgba(232,41,58,.15)', borderRadius: 10, padding: '12px 14px' }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#e8293a', marginBottom: 6 }}>⚠️ How Agent Commission Works</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#e8293a', marginBottom: 6 }}>ℹ️ How Agent Commission Works</div>
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,.45)', lineHeight: 1.7 }}>
-            Commission = <strong style={{ color: '#fff' }}>(Player Losses − Player Wins)</strong> minus Promo % + Platform % + Game Fee % + Payment Fee %<br />
-            <span style={{ color: '#f97316' }}>You can go negative if your players win more than they lose.</span>
+            <strong style={{ color: '#fff' }}>CPA</strong> — a fixed reward for each new player whose first deposit qualifies.<br />
+            <strong style={{ color: '#fff' }}>RevShare</strong> — a % of your players&apos; GGR (wagers − wins) each month.<br />
+            Commissions are generated monthly and credited to your balance when released.
           </div>
         </div>
       </div>
 
       {/* ── REPORT ── */}
-      <AgentReportPanel show={stab === 'report'} />
+      <AgentReportPanel show={stab === 'report'} comms={comms} />
 
       {/* ── MEMBERS ── */}
       <div id="ag-panel-members" style={{ display: stab === 'members' ? 'block' : 'none', padding: 18 }}>
         <div style={{ background: 'rgba(56,189,248,.06)', border: '1px solid rgba(56,189,248,.15)', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: 'rgba(255,255,255,.45)' }}>
-          ℹ️ All members under your account must be <strong style={{ color: '#38bdf8' }}>approved by admin</strong> before they are linked to you.
+          ℹ️ Players who register with your code <strong style={{ color: '#38bdf8' }}>{code}</strong> appear here automatically with live deposit and GGR figures.
         </div>
         <div style={{ border: '1px solid rgba(255,255,255,.07)', borderRadius: 12, overflow: 'hidden' }}>
           <div style={{ background: 'rgba(255,255,255,.03)', padding: '10px 14px 10px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 4, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.07em', color: 'rgba(255,255,255,.35)', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
-            <span>Player</span><span style={{ textAlign: 'center' }} data-i18n="ui_deposit">Deposit</span><span style={{ textAlign: 'center' }}>Win/Loss</span><span style={{ textAlign: 'center' }} data-i18n="misc_status">Status</span>
+            <span>Player</span><span style={{ textAlign: 'center' }} data-i18n="ui_deposit">Deposit</span><span style={{ textAlign: 'center' }}>GGR</span><span style={{ textAlign: 'center' }} data-i18n="misc_status">Status</span>
           </div>
           <div id="ag-members-list">
-            {AG_MEMBERS_DATA.map((m, i) => {
-              const wlColor = m.winloss < 0 ? '#22c55e' : '#e8293a';
-              const wlLabel = m.winloss < 0 ? '-₱' + Math.abs(m.winloss).toLocaleString() : '+₱' + m.winloss.toLocaleString();
+            {downline.length === 0 && (
+              <div style={{ padding: '22px 14px', fontSize: 12, color: 'rgba(255,255,255,.35)', textAlign: 'center' }}>No referred players yet — share your code to start building your downline.</div>
+            )}
+            {downline.map((m, i) => {
+              const activeM = (m.depositCount || 0) > 0;
               return (
                 <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 4, padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.04)', alignItems: 'center' }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', fontFamily: 'monospace' }}>{m.name}</span>
-                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', textAlign: 'center' }}>₱{m.deposit.toLocaleString()}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: wlColor, textAlign: 'center' }}>{wlLabel}</span>
-                  <span style={{ textAlign: 'center' }}><span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, fontWeight: 700, background: m.status === 'active' ? 'rgba(34,197,94,.15)' : 'rgba(249,115,22,.15)', color: m.status === 'active' ? '#22c55e' : '#f97316' }}>{m.status}</span></span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', fontFamily: 'monospace' }}>{m.username}</span>
+                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', textAlign: 'center' }}>{peso(Math.round(m.depositTotal || 0))}{m.depositCount ? ' ×' + m.depositCount : ''}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: (m.ggr || 0) >= 0 ? '#22c55e' : '#e8293a', textAlign: 'center' }}>{peso(Math.round(m.ggr || 0))}</span>
+                  <span style={{ textAlign: 'center' }}><span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, fontWeight: 700, background: activeM ? 'rgba(34,197,94,.15)' : 'rgba(249,115,22,.15)', color: activeM ? '#22c55e' : '#f97316' }}>{activeM ? 'active' : 'new'}</span></span>
                 </div>
               );
             })}
@@ -1533,30 +1668,34 @@ function AgentDashboard({ show, code, toast }) {
       </div>
 
       {/* ── FINANCE ── */}
-      <AgentFinancePanel show={stab === 'finance'} toast={toast} />
+      <AgentFinancePanel show={stab === 'finance'} toast={toast} downline={downline} balance={balance} disabled={suspended} onDone={refresh} />
 
       {/* ── SHARE ── */}
       <div id="ag-panel-share" style={{ display: stab === 'share' ? 'block' : 'none', padding: 18 }}>
         <div style={{ background: 'rgba(240,192,64,.06)', border: '1px solid rgba(240,192,64,.2)', borderRadius: 12, padding: 18, marginBottom: 14 }}>
           <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(240,192,64,.7)', marginBottom: 6 }}>Your Agent Code</div>
-          <div style={{ fontFamily: "'Montserrat',sans-serif", fontSize: 28, fontWeight: 900, color: '#f0c040', marginBottom: 12 }} id="ag-share-code">{code}</div>
+          <div style={{ fontFamily: "'Montserrat',sans-serif", fontSize: 28, fontWeight: 900, color: '#f0c040', marginBottom: 12, cursor: 'pointer' }} id="ag-share-code" onClick={() => { navigator.clipboard?.writeText(code).catch(() => {}); toast('✅ Agent code copied!', 'success'); }}>{code}</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: 'rgba(0,0,0,.3)', border: '1px solid rgba(240,192,64,.2)', borderRadius: 8, padding: '8px 12px', cursor: 'pointer', marginBottom: 10 }} onClick={() => { navigator.clipboard?.writeText(link).catch(() => {}); toast('✅ Agent link copied!', 'success'); }}>
-            <span style={{ fontSize: 12, fontFamily: 'monospace', color: 'rgba(240,192,64,.8)', flex: 1 }} id="ag-share-link">{link}</span>
+            <span style={{ fontSize: 12, fontFamily: 'monospace', color: 'rgba(240,192,64,.8)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} id="ag-share-link">{link}</span>
             <span style={{ color: '#f0c040', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>📋 Copy</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <button onClick={() => toast('Shared to Facebook', 'success')} style={{ padding: 8, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 8, color: 'rgba(255,255,255,.6)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>📘 Facebook</button>
-            <button onClick={() => toast('Shared to Messenger', 'success')} style={{ padding: 8, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 8, color: 'rgba(255,255,255,.6)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>💬 Messenger</button>
-            <button onClick={() => toast('Shared to Telegram', 'success')} style={{ padding: 8, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 8, color: 'rgba(255,255,255,.6)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>✈️ Telegram</button>
-            <button onClick={() => toast('Shared to Viber', 'success')} style={{ padding: 8, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 8, color: 'rgba(255,255,255,.6)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>💜 Viber</button>
+            {[
+              ['📘 Facebook', `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}`],
+              ['✈️ Telegram', `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent('Join me on Onward! Use my code ' + code)}`],
+              ['💬 WhatsApp', `https://wa.me/?text=${encodeURIComponent('Join me on Onward! Register with my code ' + code + ' → ' + link)}`],
+              ['💜 Viber', `viber://forward?text=${encodeURIComponent('Join me on Onward! Register with my code ' + code + ' → ' + link)}`],
+            ].map(([label, url]) => (
+              <button key={label} onClick={() => window.open(url, '_blank', 'noopener')} style={{ padding: 8, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 8, color: 'rgba(255,255,255,.6)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>{label}</button>
+            ))}
           </div>
         </div>
         <div style={{ background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 12, padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 10 }}>Referral Stats</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,.05)', paddingBottom: 7 }}><span style={{ color: 'rgba(255,255,255,.4)' }}>Total Link Clicks</span><strong style={{ color: '#fff' }}>1,842</strong></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,.05)', paddingBottom: 7 }}><span style={{ color: 'rgba(255,255,255,.4)' }}>Sub-agents Approved</span><strong style={{ color: '#22c55e' }}>4</strong></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,.4)' }}>Pending Approval</span><strong style={{ color: '#f97316' }}>2</strong></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,.05)', paddingBottom: 7 }}><span style={{ color: 'rgba(255,255,255,.4)' }}>Total Players</span><strong style={{ color: '#fff' }}>{downline.length}</strong></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,.05)', paddingBottom: 7 }}><span style={{ color: 'rgba(255,255,255,.4)' }}>Depositing Players</span><strong style={{ color: '#22c55e' }}>{downline.filter((m) => (m.depositCount || 0) > 0).length}</strong></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,.4)' }}>Commission Pending</span><strong style={{ color: '#f97316' }}>{peso(Math.round(stats.pending || 0))}</strong></div>
           </div>
         </div>
       </div>
@@ -1586,10 +1725,19 @@ function QuickBtn({ onClick, bg, icon, title, titleI18n, sub, subI18n }) {
   );
 }
 
-function AgentReportPanel({ show }) {
+/* ── commission report: real records by month ── */
+function AgentReportPanel({ show, comms }) {
   const [period, setPeriod] = useState('this');
-  const fmt = (v) => (v < 0 ? '-' : '') + '₱' + Math.abs(v).toLocaleString();
-  const isDeduct = (label) => label.startsWith('(-)');
+  const now = new Date();
+  const thisM = now.toISOString().slice(0, 7);
+  const lastD = new Date(now); lastD.setMonth(lastD.getMonth() - 1);
+  const lastM = lastD.toISOString().slice(0, 7);
+  const sel = period === 'this' ? thisM : lastM;
+  const rows = comms.filter((c) => c.period === sel);
+  const paid = rows.filter((c) => c.status === 'paid').reduce((s, c) => s + Number(c.amount || 0), 0);
+  const pending = rows.filter((c) => c.status !== 'paid').reduce((s, c) => s + Number(c.amount || 0), 0);
+  const KIND_ICON = { cpa: '🎯', revshare: '📈', hybrid: '🔀', adjustment: '✍️' };
+  const fmt = (v) => (v < 0 ? '-' : '') + '₱' + Math.abs(Math.round(v)).toLocaleString();
 
   const periodBtn = (p) => p === period
     ? { padding: '5px 14px', borderRadius: 6, background: '#f0c040', border: 'none', color: '#06091a', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }
@@ -1602,38 +1750,43 @@ function AgentReportPanel({ show }) {
         <button className={'ag-period' + (period === 'last' ? ' active' : '')} onClick={() => setPeriod('last')} style={periodBtn('last')}>Last Month</button>
       </div>
       <div style={{ border: '1px solid rgba(255,255,255,.07)', borderRadius: 12, overflow: 'hidden' }}>
-        <div style={{ background: 'rgba(255,255,255,.03)', padding: '10px 14px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(255,255,255,.35)', borderBottom: '1px solid rgba(255,255,255,.05)' }} data-i18n="agent_report">Commission Report (Profit Share)</div>
+        <div style={{ background: 'rgba(255,255,255,.03)', padding: '10px 14px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(255,255,255,.35)', borderBottom: '1px solid rgba(255,255,255,.05)' }} data-i18n="agent_report">Commission Report — {sel}</div>
         <div id="ag-report-rows">
-          {AG_REPORT_ROWS.map((r, i) => {
-            const val = period === 'this' ? r.thisMonth : r.lastMonth;
-            const prev = period === 'this' ? r.lastMonth : r.thisMonth;
-            const isNet = r.label.includes('Net Profit') || r.label.includes('Your Share');
-            const color = isNet ? '#f0c040' : isDeduct(r.label) ? '#e8293a' : val < 0 ? '#e8293a' : '#22c55e';
-            return (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 14px', borderBottom: '1px solid rgba(255,255,255,.04)', background: isNet ? 'rgba(240,192,64,.05)' : undefined }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>🪙</div>
-                  <span style={{ fontSize: 13, fontWeight: isNet ? 700 : undefined, color: isNet ? '#fff' : 'rgba(255,255,255,.65)' }}>{r.label}</span>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color }}>{fmt(val)}</div>
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,.3)' }}>Last: {fmt(prev)}</div>
-                </div>
+          {rows.length === 0 && (
+            <div style={{ padding: '22px 14px', fontSize: 12, color: 'rgba(255,255,255,.35)', textAlign: 'center' }}>No commission records for {sel} yet — they're generated monthly by the operator.</div>
+          )}
+          {rows.map((c, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 14px', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>{KIND_ICON[c.kind] || '🪙'}</div>
+                <span style={{ fontSize: 12, color: 'rgba(255,255,255,.65)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.detail || c.kind}</span>
               </div>
-            );
-          })}
+              <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: Number(c.amount) < 0 ? '#e8293a' : '#f0c040' }}>{fmt(Number(c.amount || 0))}</div>
+                <div style={{ fontSize: 10, color: c.status === 'paid' ? '#22c55e' : '#f97316' }}>{c.status === 'paid' ? '✅ Paid' : '⏳ Pending'}</div>
+              </div>
+            </div>
+          ))}
+          {rows.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 14px', background: 'rgba(240,192,64,.05)' }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>Total — {sel}</span>
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#f0c040' }}>{fmt(paid)} paid · {fmt(pending)} pending</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function AgentFinancePanel({ show, toast }) {
+/* ── finance: real member transfers from the agent's balance ── */
+function AgentFinancePanel({ show, toast, downline, balance, disabled, onDone }) {
   const [fin, setFin] = useState('deposit'); // deposit | bonus
-  const [depAmt, setDepAmt] = useState(18);
-  const [bonusAmt, setBonusAmt] = useState(10);
-  const depMember = useRef(null), depPw = useRef(null);
-  const bonusMember = useRef(null), bonusPw = useRef(null);
+  const [depAmt, setDepAmt] = useState(100);
+  const [bonusAmt, setBonusAmt] = useState(50);
+  const [busy, setBusy] = useState(false);
+  const depMember = useRef(null), depPw = useRef(null), depNote = useRef(null);
+  const bonusMember = useRef(null), bonusPw = useRef(null), bonusNote = useRef(null);
 
   const finTabStyle = (id, color) => ({ padding: '9px 16px', background: 'none', border: 'none', borderBottom: '2px solid ' + (fin === id ? color : 'transparent'), color: fin === id ? color : 'rgba(255,255,255,.4)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' });
   const amtStyle = (active) => active
@@ -1642,24 +1795,31 @@ function AgentFinancePanel({ show, toast }) {
   const inp = { width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 8, color: '#fff', fontSize: 13, fontFamily: 'inherit', outline: 'none' };
   const star = { fontSize: 11, color: '#f97316', fontWeight: 700, marginBottom: 5 };
 
-  const submitDeposit = () => {
-    const member = depMember.current?.value.trim();
-    if (!member) { toast('Please enter member username', 'error'); return; }
-    if (!depAmt || depAmt <= 0) { toast('Please enter a valid amount', 'error'); return; }
-    if (!depPw.current?.value.trim()) { toast('Please enter fund password', 'error'); return; }
-    toast('✅ Deposit of ₱' + depAmt.toLocaleString() + ' sent to ' + member, 'success');
-    if (depMember.current) depMember.current.value = '';
-    if (depPw.current) depPw.current.value = '';
+  const send = async (kind, memberRef, amount, pwRef, noteRef) => {
+    if (disabled) { toast('Agent account is suspended — transfers are paused', 'error'); return; }
+    const username = memberRef.current?.value.trim();
+    if (!username) { toast('Please choose a member', 'error'); return; }
+    if (!amount || amount <= 0) { toast('Please enter a valid amount', 'error'); return; }
+    if (!pwRef.current?.value.trim()) { toast('Please enter your account password', 'error'); return; }
+    setBusy(true);
+    try {
+      const r = await api.post('/agents/me/transfer', { username, amount, kind, note: noteRef.current?.value || '', password: pwRef.current.value });
+      toast((kind === 'bonus' ? '🎁 Bonus of ' : '✅ Deposit of ') + '₱' + amount.toLocaleString() + ' sent to ' + r.data.member, 'success');
+      if (pwRef.current) pwRef.current.value = '';
+      if (noteRef.current) noteRef.current.value = '';
+      onDone();
+    } catch (e) { toast(e.response?.data?.error || 'Transfer failed', 'error'); }
+    finally { setBusy(false); }
   };
-  const submitBonus = () => {
-    const member = bonusMember.current?.value.trim();
-    if (!member) { toast('Please enter member username', 'error'); return; }
-    if (!bonusAmt || bonusAmt <= 0) { toast('Please enter a valid amount', 'error'); return; }
-    if (!bonusPw.current?.value.trim()) { toast('Please enter fund password', 'error'); return; }
-    toast('🎁 Bonus of ₱' + bonusAmt.toLocaleString() + ' gifted to ' + member, 'success');
-    if (bonusMember.current) bonusMember.current.value = '';
-    if (bonusPw.current) bonusPw.current.value = '';
-  };
+
+  const MemberSelect = ({ inputRef }) => (
+    downline.length > 0
+      ? <select ref={inputRef} defaultValue="" style={{ ...inp, cursor: 'pointer' }}>
+          <option value="">Select member…</option>
+          {downline.map((m) => <option key={m.id} value={m.username}>{m.username}</option>)}
+        </select>
+      : <input ref={inputRef} type="text" placeholder="No downline members yet" style={inp} disabled />
+  );
 
   return (
     <div id="ag-panel-finance" style={{ display: show ? 'block' : 'none', padding: 18 }}>
@@ -1667,27 +1827,26 @@ function AgentFinancePanel({ show, toast }) {
         <button className={'ag-fin-tab' + (fin === 'deposit' ? ' active' : '')} onClick={() => setFin('deposit')} style={finTabStyle('deposit', '#f97316')} data-i18n="agent_member_dep">Member Deposit</button>
         <button className={'ag-fin-tab' + (fin === 'bonus' ? ' active' : '')} onClick={() => setFin('bonus')} style={finTabStyle('bonus', '#f97316')}>Bonus Gift</button>
       </div>
+      <div style={{ background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 10, padding: '10px 14px', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: 12, color: 'rgba(255,255,255,.4)' }}>Your Balance — transfers are deducted from it</span>
+        <span style={{ fontSize: 15, fontWeight: 800, color: '#f97316' }}>{balance == null ? '…' : peso(Math.round(balance))}</span>
+      </div>
       <div id="ag-fin-deposit-wrap" style={{ display: fin === 'deposit' ? 'block' : 'none' }}>
-        <div style={{ background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 10, padding: '10px 14px', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: 12, color: 'rgba(255,255,255,.4)' }}>Payment Account — Deposit Balance</span>
-          <span style={{ fontSize: 15, fontWeight: 800, color: '#f97316' }}>₱0</span>
-        </div>
-        <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.35)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '.06em' }} data-i18n="dep_info">Deposit Info</div>
-        <div style={{ marginBottom: 10 }}><div style={star}>* Member Account:</div><input ref={depMember} id="ag-dep-member" type="text" placeholder="Enter member username" style={inp} /></div>
+        <div style={{ marginBottom: 10 }}><div style={star}>* Member Account:</div><MemberSelect inputRef={depMember} /></div>
         <div style={{ marginBottom: 10 }}><div style={star}>* Deposit Amount:</div>
           <div style={{ display: 'flex', gap: 6, marginBottom: 7 }}>
-            {[18, 50, 100, 500].map((v) => (
+            {[50, 100, 500, 1000].map((v) => (
               <button key={v} onClick={() => setDepAmt(v)} className={'ag-amt' + (depAmt === v ? ' active' : '')} style={amtStyle(depAmt === v)}>{v}</button>
             ))}
           </div>
           <input id="ag-dep-amount" type="number" value={depAmt} onChange={(e) => setDepAmt(Number(e.target.value))} style={inp} />
         </div>
-        <div style={{ marginBottom: 10 }}><div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', fontWeight: 700, marginBottom: 5 }} data-i18n="dep_remark">Remark:</div><input id="ag-dep-remark" type="text" placeholder="Enter remark (optional)" style={inp} /></div>
-        <div style={{ marginBottom: 16 }}><div style={star}>* Fund Password:</div><input ref={depPw} id="ag-dep-pw" type="password" placeholder="Enter fund password" style={inp} /></div>
-        <button onClick={submitDeposit} style={{ width: '100%', padding: 12, background: 'linear-gradient(135deg,#c0410a,#f97316)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }} data-i18n="dep_confirm">Confirm Deposit</button>
+        <div style={{ marginBottom: 10 }}><div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', fontWeight: 700, marginBottom: 5 }} data-i18n="dep_remark">Remark:</div><input ref={depNote} id="ag-dep-remark" type="text" placeholder="Enter remark (optional)" style={inp} /></div>
+        <div style={{ marginBottom: 16 }}><div style={star}>* Fund Password (your account password):</div><input ref={depPw} id="ag-dep-pw" type="password" placeholder="Enter your account password" style={inp} /></div>
+        <button onClick={() => send('deposit', depMember, depAmt, depPw, depNote)} disabled={busy} style={{ width: '100%', padding: 12, background: 'linear-gradient(135deg,#c0410a,#f97316)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', opacity: busy ? 0.6 : 1 }} data-i18n="dep_confirm">{busy ? 'Sending…' : 'Confirm Deposit'}</button>
       </div>
       <div id="ag-fin-bonus-wrap" style={{ display: fin === 'bonus' ? 'block' : 'none' }}>
-        <div style={{ marginBottom: 10 }}><div style={star}>* Member Account:</div><input ref={bonusMember} id="ag-bonus-member" type="text" placeholder="Enter member username" style={inp} /></div>
+        <div style={{ marginBottom: 10 }}><div style={star}>* Member Account:</div><MemberSelect inputRef={bonusMember} /></div>
         <div style={{ marginBottom: 10 }}><div style={star}>* Bonus Amount:</div>
           <div style={{ display: 'flex', gap: 6, marginBottom: 7 }}>
             {[10, 50, 100, 200].map((v) => (
@@ -1696,9 +1855,9 @@ function AgentFinancePanel({ show, toast }) {
           </div>
           <input id="ag-bonus-amount" type="number" value={bonusAmt} onChange={(e) => setBonusAmt(Number(e.target.value))} style={inp} />
         </div>
-        <div style={{ marginBottom: 10 }}><div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', fontWeight: 700, marginBottom: 5 }}>Remark:</div><input type="text" placeholder="Optional" style={inp} /></div>
-        <div style={{ marginBottom: 16 }}><div style={star}>* Fund Password:</div><input ref={bonusPw} id="ag-bonus-pw" type="password" placeholder="Enter fund password" style={inp} /></div>
-        <button onClick={submitBonus} style={{ width: '100%', padding: 12, background: 'linear-gradient(135deg,#c0410a,#f97316)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>Confirm Gift</button>
+        <div style={{ marginBottom: 10 }}><div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', fontWeight: 700, marginBottom: 5 }}>Remark:</div><input ref={bonusNote} type="text" placeholder="Optional" style={inp} /></div>
+        <div style={{ marginBottom: 16 }}><div style={star}>* Fund Password (your account password):</div><input ref={bonusPw} id="ag-bonus-pw" type="password" placeholder="Enter your account password" style={inp} /></div>
+        <button onClick={() => send('bonus', bonusMember, bonusAmt, bonusPw, bonusNote)} disabled={busy} style={{ width: '100%', padding: 12, background: 'linear-gradient(135deg,#c0410a,#f97316)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', opacity: busy ? 0.6 : 1 }}>{busy ? 'Sending…' : 'Confirm Gift'}</button>
       </div>
     </div>
   );
