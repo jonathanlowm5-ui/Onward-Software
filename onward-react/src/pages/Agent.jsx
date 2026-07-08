@@ -54,6 +54,26 @@ function Fld({ label, req, children }) {
   );
 }
 
+// Read-only field pre-filled from the player's verified account, with a green tick.
+function VerifiedField({ label, value }) {
+  return (
+    <div>
+      <label style={lblSt}>{label}</label>
+      <div style={{ position: 'relative' }}>
+        <input
+          style={{ ...inputSt, paddingRight: 96, border: '1px solid rgba(34,197,94,.45)', background: 'rgba(34,197,94,.07)', color: 'rgba(255,255,255,.85)', cursor: 'not-allowed' }}
+          value={value || ''}
+          readOnly
+          tabIndex={-1}
+        />
+        <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 800, color: '#22c55e', background: 'rgba(34,197,94,.15)', border: '1px solid rgba(34,197,94,.4)', borderRadius: 12, padding: '3px 8px' }}>
+          ✓ Verified
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export default function Agent() {
   const { toast, openModal } = useUI();
   const { profile, isLoggedIn } = useAuth();
@@ -242,11 +262,14 @@ function ApplyForm({ profile, toast, onDone }) {
     <div style={{ ...card, marginBottom: 18 }}>
       <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 12 }}>📝 Agent Application</div>
 
-      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--gold,#ffd166)', margin: '4px 0 10px' }}>👤 Personal Information</div>
+      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--gold,#ffd166)', margin: '4px 0 6px' }}>👤 Personal Information</div>
+      <div style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', marginBottom: 10 }}>
+        Taken from your verified account (KYC) — these can't be edited here.
+      </div>
       <div style={grid2}>
-        <Fld label="Full name" req><input style={inputSt} value={f.fullName} onChange={(e) => set('fullName', e.target.value)} /></Fld>
-        <Fld label="Phone" req><input style={inputSt} value={f.phone} onChange={(e) => set('phone', e.target.value)} /></Fld>
-        <Fld label="Email" req><input style={inputSt} value={f.email} onChange={(e) => set('email', e.target.value)} /></Fld>
+        <VerifiedField label="Full name (KYC verified)" value={f.fullName} />
+        <VerifiedField label="Mobile (verified)" value={f.phone} />
+        <VerifiedField label="Email (verified)" value={f.email} />
         <Fld label="Date of birth"><input style={inputSt} type="date" value={f.dob} onChange={(e) => set('dob', e.target.value)} /></Fld>
         <Fld label="Country"><input style={inputSt} value={f.country} onChange={(e) => set('country', e.target.value)} /></Fld>
         <Fld label="Emergency contact"><input style={inputSt} value={f.emergencyContact} onChange={(e) => set('emergencyContact', e.target.value)} placeholder="Name · phone" /></Fld>
