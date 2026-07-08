@@ -1338,7 +1338,7 @@ function AgentApplyForm({ show, toast, onSubmit }) {
 
   const submit = () => {
     const f = fields.current;
-    if (!f.name?.value.trim() || !f.phone?.value.trim() || !f.method?.value || !f.volume?.value) {
+    if (!f.name?.value.trim() || !f.phone?.value.trim()) {
       toast('Please fill in all required fields.', 'error'); return;
     }
     if (!util) { toast('Please upload your Utility Bill.', 'error'); return; }
@@ -1367,26 +1367,6 @@ function AgentApplyForm({ show, toast, onSubmit }) {
         <AgentField label="Contact Number">
           <input ref={(el) => (fields.current.phone = el)} id="ag-apply-phone" type="tel" placeholder="+63 9XX XXX XXXX" style={agInputStyle} onFocus={agFocus} onBlur={agBlur} />
         </AgentField>
-        <AgentField label="How will you refer players?">
-          <select ref={(el) => (fields.current.method = el)} id="ag-apply-method" defaultValue="" style={{ ...agInputStyle, cursor: 'pointer' }} onFocus={agFocus} onBlur={agBlur}>
-            <option value="" data-i18n="agent_select_method">Select a method</option>
-            <option>Social Media (Facebook, TikTok, etc.)</option>
-            <option>Personal Network / Friends</option>
-            <option>Online Communities / Groups</option>
-            <option>Streaming / Content Creation</option>
-            <option>Other</option>
-          </select>
-        </AgentField>
-        <AgentField label="Expected Monthly Players">
-          <select ref={(el) => (fields.current.volume = el)} id="ag-apply-volume" defaultValue="" style={{ ...agInputStyle, cursor: 'pointer' }} onFocus={agFocus} onBlur={agBlur}>
-            <option value="" data-i18n="agent_select_range">Select range</option>
-            <option>1 – 10 players</option>
-            <option>11 – 50 players</option>
-            <option>51 – 200 players</option>
-            <option>200+ players</option>
-          </select>
-        </AgentField>
-
         {/* DIVIDER */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0' }}>
           <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.08)' }}></div>
