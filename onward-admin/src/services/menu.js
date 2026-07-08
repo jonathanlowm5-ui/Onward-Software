@@ -31,11 +31,11 @@ const MENU=[
    {id:"push",ic:"🔔",t:"Push Notification"},
    {id:"ads",ic:"📣",t:"Ads Marketing"}]},
  {cat:"Agent",ic:"🧑‍💼",id:"agent",sub:[
-   {id:"agent-list",ic:"👥",t:"Agent List"},
+   {id:"agent-report",ic:"📊",t:"Agent Dashboard"},
    {id:"agent-approval",ic:"✅",t:"Agent Approval"},
+   {id:"agent-list",ic:"👥",t:"Agent List"},
    {id:"commission",ic:"💰",t:"Commission"},
-   {id:"agent-players",ic:"🎮",t:"Agent Players"},
-   {id:"agent-report",ic:"📊",t:"Agent Report"}]},
+   {id:"agent-players",ic:"🎮",t:"Agent Players"}]},
  {cat:"Affiliate",ic:"🤝",id:"affiliate",sub:[
    {id:"aff-data",ic:"🤝",t:"Affiliate Data"},
    {id:"referral-tree",ic:"🌳",t:"Referral Tree"},

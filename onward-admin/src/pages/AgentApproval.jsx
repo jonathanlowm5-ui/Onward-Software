@@ -1,146 +1,338 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useUI } from '../context/UIContext';
-import { listAgents, approveAgent, rejectAgent } from '../services/agentService';
+import {
+  listApplications, getApplication, updateApplication, bulkApplications,
+  listPlans, listManagers, downloadCsv,
+} from '../services/agentService';
 
-// Map a backend agent record to the row shape this page renders.
-const ST_MAP = { pending: 'pend', approved: 'app', rejected: 'rej' };
-function toRow(a) {
-  return {
-    _id: a.id,
-    n: a.fullName || a.username, em: a.email || '', u: a.username,
-    ph: a.phone || '—', ap: (a.createdAt || '').slice(0, 10),
-    rate: `${Math.round((a.commissionRate || 0.2) * 100)}%`, rsub: 'Revenue Share',
-    ref: '—', st: ST_MAP[a.status] || 'pend',
-    docs: a.status === 'approved' ? 'ver' : a.status === 'rejected' ? 'rej' : 'pend',
-  };
-}
-
-// Ported from V["agent-approval"] (APPS array + AA_SES session counters).
-const APPS_INIT = [
-  { n: 'Carlo Mendoza', em: 'carlo@email.com', u: 'carlo_m', ph: '+63 912 111 2233', ap: '2026-06-01', rate: '5%', rsub: 'Revenue Share', ref: 'marco88', st: 'pend', docs: 'ver', prop: { type: 'Revenue Share', rate: '5%', applies: 'GGR' } },
-  { n: 'Lisa Tan', em: 'lisa@email.com', u: 'lisatan', ph: '+63 917 444 5566', ap: '2026-06-02', rate: '4% + ₱100 CPA', rsub: 'Hybrid', ref: '—', st: 'pend', docs: 'pend', prop: { type: 'Hybrid', rate: '4% + ₱100 CPA', applies: 'GGR' } },
-  { n: 'Roberto Cruz', em: 'bert@email.com', u: 'bert88', ph: '+63 918 777 8899', ap: '2026-05-28', rate: '3.5%', rsub: 'Revenue Share', ref: 'jenny_l', st: 'app', docs: 'ver', prop: { type: 'Revenue Share', rate: '3.5%', applies: 'GGR' } },
-  { n: 'Maria Reyes', em: 'maria@email.com', u: 'mariareyes', ph: '+63 919 000 1122', ap: '2026-05-25', rate: '₱120 CPA', rsub: 'CPA', ref: '—', st: 'rej', docs: 'rej', prop: { type: 'CPA', rate: '₱120 CPA', applies: 'FTD' } },
+/*
+ * Agent Approval — CRM-style workflow queue for agent applications.
+ * Statuses: pending → document_review → under_investigation →
+ *           need_more_documents → approved | rejected
+ */
+const STATUSES = [
+  ['pending', '⏳ Pending', '#ff8c42'],
+  ['document_review', '📄 Document Review', '#4da3ff'],
+  ['under_investigation', '🔍 Investigation', '#9b6dff'],
+  ['need_more_documents', '📎 Need Documents', '#ffd166'],
+  ['approved', '✅ Approved', '#3ddc84'],
+  ['rejected', '✗ Rejected', '#ff5c5c'],
 ];
+const ST = Object.fromEntries(STATUSES.map(([v, l, c]) => [v, { l, c }]));
+const RISKS = ['unrated', 'low', 'medium', 'high'];
+const RISK_COLOR = { unrated: 'var(--muted)', low: '#3ddc84', medium: '#ffd166', high: '#ff5c5c' };
 
-const docBadge = (docs) =>
-  docs === 'ver' ? <span className="aa-status2 s-ver">Verified</span>
-  : docs === 'pend' ? <span className="aa-status2 s-pend">Pending</span>
-  : <span className="aa-status2 s-rej">Rejected</span>;
-
-const stBadge = (st) =>
-  st === 'pend' ? <span className="aa-status2 s-pend">⏳ Pending</span>
-  : st === 'app' ? <span className="aa-status2 s-app">✅ Approved</span>
-  : <span className="aa-status2 s-rej">✗ Rejected</span>;
+const stBadge = (st) => {
+  const m = ST[st] || { l: st, c: 'var(--muted)' };
+  return <span className="aa-status2" style={{ background: m.c + '22', color: m.c, border: `1px solid ${m.c}55` }}>{m.l}</span>;
+};
+const fmt = (t) => { if (!t) return '—'; const d = new Date(t); return Number.isNaN(d.getTime()) ? String(t) : d.toLocaleString(); };
+const Check = ({ ok, label }) => (
+  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 700, color: ok ? 'var(--green)' : '#ff8c42' }}>
+    {ok ? '✓' : '✗'} {label}
+  </span>
+);
 
 export default function AgentApproval() {
   const { toast } = useUI();
-  const [apps, setApps] = useState(APPS_INIT);
-  const [ses, setSes] = useState({ app: 1, rej: 0 });
+  const [apps, setApps] = useState([]);
+  const [loaded, setLoaded] = useState(false);
   const [q, setQ] = useState('');
-  const [st, setSt] = useState('');
+  const [tab, setTab] = useState('');
+  const [sel, setSel] = useState([]); // selected ids (bulk)
+  const [plans, setPlans] = useState([]);
+  const [managers, setManagers] = useState([]);
 
-  // Load live agent applications from the backend (frontend "apply" flow).
+  const load = () => listApplications().then((rows) => { setApps(Array.isArray(rows) ? rows : []); setLoaded(true); }).catch(() => setLoaded(true));
   useEffect(() => {
-    let alive = true;
-    listAgents()
-      .then((rows) => { if (alive && Array.isArray(rows) && rows.length) setApps(rows.map(toRow)); })
-      .catch(() => {});
-    return () => { alive = false; };
+    load();
+    listPlans().then(setPlans).catch(() => {});
+    listManagers().then(setManagers).catch(() => {});
+    const id = setInterval(load, 25000); // approval queue: poll for new applications
+    return () => clearInterval(id);
   }, []);
-
-  // Approve / reject a single live application.
-  const decide = async (row, ok) => {
-    if (row._id) {
-      try { await (ok ? approveAgent(row._id) : rejectAgent(row._id)); }
-      catch (e) { toast(e.message || 'Action failed'); return; }
-    }
-    setApps((prev) => prev.map((a) => (a === row ? { ...a, st: ok ? 'app' : 'rej', docs: ok ? 'ver' : 'rej' } : a)));
-    setSes((prev) => ({ app: prev.app + (ok ? 1 : 0), rej: prev.rej + (ok ? 0 : 1) }));
-    toast(ok ? `Approved ${row.n} ✅ — agent activated` : `Rejected ${row.n} ✗`);
-  };
 
   const visible = useMemo(() => {
     const ql = q.toLowerCase();
-    return apps.filter((a) => (a.n + ' ' + a.u + ' ' + a.em).toLowerCase().includes(ql) && (!st || a.st === st));
-  }, [apps, q, st]);
+    return apps.filter((a) =>
+      (!tab || a.status === tab)
+      && (!ql || [a.fullName, a.username, a.email, a.phone, a.playerCode].some((v) => (v || '').toLowerCase().includes(ql))));
+  }, [apps, q, tab]);
 
-  const pendingCount = apps.filter((a) => a.st === 'pend').length;
+  const counts = useMemo(() => {
+    const c = {};
+    STATUSES.forEach(([v]) => { c[v] = apps.filter((a) => a.status === v).length; });
+    return c;
+  }, [apps]);
+  const inQueue = apps.filter((a) => !['approved', 'rejected'].includes(a.status)).length;
 
-  const bulk = async (ok) => {
-    const pend = apps.filter((a) => a.st === 'pend');
-    if (!pend.length) { toast('No pending applications'); return; }
-    await Promise.all(pend.filter((a) => a._id).map((a) => (ok ? approveAgent(a._id) : rejectAgent(a._id)).catch(() => {})));
-    setApps((prev) => prev.map((a) => (a.st === 'pend' ? { ...a, st: ok ? 'app' : 'rej', docs: ok ? 'ver' : 'rej' } : a)));
-    setSes((prev) => ({ app: prev.app + (ok ? pend.length : 0), rej: prev.rej + (ok ? 0 : pend.length) }));
-    toast(ok ? `Approved ${pend.length} applications ✅ — agents activated` : `Rejected ${pend.length} applications ✗`);
+  /* ---------- bulk selection ---------- */
+  const toggleSel = (id) => setSel((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+  const toggleAll = () => setSel((p) => (p.length === visible.length ? [] : visible.map((a) => a.id)));
+
+  const bulk = async (status) => {
+    if (!sel.length) { toast('Select applications first'); return; }
+    const remarks = status === 'rejected' ? (window.prompt('Rejection remarks (sent to applicants):') ?? null) : '';
+    if (remarks === null) return;
+    try {
+      await bulkApplications(sel, { status, remarks });
+      toast(`${sel.length} application(s) → ${ST[status]?.l || status}`);
+      setSel([]);
+      load();
+    } catch (e) { toast('⚠ ' + (e.message || 'Bulk action failed')); }
   };
 
-  const reset = () => { setQ(''); setSt(''); };
+  const exportCsv = () => {
+    downloadCsv('agent-applications.csv',
+      ['Applied', 'Full name', 'Username', 'Email', 'Phone', 'Bank', 'Account', 'Status', 'Risk', 'Remarks'],
+      visible.map((a) => [(a.createdAt || '').slice(0, 10), a.fullName, a.username, a.email, a.phone, a.bankName, a.bankAccountNo, a.status, a.riskLevel, a.remarks]));
+    toast('CSV exported ⬇ agent-applications.csv');
+  };
+
+  /* ---------- detail / review modal ---------- */
+  const [detail, setDetail] = useState(null);   // full application (+history/player/eligibility)
+  const [remarks, setRemarks] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const openDetail = async (id) => {
+    try { const d = await getApplication(id); setDetail(d); setRemarks(d.remarks || ''); }
+    catch (e) { toast('⚠ ' + (e.message || 'Could not load application')); }
+  };
+  const close = () => setDetail(null);
+
+  const act = async (patch, msg) => {
+    if (!detail) return;
+    setBusy(true);
+    try {
+      await updateApplication(detail.id, { remarks, ...patch });
+      toast(msg || 'Saved ✔');
+      const d = await getApplication(detail.id).catch(() => null);
+      if (d && patch.status && !['approved', 'rejected'].includes(patch.status)) { setDetail(d); }
+      else close();
+      load();
+    } catch (e) { toast('⚠ ' + (e.message || 'Action failed')); }
+    finally { setBusy(false); }
+  };
+
+  const setMeta = async (key, value) => {
+    if (!detail) return;
+    try {
+      await updateApplication(detail.id, { [key]: value });
+      setDetail((p) => ({ ...p, [key]: value }));
+      toast('Saved ✔');
+      load();
+    } catch (e) { toast('⚠ ' + (e.message || 'Save failed')); }
+  };
+
+  const cell = (lb, vl) => (
+    <div className="cell"><div className="lb">{lb}</div><div className="vl">{vl || '—'}</div></div>
+  );
 
   return (
     <>
       <div className="page-head">
         <div>
           <h1 className="hero-h">✅ Agent Approval</h1>
-          <div className="hero-sub" style={{ marginBottom: 0 }}>Review and approve / reject new agent registration requests</div>
-        </div>
-        <span className="pr" style={{ display: 'flex', gap: 8 }}>
-          <button className="mini-btn green" onClick={() => bulk(1)}>✅ Approve All</button>
-          <button className="btn-cancel-red" style={{ padding: '8px 14px' }} onClick={() => bulk(0)}>✗ Reject All</button>
-        </span>
-      </div>
-      <div className="grid kpi-grid">
-        <div className="card kpi" style={{ borderTopColor: '#ff8c42' }}><div className="lbl">Pending Review</div><div className="val">{pendingCount}</div><div className="trend" style={{ color: 'var(--muted)' }}>awaiting decision</div></div>
-        <div className="card kpi g"><div className="lbl">Approved Today</div><div className="val">{ses.app}</div><div className="trend" style={{ color: 'var(--muted)' }}>this session</div></div>
-        <div className="card kpi r"><div className="lbl">Rejected Today</div><div className="val">{ses.rej}</div><div className="trend" style={{ color: 'var(--muted)' }}>this session</div></div>
-        <div className="card kpi b"><div className="lbl">Total Approved</div><div className="val">24</div><div className="trend" style={{ color: 'var(--muted)' }}>all time</div></div>
-      </div>
-      <div className="card" style={{ marginTop: 'var(--pad)' }}>
-        <div className="form-grid" style={{ gridTemplateColumns: '3fr 1fr 1fr auto', alignItems: 'end' }}>
-          <div className="fld"><label>Search</label><input placeholder="Name, username, email…" value={q} onInput={(e) => setQ(e.target.value)} /></div>
-          <div className="fld"><label>Status</label>
-            <select value={st} onChange={(e) => setSt(e.target.value)}>
-              <option value="">All</option><option value="pend">Pending</option><option value="app">Approved</option><option value="rej">Rejected</option>
-            </select>
+          <div className="hero-sub" style={{ marginBottom: 0 }}>
+            {inQueue} application{inQueue === 1 ? '' : 's'} in the workflow — applicants must pass KYC + email + mobile verification before they can apply.
           </div>
-          <div className="fld"><label>Date Range</label>
-            <select><option>All Time</option><option>Today</option><option>7 Days</option><option>30 Days</option></select>
-          </div>
-          <button className="gl-reset" onClick={reset} title="Reset">↺</button>
         </div>
+        <span className="pr"><button className="mini-btn" onClick={exportCsv}>📋 Export CSV</button></span>
       </div>
+
+      {/* status funnel */}
+      <div className="grid kpi-grid" style={{ gridTemplateColumns: 'repeat(6,1fr)' }}>
+        {STATUSES.map(([v, l, c]) => (
+          <div key={v} className="card kpi" style={{ borderTopColor: c, cursor: 'pointer', outline: tab === v ? `1px solid ${c}` : 'none' }}
+            onClick={() => setTab(tab === v ? '' : v)}>
+            <div className="lbl">{l}</div><div className="val">{counts[v] || 0}</div>
+          </div>
+        ))}
+      </div>
+
       <div className="card" style={{ marginTop: 'var(--pad)' }}>
         <div className="page-head" style={{ marginBottom: 12 }}>
-          <div className="card-title" style={{ marginBottom: 0 }}>📄 Agent Applications</div>
-          <span className="pr"><button className="mini-btn" onClick={() => toast('Exported! ⬇ agent-applications.csv')}>📋 Export</button></span>
+          <div className="card-title" style={{ marginBottom: 0 }}>📄 Applications {tab ? `· ${ST[tab].l}` : ''}</div>
+          <span className="pr" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            {sel.length > 0 && (
+              <>
+                <span style={{ fontSize: 12, color: 'var(--gold)', fontWeight: 800 }}>{sel.length} selected</span>
+                <button className="mini-btn" onClick={() => bulk('document_review')}>📄 To Review</button>
+                <button className="mini-btn green" onClick={() => bulk('approved')}>✅ Approve</button>
+                <button className="btn-cancel-red" style={{ padding: '7px 12px' }} onClick={() => bulk('rejected')}>✗ Reject</button>
+              </>
+            )}
+            <input className="qsearch" placeholder="Name, username, email, phone…" value={q} onInput={(e) => setQ(e.target.value)} />
+          </span>
         </div>
         <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}>
           <table style={{ minWidth: 1100 }}>
-            <thead><tr><th>Applicant</th><th>Username</th><th>Contact</th><th>Applied</th><th>Comm. Rate</th><th>Referrer</th><th>Status</th><th>Actions</th></tr></thead>
+            <thead><tr>
+              <th><input type="checkbox" className="permcb" checked={visible.length > 0 && sel.length === visible.length} onChange={toggleAll} /></th>
+              <th>Applicant</th><th>Username</th><th>Contact</th><th>Banking</th><th>Docs</th><th>Applied</th><th>Risk</th><th>Status</th><th></th>
+            </tr></thead>
             <tbody>
-              {visible.map((a, i) => (
-                <tr key={i}>
-                  <td><div className="ag-name">{a.n}</div><div className="ag-email">{a.em}</div></td>
-                  <td><span className="ag-user">{a.u}</span></td>
-                  <td>{a.ph}</td><td style={{ color: '#aab4cc' }}>{a.ap}</td>
-                  <td><span className="rate-cell">{a.rate}</span><span className="rate-sub">{a.rsub}</span></td>
-                  <td><span className="ag-user" style={{ color: '#aab4cc' }}>{a.ref}</span></td>
-                  <td>{stBadge(a.st)}{docBadge(a.docs)}</td>
-                  <td>
-                    {a.st === 'pend'
-                      ? <span style={{ display: 'flex', gap: 6 }}>
-                          <button className="mini-btn green" style={{ padding: '7px 12px', fontSize: '.72rem' }} onClick={() => decide(a, 1)}>✅ Approve</button>
-                          <button className="btn-cancel-red" style={{ padding: '7px 12px', fontSize: '.72rem' }} onClick={() => decide(a, 0)}>✗ Reject</button>
-                        </span>
-                      : <button className="mini-btn" onClick={() => toast(`Application: ${a.n} — ${a.st === 'app' ? 'approved' : 'rejected'} · ${a.rate}`)}>👁 View</button>}
-                  </td>
+              {visible.length === 0 && (
+                <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--muted)', padding: 24 }}>
+                  {loaded ? 'No applications' + (tab ? ` in ${ST[tab].l}` : ' yet — players apply from the Agent page on the site.') : 'Loading…'}
+                </td></tr>
+              )}
+              {visible.map((a) => (
+                <tr key={a.id}>
+                  <td><input type="checkbox" className="permcb" checked={sel.includes(a.id)} onChange={() => toggleSel(a.id)} /></td>
+                  <td><div className="ag-name">{a.fullName}</div><div className="ag-email">{a.email}</div></td>
+                  <td><span className="ag-user">{a.username}</span></td>
+                  <td>{a.phone || '—'}</td>
+                  <td><div style={{ fontWeight: 700 }}>{a.bankName || '—'}</div><div className="ag-email">{a.bankAccountNo || ''}</div></td>
+                  <td>{(a.documents || []).length} file{(a.documents || []).length === 1 ? '' : 's'}</td>
+                  <td style={{ color: '#aab4cc' }}>{(a.createdAt || '').slice(0, 10)}</td>
+                  <td><span style={{ color: RISK_COLOR[a.riskLevel] || 'var(--muted)', fontWeight: 800, textTransform: 'capitalize' }}>{a.riskLevel || 'unrated'}</span></td>
+                  <td>{stBadge(a.status)}</td>
+                  <td><button className="mini-btn gold" onClick={() => openDetail(a.id)}>👁 Review</button></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* ---------------- review modal ---------------- */}
+      {detail && (
+        <div className="modal-ov show" onClick={(e) => { if (e.target === e.currentTarget) close(); }}>
+          <div className="kyc-modal" style={{ maxWidth: 860 }}>
+            <div className="kyc-head">
+              <span style={{ fontSize: '1.2rem' }}>🧑‍💼</span>
+              <span>
+                <div className="t">{detail.fullName} <span style={{ marginLeft: 8 }}>{stBadge(detail.status)}</span></div>
+                <div className="s">@{detail.username} · applied {fmt(detail.createdAt)}</div>
+              </span>
+              <button className="kyc-x" onClick={close} aria-label="Close">✕</button>
+            </div>
+            <div className="kyc-body">
+              {/* eligibility */}
+              {detail.eligibility && (
+                <div className="kyc-status" style={{ gap: 14, flexWrap: 'wrap' }}>
+                  <span className="os">Eligibility:</span>
+                  <Check ok={detail.eligibility.kycApproved} label="KYC approved" />
+                  <Check ok={detail.eligibility.emailVerified} label="Email verified" />
+                  <Check ok={detail.eligibility.mobileVerified} label="Mobile verified" />
+                </div>
+              )}
+
+              {/* personal */}
+              <div className="card-title" style={{ marginTop: 10 }}>👤 Personal Information</div>
+              <div className="kyc-info">
+                {cell('Full name', detail.fullName)}
+                {cell('Username', detail.username)}
+                {cell('Email', detail.email)}
+                {cell('Phone', detail.phone)}
+                {cell('Date of birth', detail.dob)}
+                {cell('Country', detail.country)}
+                {cell('Address', detail.address)}
+                {cell('Emergency contact', detail.emergencyContact)}
+                {cell('Currency', detail.currency)}
+                {cell('Marketing channels', (detail.channels || []).join(', '))}
+                {cell('Experience', detail.experience)}
+                {cell('Expected players', detail.expectedPlayers)}
+              </div>
+
+              {/* banking */}
+              <div className="card-title" style={{ marginTop: 14 }}>🏦 Banking Information</div>
+              <div className="kyc-info">
+                {cell('Bank', detail.bankName)}
+                {cell('Account name', detail.bankAccountName)}
+                {cell('Account number', detail.bankAccountNo)}
+                {cell('Branch', detail.bankBranch)}
+              </div>
+
+              {/* documents */}
+              <div className="card-title" style={{ marginTop: 14 }}>📎 Documents ({(detail.documents || []).length})</div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                {(detail.documents || []).length === 0 && <div className="kyc-note">No documents uploaded.</div>}
+                {(detail.documents || []).map((d, i) => {
+                  const url = typeof d === 'string' ? d : d.url;
+                  const label = (typeof d === 'object' && d.name) || `Document ${i + 1}`;
+                  return (
+                    <a key={i} href={url} target="_blank" rel="noreferrer" style={{ display: 'block', width: 140 }}>
+                      <img src={url} alt={label} style={{ width: 140, height: 90, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)', display: 'block' }} />
+                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4, textAlign: 'center' }}>{label} · View full</div>
+                    </a>
+                  );
+                })}
+              </div>
+
+              {/* assignment */}
+              <div className="card-title" style={{ marginTop: 14 }}>⚙️ Assessment & Assignment</div>
+              <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+                <div className="fld"><label>Risk level</label>
+                  <select value={detail.riskLevel || 'unrated'} onChange={(e) => setMeta('riskLevel', e.target.value)}>
+                    {RISKS.map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </div>
+                <div className="fld"><label>Commission plan</label>
+                  <select value={detail.planId || ''} onChange={(e) => setMeta('planId', e.target.value)}>
+                    <option value="">— default —</option>
+                    {plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+                <div className="fld"><label>Account manager</label>
+                  <select value={detail.managerId || ''} onChange={(e) => setMeta('managerId', e.target.value)}>
+                    <option value="">— unassigned —</option>
+                    {managers.map((m) => <option key={m.id || m.name} value={m.id || m.name}>{m.name}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* remarks */}
+              <div className="fld" style={{ marginTop: 10 }}>
+                <label>Remarks (sent to the applicant on status change)</label>
+                <textarea rows={2} value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="e.g. Please upload a clearer photo of your bank statement…" style={{ width: '100%' }} />
+              </div>
+
+              {/* workflow actions */}
+              <div className="kyc-status" style={{ marginTop: 12, gap: 8, flexWrap: 'wrap' }}>
+                <span className="os">Workflow:</span>
+                {detail.status !== 'document_review' && !['approved', 'rejected'].includes(detail.status) && (
+                  <button className="mini-btn" disabled={busy} onClick={() => act({ status: 'document_review' }, 'Moved to Document Review 📄')}>📄 Document Review</button>
+                )}
+                {detail.status !== 'under_investigation' && !['approved', 'rejected'].includes(detail.status) && (
+                  <button className="mini-btn" disabled={busy} onClick={() => act({ status: 'under_investigation' }, 'Moved to Investigation 🔍')}>🔍 Investigate</button>
+                )}
+                {detail.status !== 'need_more_documents' && !['approved', 'rejected'].includes(detail.status) && (
+                  <button className="mini-btn" disabled={busy} onClick={() => act({ status: 'need_more_documents' }, 'Documents requested 📎 — applicant notified')}>📎 Request Documents</button>
+                )}
+                <span style={{ flex: 1 }} />
+                {detail.status !== 'approved' && (
+                  <button className="mini-btn green" disabled={busy} onClick={() => act({ status: 'approved' }, 'Application approved ✅ — agent activated')}>✅ Approve</button>
+                )}
+                {detail.status !== 'rejected' && (
+                  <button className="btn-cancel-red" style={{ padding: '8px 14px' }} disabled={busy} onClick={() => act({ status: 'rejected' }, 'Application rejected ✗ — applicant notified')}>✗ Reject</button>
+                )}
+              </div>
+
+              {/* history timeline */}
+              <div className="card-title" style={{ marginTop: 16 }}>🕐 History</div>
+              <div className="rowlist">
+                {(detail.history || []).slice().reverse().map((h, i) => (
+                  <div className="rowline" key={i}>
+                    <span className="k">
+                      <b style={{ color: 'var(--text,#fff)' }}>{h.action}</b>
+                      {h.remarks ? <span style={{ color: 'var(--muted)' }}> — {h.remarks}</span> : ''}
+                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>{h.admin}{h.ip ? ` · ${h.ip}` : ''}</div>
+                    </span>
+                    <span className="feed-time">{fmt(h.createdAt)}</span>
+                  </div>
+                ))}
+                {(detail.history || []).length === 0 && <div className="rowline"><span className="k" style={{ color: 'var(--muted)' }}>No history yet.</span></div>}
+              </div>
+            </div>
+            <div className="kyc-foot">
+              <button className="btn-save" disabled={busy} onClick={() => act({}, 'Remarks saved 💾')}>💾 Save Remarks</button>
+              <button className="btn-cancel" onClick={close}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

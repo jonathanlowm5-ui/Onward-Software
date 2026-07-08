@@ -1,92 +1,147 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BOk } from '../components/ui.jsx';
 import { useUI } from '../context/UIContext';
-import { listAgents } from '../services/agentService';
+import { listAgents, updateAgent, listPlans, listManagers, downloadCsv } from '../services/agentService';
 
-// Map a backend agent record to this page's row shape.
-const toRow = (a) => ({
-  _id: a.id, n: a.fullName || a.username, em: a.email || '', u: a.username,
-  ct: 'Rev Share · GGR', rate: `${Math.round((a.commissionRate || 0.2) * 100)}%`,
-  dl: 0, earn: `₱${Number(a.earned || 0).toLocaleString()}`, pend: `₱${Number(a.pending || 0).toLocaleString()}`,
-  on: a.status === 'approved' ? 1 : 0,
-});
-
-// Ported from V["agent-list"] (AGENTS module array).
-const AGENTS_INIT = [
-  { n: 'Marco Rivera', em: 'marco@onward.com', u: 'marco88', ct: 'Rev Share · GGR', rate: '5%', dl: 184, earn: '₱22,400', pend: '₱3,200', on: 1 },
-  { n: 'Jenny Lim', em: 'jenny@onward.com', u: 'jenny_l', ct: 'Rev Share · GGR', rate: '4%', dl: 97, earn: '₱14,800', pend: '₱2,100', on: 1 },
-  { n: 'Rey Santos', em: 'rey@onward.com', u: 'reysantos', ct: 'Rev Share · GGR', rate: '3.5%', dl: 63, earn: '₱8,640', pend: '₱1,400', on: 1 },
-  { n: 'Dana Cruz', em: 'dana@onward.com', u: 'danacruz', ct: 'Rev Share · Deposit', rate: '3%', dl: 28, earn: '₱3,920', pend: '₱0', on: 0 },
-];
+/*
+ * Agent List — approved agents only. Applications live in Agent Approval;
+ * here you manage live agents: status (active / suspended / blacklisted),
+ * commission plan, account manager, and see per-agent performance.
+ */
+const STATE = {
+  active: { l: '🟢 Active', c: '#3ddc84' },
+  suspended: { l: '⏸ Suspended', c: '#ffd166' },
+  blacklisted: { l: '⛔ Blacklisted', c: '#ff5c5c' },
+};
+const stBadge = (st) => {
+  const m = STATE[st] || STATE.active;
+  return <span className="aa-status2" style={{ background: m.c + '22', color: m.c, border: `1px solid ${m.c}55` }}>{m.l}</span>;
+};
+const money = (v) => Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
 
 export default function AgentList() {
   const { toast } = useUI();
-  const [agents, setAgents] = useState(AGENTS_INIT);
+  const [agents, setAgents] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+  const [plans, setPlans] = useState([]);
+  const [managers, setManagers] = useState([]);
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('');
 
-  // Load live agents (approved ones created via the frontend apply + admin approval).
+  const load = () => listAgents().then((rows) => { setAgents(Array.isArray(rows) ? rows : []); setLoaded(true); }).catch(() => setLoaded(true));
   useEffect(() => {
-    let alive = true;
-    listAgents({ status: 'approved' })
-      .then((rows) => { if (alive && Array.isArray(rows) && rows.length) setAgents(rows.map(toRow)); })
-      .catch(() => {});
-    return () => { alive = false; };
+    load();
+    listPlans().then(setPlans).catch(() => {});
+    listManagers().then(setManagers).catch(() => {});
   }, []);
+
+  const planName = (id) => plans.find((p) => p.id === id)?.name || '—';
+  const managerName = (id) => managers.find((m) => (m.id || m.name) === id)?.name || '—';
 
   const visible = useMemo(() => {
     const ql = q.toLowerCase();
-    return agents.filter((a) => {
-      const hay = (a.n + ' ' + a.u + ' ' + a.em).toLowerCase();
-      return hay.includes(ql) && (status === '' || String(a.on) === status);
-    });
+    return agents.filter((a) =>
+      (!status || (a.status || 'active') === status)
+      && (!ql || [a.username, a.code].some((v) => (v || '').toLowerCase().includes(ql))));
   }, [agents, q, status]);
 
-  const exportAgents = () => toast('Agents exported 📋');
+  const totals = useMemo(() => ({
+    players: agents.reduce((s, a) => s + (a.stats?.players || 0), 0),
+    ggr: agents.reduce((s, a) => s + (a.stats?.ggr || 0), 0),
+    pending: agents.reduce((s, a) => s + (a.stats?.pending || 0), 0),
+  }), [agents]);
+
+  const setState = async (a, next) => {
+    const remarks = next === 'active' ? '' : (window.prompt(`Remarks for ${next === 'suspended' ? 'suspension' : 'blacklisting'} (sent to the agent):`) ?? null);
+    if (remarks === null) return;
+    try {
+      await updateAgent(a.id, { status: next, remarks });
+      toast(`${a.username} → ${STATE[next].l}`);
+      load();
+    } catch (e) { toast('⚠ ' + (e.message || 'Update failed')); }
+  };
+
+  const setPlan = async (a, planId) => {
+    try { await updateAgent(a.id, { planId }); toast(`Plan updated for ${a.username} 💾`); load(); }
+    catch (e) { toast('⚠ ' + (e.message || 'Update failed')); }
+  };
+  const setManager = async (a, managerId) => {
+    try { await updateAgent(a.id, { managerId }); toast(`Manager updated for ${a.username} 💾`); load(); }
+    catch (e) { toast('⚠ ' + (e.message || 'Update failed')); }
+  };
+
+  const exportCsv = () => {
+    downloadCsv('agents.csv',
+      ['Username', 'Code', 'Status', 'Plan', 'Manager', 'Players', 'Active players', 'Deposits', 'GGR', 'Earned', 'Pending', 'Approved at'],
+      visible.map((a) => [a.username, a.code, a.status || 'active', planName(a.planId), managerName(a.managerId),
+        a.stats?.players, a.stats?.activePlayers, a.stats?.depositTotal, a.stats?.ggr, a.stats?.earned, a.stats?.pending, (a.approvedAt || '').slice(0, 10)]));
+    toast('CSV exported ⬇ agents.csv');
+  };
 
   return (
     <>
       <div className="page-head">
         <div>
           <h1 className="hero-h">👤 Agent List</h1>
-          <div className="hero-sub" style={{ marginBottom: 0 }}>Manage all agents, commission rates and downline players</div>
+          <div className="hero-sub" style={{ marginBottom: 0 }}>Approved agents — manage status, plan, manager and performance. New applications are reviewed in <b>Agent Approval</b>.</div>
         </div>
-        <span className="pr"><button className="btn-search" onClick={() => toast('Add Agent — demo')}>＋ Add Agent</button></span>
+        <span className="pr"><button className="mini-btn" onClick={exportCsv}>📋 Export CSV</button></span>
       </div>
+
       <div className="grid kpi-grid">
-        <div className="card kpi b"><div className="lbl">Total Agents</div><div className="val">24</div><div className="trend" style={{ color: 'var(--muted)' }}>active accounts</div></div>
-        <div className="card kpi g"><div className="lbl">Total Downline</div><div className="val">1,248</div><div className="trend" style={{ color: 'var(--muted)' }}>registered players</div></div>
-        <div className="card kpi"><div className="lbl">Total Commission</div><div className="val">₱84,200</div><div className="trend" style={{ color: 'var(--muted)' }}>this month</div></div>
-        <div className="card kpi" style={{ borderTopColor: '#ff8c42' }}><div className="lbl">Pending Payout</div><div className="val">₱12,400</div><div className="trend" style={{ color: 'var(--muted)' }}>awaiting release</div></div>
+        <div className="card kpi b"><div className="lbl">Total Agents</div><div className="val">{agents.length}</div><div className="trend" style={{ color: 'var(--muted)' }}>{agents.filter((a) => (a.status || 'active') === 'active').length} active</div></div>
+        <div className="card kpi g"><div className="lbl">Referred Players</div><div className="val">{totals.players.toLocaleString()}</div><div className="trend" style={{ color: 'var(--muted)' }}>across all agents</div></div>
+        <div className="card kpi"><div className="lbl">Downline GGR</div><div className="val">{money(totals.ggr)}</div><div className="trend" style={{ color: 'var(--muted)' }}>all time</div></div>
+        <div className="card kpi" style={{ borderTopColor: '#ff8c42' }}><div className="lbl">Commission Pending</div><div className="val">{money(totals.pending)}</div><div className="trend" style={{ color: 'var(--muted)' }}>awaiting payout</div></div>
       </div>
+
       <div className="card" style={{ marginTop: 'var(--pad)' }}>
         <div className="page-head" style={{ marginBottom: 12 }}>
           <div className="card-title" style={{ marginBottom: 0 }}>👥 All Agents</div>
           <span className="pr" style={{ display: 'flex', gap: 8 }}>
-            <input className="qsearch" placeholder="Search agent…" value={q} onInput={(e) => setQ(e.target.value)} />
+            <input className="qsearch" placeholder="Username or code…" value={q} onInput={(e) => setQ(e.target.value)} />
             <select className="qsearch" style={{ width: 'auto' }} value={status} onChange={(e) => setStatus(e.target.value)}>
-              <option value="">All Status</option><option value="1">Active</option><option value="0">Inactive</option>
+              <option value="">All Status</option>
+              <option value="active">Active</option><option value="suspended">Suspended</option><option value="blacklisted">Blacklisted</option>
             </select>
-            <button className="mini-btn" onClick={exportAgents}>📋 Export</button>
           </span>
         </div>
         <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}>
-          <table style={{ minWidth: 1060 }}>
-            <thead><tr><th>Agent</th><th>Username</th><th>Comm. Type</th><th>Comm. Rate</th><th>Downline</th><th>Total Earned</th><th>Pending</th><th>Status</th><th>Actions</th></tr></thead>
+          <table style={{ minWidth: 1180 }}>
+            <thead><tr><th>Agent</th><th>Code</th><th>Plan</th><th>Manager</th><th>Players</th><th>Deposits</th><th>GGR</th><th>Earned</th><th>Pending</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>
-              {visible.map((a, i) => (
-                <tr key={i}>
-                  <td><div className="ag-name">{a.n}</div><div className="ag-email">{a.em}</div></td>
-                  <td><span className="ag-user">{a.u}</span></td>
-                  <td><span className="ag-type">{a.ct}</span></td>
-                  <td><span className="ag-rate">{a.rate}</span></td>
-                  <td>{a.dl}</td>
-                  <td><span className="ag-earn">{a.earn}</span></td>
-                  <td><span className={a.pend === '₱0' ? '' : 'ag-pend'}>{a.pend}</span></td>
-                  <td>{a.on ? <BOk>Active</BOk> : <span className="sms-draft">Inactive</span>}</td>
+              {visible.length === 0 && (
+                <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--muted)', padding: 24 }}>
+                  {loaded ? 'No approved agents yet — approve applications in Agent Approval.' : 'Loading…'}
+                </td></tr>
+              )}
+              {visible.map((a) => (
+                <tr key={a.id}>
+                  <td><div className="ag-name">{a.username}</div><div className="ag-email">approved {(a.approvedAt || '').slice(0, 10)}</div></td>
+                  <td><span className="ag-user">{a.code}</span></td>
                   <td>
-                    <button className="icon-eye" onClick={() => toast(`Agent profile: ${a.n} — ${a.dl} downline · earned ${a.earn} · pending ${a.pend}`)}>👁</button>{' '}
-                    <button className="icon-edit" onClick={() => toast(`Edit agent: ${a.n} — demo`)}>✏️</button>
+                    <select className="qsearch" style={{ width: 'auto', minWidth: 120, padding: '5px 8px', fontSize: 12 }} value={a.planId || ''} onChange={(e) => setPlan(a, e.target.value)}>
+                      <option value="">— default —</option>
+                      {plans.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                  </td>
+                  <td>
+                    <select className="qsearch" style={{ width: 'auto', minWidth: 110, padding: '5px 8px', fontSize: 12 }} value={a.managerId || ''} onChange={(e) => setManager(a, e.target.value)}>
+                      <option value="">—</option>
+                      {managers.map((m) => <option key={m.id || m.name} value={m.id || m.name}>{m.name}</option>)}
+                    </select>
+                  </td>
+                  <td>{a.stats?.players ?? 0} <span style={{ color: 'var(--muted)', fontSize: 11 }}>({a.stats?.activePlayers ?? 0} active)</span></td>
+                  <td><span className="ag-earn">{money(a.stats?.depositTotal)}</span></td>
+                  <td><span className="ag-rate">{money(a.stats?.ggr)}</span></td>
+                  <td style={{ color: 'var(--gold)', fontWeight: 900 }}>{money(a.stats?.earned)}</td>
+                  <td>{a.stats?.pending ? <span className="ag-pend">{money(a.stats.pending)}</span> : '0'}</td>
+                  <td>{stBadge(a.status || 'active')}</td>
+                  <td>
+                    <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {(a.status || 'active') !== 'active' && <button className="mini-btn green" onClick={() => setState(a, 'active')}>▶ Activate</button>}
+                      {(a.status || 'active') === 'active' && <button className="mini-btn" onClick={() => setState(a, 'suspended')}>⏸ Suspend</button>}
+                      {a.status !== 'blacklisted' && <button className="btn-cancel-red" style={{ padding: '6px 10px', fontSize: '.72rem' }} onClick={() => setState(a, 'blacklisted')}>⛔ Blacklist</button>}
+                    </span>
                   </td>
                 </tr>
               ))}

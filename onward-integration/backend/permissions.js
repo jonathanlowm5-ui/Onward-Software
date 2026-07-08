@@ -24,7 +24,10 @@ const ALL_PERMISSIONS = [
   'settings.manage',    // site settings, KYC bonus, currency rates, etc.
   'marketing.manage',   // campaigns, providers, automations, ads
   'content.manage',     // promotions, banners, games, mini-games, page content
-  'agents.manage',      // approve / reject agent applications
+  'agents.manage',      // view applications / agents, suspend, plans
+  'agents.approve',     // move applications through the approval workflow
+  'agents.commission',  // commission plans, generation, payouts
+  'agents.blacklist',   // blacklist an agent (superadmin-level)
   'admins.manage',      // create / edit / delete admin accounts
 ];
 
@@ -34,7 +37,8 @@ const ROLE_PERMS = {
   manager: [
     'players.edit', 'players.status', 'players.adjust', 'players.resetpw',
     'players.kick', 'kyc.approve', 'transactions.approve',
-    'settings.manage', 'content.manage', 'agents.manage', 'marketing.manage',
+    'settings.manage', 'content.manage', 'marketing.manage',
+    'agents.manage', 'agents.approve', 'agents.commission',
   ],
   admin: [
     'players.status', 'players.kick', 'kyc.approve', 'transactions.approve',
