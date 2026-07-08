@@ -53,7 +53,9 @@ function ensurePlayerCode(store, player) {
 function publicView(p) {
   if (!p) return null;
   const {
-    passwordHash, emailOtp, emailOtpExpires, mobileOtp, mobileOtpExpires, twoFactorSecret, ...rest
+    passwordHash, emailOtp, emailOtpExpires, mobileOtp, mobileOtpExpires, twoFactorSecret,
+    fairSeeds, // contains the un-revealed server seed — never send to the client
+    ...rest
   } = p;
   const fullName =
     p.fullName || `${p.firstName || ''} ${p.lastName || ''}`.trim() || p.username;

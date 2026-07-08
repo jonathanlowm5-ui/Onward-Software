@@ -24,7 +24,8 @@ const MENU=[
    {id:"promotions",ic:"📣",t:"Promotions"},
    {id:"tournament",ic:"🏆",t:"Tournament"},
    {id:"mission",ic:"🎯",t:"Mission"},
-   {id:"voucher",ic:"🎫",t:"Voucher"}]},
+   {id:"voucher",ic:"🎫",t:"Voucher"},
+   {id:"giveaway",ic:"🎉",t:"Giveaway"}]},
  {cat:"Marketing",ic:"📢",id:"marketing",sub:[
    {id:"sms",ic:"💬",t:"SMS Campaign"},
    {id:"email",ic:"✉️",t:"Email Campaign"},

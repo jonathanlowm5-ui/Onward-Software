@@ -95,6 +95,26 @@ function LangSwitcher() {
   );
 }
 
+// Live "players online" counter — real count from /public/stats, refreshed
+// every 60s. Keeps the original showcase figure until the first response.
+function OnlineCount() {
+  const [online, setOnline] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    const load = () => api.get('/public/stats')
+      .then((r) => { const n = Number(r.data?.online); if (alive && n > 0) setOnline(n); })
+      .catch(() => { /* keep the fallback figure */ });
+    load();
+    const id = setInterval(load, 60000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+  return (
+    <span className="hdr-online-num" id="top-online-count">
+      {online != null ? online.toLocaleString() : '1,847'}
+    </span>
+  );
+}
+
 // Self-contained currency switcher — mirrors LangSwitcher so it opens reliably
 // on mobile (the shared dropdown wiring had a flash-then-close bug). Lets the
 // player switch the DISPLAY currency; the real wallet stays in their account
@@ -586,7 +606,7 @@ export default function Header() {
               <div className="hdr-wbar"></div>
               <div className="hdr-wbar"></div>
             </div>
-            <span className="hdr-online-num" id="top-online-count">1,847</span>
+            <OnlineCount />
           </div>
           <SearchPanel variant="header" />
           <div className="hdr-row2-right">

@@ -1,6 +1,7 @@
 // VIP page — faithful conversion of the original #view-vip markup + interactions.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useUI } from '../context/UIContext';
+import { useAuth } from '../context/AuthContext';
 import PageBanner from '../components/common/PageBanner.jsx';
 import usePageHero from '../hooks/usePageHero';
 import usePageBanner from '../hooks/usePageBanner';
@@ -58,8 +59,6 @@ const VIP_BENEFITS = [
   { name: 'Weekly Aid Bonus', icon: '💎', minLevel: 3, amts: [0, 0, 200, 300, 400, 600, 800, 1000, 1500, 2000] },
 ];
 
-const PLAYER_VIP_LEVEL = 1; // the level the player has achieved (default VIP 1)
-
 // English vt() equivalents (the original uses per-language tables; defaults to en)
 const T = {
   ribbon: 'Current Level', yourLevel: 'Your Level', level: 'Level', rakeback: 'Rakeback',
@@ -72,14 +71,20 @@ const T = {
 };
 
 // One horizontal VIP rank card (port of vipHCardHTML).
-function VipHCard({ l, idx, active, mine, onTap, cardRef, levels }) {
+// `me` is the real /vip/me payload when logged in (null for guests → zero progress).
+function VipHCard({ l, idx, active, mine, onTap, cardRef, levels, me }) {
   const tierBg = usePageBanner('vip' + l.lvl); // admin-uploaded per-tier background
   const next = levels[idx + 1];
   const nextLabel = next ? 'VIP ' + next.lvl : T.max;
-  const depDone = 1000, depTarget = 1600, depMore = Math.max(depTarget - depDone, 0);
-  const depPct = Math.min(100, Math.round((depDone / depTarget) * 100));
-  const ptsDone = 404, ptsTarget = 4000, ptsMore = Math.max(ptsTarget - ptsDone, 0);
-  const ptsPct = Math.min(100, Math.round((ptsDone / ptsTarget) * 100));
+  const maxed = !!me && !me.next; // logged in and already at the top tier
+  const depDone = Number(me?.depDone) || 0;
+  const depTarget = Number(me?.next?.dep) || 0;
+  const depMore = Math.max(depTarget - depDone, 0);
+  const depPct = maxed ? 100 : depTarget > 0 ? Math.min(100, Math.round((depDone / depTarget) * 100)) : 0;
+  const ptsDone = Number(me?.ptsDone) || 0;
+  const ptsTarget = Number(me?.next?.exp) || 0;
+  const ptsMore = Math.max(ptsTarget - ptsDone, 0);
+  const ptsPct = maxed ? 100 : ptsTarget > 0 ? Math.min(100, Math.round((ptsDone / ptsTarget) * 100)) : 0;
   return (
     <div
       ref={cardRef}
@@ -108,9 +113,22 @@ function VipHCard({ l, idx, active, mine, onTap, cardRef, levels }) {
 }
 
 export default function VIP() {
-  const { openModal } = useUI();
+  const { openModal, toast } = useUI();
+  const { profile, isLoggedIn } = useAuth();
   const go = useSectionNav();
   const hero = usePageHero('vip');
+
+  // Real VIP progress (/vip/me) when logged in; guests stay at level 0 / 0%.
+  const [vipMe, setVipMe] = useState(null);
+  useEffect(() => {
+    if (!isLoggedIn) { setVipMe(null); return undefined; }
+    let alive = true;
+    api.get('/vip/me')
+      .then((r) => { if (alive && r.data) setVipMe(r.data); })
+      .catch(() => { /* keep zero progress if it can't be loaded */ });
+    return () => { alive = false; };
+  }, [isLoggedIn]);
+  const playerLevel = isLoggedIn && vipMe ? Number(vipMe.level) || 0 : 0;
 
   // Admin-configured VIP tiers (names, icon pictures, rebate, level bonus).
   // Falls back to the bundled default theme until the backend responds.
@@ -128,7 +146,7 @@ export default function VIP() {
   }, []);
 
   // Selected VIP level (index into VIP_LEVELS), default to player's achieved level.
-  const [selLevel, setSelLevel] = useState(Math.min(Math.max(PLAYER_VIP_LEVEL - 1, 0), DEFAULT_VIP_LEVELS.length - 1));
+  const [selLevel, setSelLevel] = useState(0);
   const [benefitsOpen, setBenefitsOpen] = useState(false);
   const [openFaqs, setOpenFaqs] = useState(() => new Set());
   const toggleFaq = (i) =>
@@ -158,6 +176,15 @@ export default function VIP() {
     centerGlobal(N + selLevel, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Once the real level is known, jump the wheel to the player's tier.
+  useEffect(() => {
+    if (!vipMe) return;
+    const idx = Math.min(Math.max((Number(vipMe.level) || 0) - 1, 0), N - 1);
+    setSelLevel(idx);
+    centerGlobal(N + idx, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vipMe, N]);
 
   // Arrow stepping (port of vipStep): center neighbour, settle handler selects.
   const vipStep = (dir) => centerGlobal(N + selLevel + dir, true);
@@ -207,7 +234,12 @@ export default function VIP() {
           <div className="vipw-bcard-amt locked">₱{amtAtUnlock.toLocaleString()} <span>{T.atVip(b.minLevel)}</span></div>
         )}
         {unlocked ? (
-          <button className="vipw-claim" onClick={() => openModal('register')}>{T.claim}</button>
+          <button
+            className="vipw-claim"
+            onClick={() => (isLoggedIn
+              ? toast('Level bonus is credited automatically when you reach this tier')
+              : openModal('register'))}
+          >{T.claim}</button>
         ) : (
           <div className="vipw-bcard-status">{T.insufficient}</div>
         )}
@@ -224,15 +256,19 @@ export default function VIP() {
         <div className="vip-welcome-bar">
           <div className="vip-welcome-icon">👋</div>
           <div className="vip-welcome-info">
-            <div className="vip-welcome-text"><span data-i18n="vip_welcome_back">Welcome back, </span><span id="vip-username">Player</span></div>
+            <div className="vip-welcome-text"><span data-i18n="vip_welcome_back">Welcome back, </span><span id="vip-username">{profile?.username || 'Player'}</span></div>
             <div className="vip-welcome-sub"><span data-i18n="vip_growth">Growth Up your level and Get more Benefits!</span> <span>→</span></div>
           </div>
           <div style={{ flex: 1, minWidth: 200 }}>
             <div className="vip-xp-wrap">
               <div className="vip-xp-left">🥉</div>
               <div style={{ flex: 1 }}>
-                <div className="vip-xp-track"><div className="vip-xp-fill" id="vip-xp-fill" style={{ width: '0%' }} /></div>
-                <div className="vip-xp-label" id="vip-xp-label">0.00 ₱ / 615.05 ₱</div>
+                <div className="vip-xp-track"><div className="vip-xp-fill" id="vip-xp-fill" style={{ width: `${vipMe ? Math.min(100, Number(vipMe.progress) || 0) : 0}%` }} /></div>
+                <div className="vip-xp-label" id="vip-xp-label">
+                  {isLoggedIn && profile
+                    ? `${Number(profile.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${profile.currency || 'PHP'}`
+                    : '0.00 ₱ / 615.05 ₱'}
+                </div>
               </div>
               <div className="vip-xp-right">🥈</div>
             </div>
@@ -309,11 +345,12 @@ export default function VIP() {
                         key={g}
                         l={VIP_LEVELS[i]}
                         idx={i}
-                        mine={i === PLAYER_VIP_LEVEL - 1}
+                        mine={i === playerLevel - 1}
                         active={g === N + selLevel}
                         onTap={() => vipCardTap(g)}
                         cardRef={(el) => { cardRefs.current[g] = el; }}
                         levels={VIP_LEVELS}
+                        me={isLoggedIn ? vipMe : null}
                       />
                     );
                   })}

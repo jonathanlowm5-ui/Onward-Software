@@ -10,43 +10,7 @@ import * as playersService from '../services/playersService';
 import api from '../services/api';
 
 /* ── Sample data mirroring the original inline JS ── */
-const GH_DEMO = [
-  { id: 'TXN-8841923', game: 'Gates of Olympus', provider: 'Pragmatic Play', cat: 'slots', wager: 200, win: 480, date: '2025-06-10 14:12' },
-  { id: 'TXN-8841755', game: 'Lightning Roulette', provider: 'Evolution', cat: 'live', wager: 150, win: 0, date: '2025-06-10 13:48' },
-  { id: 'TXN-8841612', game: 'Sweet Bonanza', provider: 'Pragmatic Play', cat: 'slots', wager: 100, win: 220, date: '2025-06-10 12:30' },
-  { id: 'TXN-8840988', game: 'Premier League', provider: '1xBet Sports', cat: 'sports', wager: 500, win: 950, date: '2025-06-10 10:05' },
-  { id: 'TXN-8840722', game: 'Aviator', provider: 'Spribe', cat: 'crash', wager: 300, win: 0, date: '2025-06-09 22:17' },
-  { id: 'TXN-8840511', game: 'Dragon Tiger', provider: 'Evolution', cat: 'live', wager: 200, win: 380, date: '2025-06-09 21:44' },
-  { id: 'TXN-8840303', game: 'Buffalo King', provider: 'Pragmatic Play', cat: 'slots', wager: 100, win: 0, date: '2025-06-09 20:30' },
-  { id: 'TXN-8840120', game: 'Ocean King 3', provider: 'IGS', cat: 'fish', wager: 250, win: 410, date: '2025-06-09 19:55' },
-  { id: 'TXN-8839804', game: 'Baccarat Live', provider: 'Evolution', cat: 'live', wager: 500, win: 490, date: '2025-06-09 18:22' },
-  { id: 'TXN-8839601', game: 'Mines', provider: 'Spribe', cat: 'crash', wager: 150, win: 315, date: '2025-06-09 17:10' },
-  { id: 'TXN-8839344', game: 'Big Bass Bonanza', provider: 'Pragmatic Play', cat: 'slots', wager: 200, win: 0, date: '2025-06-09 16:05' },
-  { id: 'TXN-8839102', game: "Caishen's Gold Fish", provider: 'CQ9', cat: 'fish', wager: 300, win: 540, date: '2025-06-09 15:20' },
-  { id: 'TXN-8838890', game: 'Book of Dead', provider: "Play'n GO", cat: 'slots', wager: 100, win: 180, date: '2025-06-09 14:44' },
-  { id: 'TXN-8838611', game: 'Crazy Time', provider: 'Evolution', cat: 'live', wager: 200, win: 0, date: '2025-06-09 13:30' },
-  { id: 'TXN-8838402', game: 'Limbo', provider: 'Spribe', cat: 'crash', wager: 100, win: 0, date: '2025-06-09 12:15' },
-  { id: 'TXN-8838200', game: 'Wolf Gold', provider: 'Pragmatic Play', cat: 'slots', wager: 150, win: 200, date: '2025-06-09 11:00' },
-  { id: 'TXN-8837991', game: 'NBA Finals Bet', provider: '1xBet Sports', cat: 'sports', wager: 600, win: 0, date: '2025-06-09 10:30' },
-  { id: 'TXN-8837744', game: 'Gonzos Quest', provider: 'NetEnt', cat: 'slots', wager: 200, win: 440, date: '2025-06-09 09:12' },
-  { id: 'TXN-8837522', game: 'Dragon Fishing', provider: 'KA Gaming', cat: 'fish', wager: 400, win: 0, date: '2025-06-08 23:45' },
-  { id: 'TXN-8837301', game: 'Blackjack Pro', provider: 'Evolution', cat: 'live', wager: 300, win: 580, date: '2025-06-08 22:10' },
-  { id: 'TXN-8837100', game: 'Plinko', provider: 'Spribe', cat: 'crash', wager: 100, win: 190, date: '2025-06-08 21:30' },
-  { id: 'TXN-8836880', game: 'The Dog House', provider: 'Pragmatic Play', cat: 'slots', wager: 150, win: 0, date: '2025-06-08 20:15' },
-  { id: 'TXN-8836611', game: 'Fishing War', provider: 'CGQ', cat: 'fish', wager: 200, win: 350, date: '2025-06-08 19:00' },
-  { id: 'TXN-8836400', game: 'Speed Baccarat', provider: 'Evolution', cat: 'live', wager: 500, win: 460, date: '2025-06-08 18:20' },
-];
 
-const WAGER_DATA = {
-  bonusAmount: 4000,
-  multiplier: 20,
-  wagered: 7360,
-  promos: [
-    { name: '200% Welcome Bonus', amount: 4000, type: 'welcome', date: '2025-06-09', multiplier: 20, wagered: 7360, required: 20000, status: 'active' },
-    { name: 'Weekly Cashback 5%', amount: 185, type: 'cashback', date: '2025-06-08', multiplier: 1, wagered: 185, required: 185, status: 'completed' },
-    { name: 'Monday Reload 50%', amount: 500, type: 'reload', date: '2025-06-02', multiplier: 10, wagered: 5000, required: 5000, status: 'completed' },
-  ],
-};
 const PTYPE = {
   welcome: { icon: '🎁', color: '#4ade80' },
   cashback: { icon: '💰', color: '#a78bfa' },
@@ -54,26 +18,6 @@ const PTYPE = {
   referral: { icon: '👥', color: '#34d399' },
 };
 
-const TX_DEMO = [
-  { date: '2025-06-10 14:32', type: 'deposit', desc: 'GCash Deposit', amount: +2000, status: 'completed' },
-  { date: '2025-06-10 09:15', type: 'referral', desc: 'Referral Commission — juan***', amount: +250, status: 'completed' },
-  { date: '2025-06-09 21:48', type: 'cashback', desc: 'Weekly Cashback 5%', amount: +185, status: 'completed' },
-  { date: '2025-06-09 18:03', type: 'withdrawal', desc: 'Bank Withdrawal', amount: -1500, status: 'completed' },
-  { date: '2025-06-09 12:22', type: 'promotion', desc: '200% Welcome Bonus', amount: +4000, status: 'completed' },
-  { date: '2025-06-08 20:11', type: 'rebate', desc: 'Slots Rebate 0.8%', amount: +96, status: 'completed' },
-  { date: '2025-06-08 15:44', type: 'deposit', desc: 'Maya Deposit', amount: +1000, status: 'completed' },
-  { date: '2025-06-08 11:30', type: 'referral', desc: 'Referral Commission — maria***', amount: +150, status: 'completed' },
-  { date: '2025-06-07 22:05', type: 'cashback', desc: 'Daily Cashback 3%', amount: +60, status: 'completed' },
-  { date: '2025-06-07 17:19', type: 'withdrawal', desc: 'GCash Withdrawal', amount: -700, status: 'completed' },
-  { date: '2025-06-07 10:08', type: 'promotion', desc: 'Reload Bonus Monday 50%', amount: +500, status: 'completed' },
-  { date: '2025-06-06 23:55', type: 'rebate', desc: 'Live Casino Rebate 0.5%', amount: +43, status: 'completed' },
-  { date: '2025-06-06 16:30', type: 'deposit', desc: 'USDT Deposit', amount: +3000, status: 'completed' },
-  { date: '2025-06-06 09:00', type: 'referral', desc: 'Referral Commission — pedro***', amount: +320, status: 'completed' },
-  { date: '2025-06-05 20:45', type: 'cashback', desc: 'Weekend Cashback 8%', amount: +416, status: 'completed' },
-  { date: '2025-06-05 14:10', type: 'deposit', desc: 'Bank Transfer', amount: +1500, status: 'pending' },
-  { date: '2025-06-04 19:20', type: 'withdrawal', desc: 'Bank Withdrawal', amount: -1000, status: 'processing' },
-  { date: '2025-06-04 11:05', type: 'promotion', desc: 'Free Spin Winnings', amount: +280, status: 'completed' },
-];
 const TX_TYPE_STYLE = {
   deposit: { icon: '💳', color: '#4ade80', label: 'Deposit' },
   withdrawal: { icon: '💸', color: '#f87171', label: 'Withdrawal' },
@@ -227,7 +171,7 @@ export default function Profile() {
                 <div className="prof-referral-title" data-i18n="ref_tagline">They join, they win – all thanks to you</div>
                 <div className="prof-referral-sub" data-i18n="ref_friend_gift">Give your friend a gift! A special welcome bonus to start with.</div>
               </div>
-              <button className="prof-referral-btn" data-i18n="ref_invite_btn">🎁 Invite a Friend</button>
+              <button className="prof-referral-btn" onClick={() => go('referral')} data-i18n="ref_invite_btn">🎁 Invite a Friend</button>
             </div>
             <div className="prof-promo-create">
               <div className="prof-promo-label" data-i18n="ref_create_code">Create and share promocode</div>
@@ -312,9 +256,11 @@ function ProfTab({ id, label, icon, i18n, tab, setTab }) {
 }
 
 /* Reusable toggle preserving the original `.prof-toggle`/`.on` behaviour. */
-function Toggle({ initialOn = false }) {
+function Toggle({ initialOn = false, checked, onChange }) {
   const [on, setOn] = useState(initialOn);
-  return <div className={'prof-toggle' + (on ? ' on' : '')} onClick={() => setOn((v) => !v)}></div>;
+  const value = checked !== undefined ? checked : on;
+  const flip = () => { const next = !value; if (checked === undefined) setOn(next); onChange?.(next); };
+  return <div className={'prof-toggle' + (value ? ' on' : '')} onClick={flip}></div>;
 }
 
 /* ── SECURITY TAB (live: verify email/mobile, change password, 2FA) ── */
@@ -781,14 +727,38 @@ function BankTab({ show, toast }) {
 
 /* ── PROVABLY FAIR TAB ── */
 function ProvablyTab({ show, toast }) {
+  const [seeds, setSeeds] = useState(null); // { clientSeed, serverSeedHash, previousServerSeed, rotatedAt }
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!show) return;
+    let alive = true;
+    api.get('/player/me/fair').then((r) => { if (alive) setSeeds(r.data); }).catch(() => {});
+    return () => { alive = false; };
+  }, [show]);
+
+  const rotate = async () => {
+    setBusy(true);
+    try {
+      const r = await api.post('/player/me/fair/rotate');
+      setSeeds(r.data);
+      toast('Seeds rotated! 🔄 Previous server seed revealed below.', 'success');
+    } catch (e) { toast(e.response?.data?.error || 'Could not rotate seeds', 'error'); }
+    finally { setBusy(false); }
+  };
+
   return (
     <div id="prof-tab-provably" style={{ display: show ? 'block' : 'none' }}>
       <div className="prof-section">
         <div className="prof-section-title" data-i18n="prof_provably">Provably Fair</div>
         <div className="prof-section-sub" data-i18n="prof_provably_desc">Verify game results using cryptographic seeds</div>
-        <div className="prof-field" style={{ marginBottom: 14 }}><label data-i18n="prof_client_seed">Client Seed</label><input type="text" defaultValue="7f3a9b2c1e4d8f6a" readOnly /></div>
-        <div className="prof-field" style={{ marginBottom: 14 }}><label data-i18n="prof_server_seed">Server Seed (Hashed)</label><input type="text" defaultValue="a1b2c3d4e5f67890..." readOnly /></div>
-        <button className="prof-save-btn" onClick={() => toast('Seeds rotated!', 'success')} data-i18n="prof_rotate_seeds">Rotate Seeds</button>
+        <div className="prof-field" style={{ marginBottom: 14 }}><label data-i18n="prof_client_seed">Client Seed</label><input type="text" value={seeds?.clientSeed || '— rotate to generate —'} readOnly /></div>
+        <div className="prof-field" style={{ marginBottom: 14 }}><label data-i18n="prof_server_seed">Server Seed (SHA-256 hash)</label><input type="text" value={seeds?.serverSeedHash || '— rotate to generate —'} readOnly /></div>
+        {seeds?.previousServerSeed && (
+          <div className="prof-field" style={{ marginBottom: 14 }}><label>Previous Server Seed (revealed)</label><input type="text" value={seeds.previousServerSeed} readOnly /></div>
+        )}
+        {seeds?.rotatedAt && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 12 }}>Last rotated {new Date(seeds.rotatedAt).toLocaleString()}</div>}
+        <button className="prof-save-btn" onClick={rotate} disabled={busy} data-i18n="prof_rotate_seeds">{busy ? 'Rotating…' : 'Rotate Seeds'}</button>
       </div>
     </div>
   );
@@ -796,25 +766,74 @@ function ProvablyTab({ show, toast }) {
 
 /* ── RESTRICTIONS TAB ── */
 function RestrictionsTab({ show, toast }) {
+  const [daily, setDaily] = useState('');
+  const [session, setSession] = useState('');
+  const [selfEx, setSelfEx] = useState(false);
+  const [exDays, setExDays] = useState(30);
+  const [until, setUntil] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!show) return;
+    let alive = true;
+    api.get('/player/me/limits').then((r) => {
+      if (!alive) return;
+      const l = r.data || {};
+      setDaily(l.dailyDeposit ? String(l.dailyDeposit) : '');
+      setSession(l.sessionMinutes ? String(Math.round(l.sessionMinutes / 60)) : '');
+      const active = l.selfExcludeUntil && Date.parse(l.selfExcludeUntil) > Date.now();
+      setSelfEx(!!active);
+      setUntil(active ? l.selfExcludeUntil : '');
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [show]);
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      const r = await api.post('/player/me/limits', {
+        dailyDeposit: Number(daily) || 0,
+        sessionMinutes: (Number(session) || 0) * 60,
+        selfExcludeDays: selfEx ? exDays : 0,
+      });
+      const active = r.data.selfExcludeUntil && Date.parse(r.data.selfExcludeUntil) > Date.now();
+      setUntil(active ? r.data.selfExcludeUntil : '');
+      toast(active
+        ? `Limits saved — self-exclusion active until ${String(r.data.selfExcludeUntil).slice(0, 10)} 🔒`
+        : 'Limits saved ✔ — the daily deposit limit is enforced at deposit time', 'success');
+    } catch (e) { toast(e.response?.data?.error || 'Could not save limits', 'error'); }
+    finally { setBusy(false); }
+  };
+
   return (
     <div id="prof-tab-restrictions" style={{ display: show ? 'block' : 'none' }}>
       <div className="prof-section">
         <div className="prof-section-title" data-i18n="prof_responsible">Responsible Gaming</div>
-        <div className="prof-section-sub" data-i18n="prof_responsible_desc">Set limits to manage your gaming activity</div>
+        <div className="prof-section-sub" data-i18n="prof_responsible_desc">Set limits to manage your gaming activity — these are enforced by the server</div>
         <div className="prof-form-grid">
-          <div className="prof-field"><label data-i18n="prof_daily_limit">Daily Deposit Limit (₱)</label><input type="number" placeholder="No limit" /></div>
-          <div className="prof-field"><label data-i18n="prof_weekly_limit">Weekly Deposit Limit (₱)</label><input type="number" placeholder="No limit" /></div>
-          <div className="prof-field"><label data-i18n="prof_monthly_limit">Monthly Deposit Limit (₱)</label><input type="number" placeholder="No limit" /></div>
-          <div className="prof-field"><label data-i18n="prof_session_limit">Session Time Limit (hours)</label><input type="number" placeholder="No limit" /></div>
+          <div className="prof-field"><label data-i18n="prof_daily_limit">Daily Deposit Limit (₱)</label><input type="number" placeholder="No limit" value={daily} onChange={(e) => setDaily(e.target.value)} /></div>
+          <div className="prof-field"><label data-i18n="prof_session_limit">Session Time Limit (hours)</label><input type="number" placeholder="No limit" value={session} onChange={(e) => setSession(e.target.value)} /></div>
         </div>
         <div className="prof-toggle-row" style={{ marginTop: 16 }}>
           <div className="prof-toggle-info">
             <div className="prof-toggle-label" data-i18n="prof_self_excl">Self-exclusion</div>
-            <div className="prof-toggle-desc" data-i18n="prof_self_excl_desc">Temporarily disable your account</div>
+            <div className="prof-toggle-desc" data-i18n="prof_self_excl_desc">{until ? `Active until ${String(until).slice(0, 10)} — deposits are blocked` : 'Temporarily block deposits on your account'}</div>
           </div>
-          <Toggle />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {selfEx && (
+              <select value={exDays} onChange={(e) => setExDays(Number(e.target.value))} style={{ padding: '6px 10px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 12 }}>
+                <option value={7}>7 days</option><option value={30}>30 days</option><option value={90}>90 days</option><option value={180}>180 days</option>
+              </select>
+            )}
+            <label className="prof-toggle-wrap" style={{ cursor: 'pointer' }}>
+              <input type="checkbox" checked={selfEx} onChange={(e) => setSelfEx(e.target.checked)} style={{ display: 'none' }} />
+              <span className={'prof-toggle' + (selfEx ? ' on' : '')} style={{ display: 'inline-block', width: 44, height: 24, borderRadius: 14, background: selfEx ? 'var(--gold)' : 'rgba(255,255,255,.15)', position: 'relative', transition: 'background .2s' }}>
+                <span style={{ position: 'absolute', top: 3, left: selfEx ? 23 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left .2s' }}></span>
+              </span>
+            </label>
+          </div>
         </div>
-        <button className="prof-save-btn" onClick={() => toast('Limits saved!', 'success')} data-i18n="prof_save_limits">Save Limits</button>
+        <button className="prof-save-btn" onClick={save} disabled={busy} data-i18n="prof_save_limits">{busy ? 'Saving…' : 'Save Limits'}</button>
       </div>
     </div>
   );
@@ -822,35 +841,38 @@ function RestrictionsTab({ show, toast }) {
 
 /* ── CUSTOMIZATION TAB ── */
 function CustomizationTab({ show }) {
+  const { toast } = useUI();
+  const { profile } = useAuth();
+  const DEFAULTS = { showBalance: true, animations: true, sound: true, chatNotifs: false };
+  const [prefs, setPrefs] = useState({ ...DEFAULTS, ...(profile?.prefs || {}) });
+  useEffect(() => { if (profile?.prefs) setPrefs((p) => ({ ...DEFAULTS, ...profile.prefs })); }, [profile?.prefs]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const setPref = async (key, value) => {
+    const next = { ...prefs, [key]: value };
+    setPrefs(next);
+    try { await api.post('/player/me/prefs', { [key]: value }); toast('Preference saved ✔', 'success'); }
+    catch { toast('Could not save preference', 'error'); }
+  };
+
+  const ROWS = [
+    ['showBalance', 'Show balance in header', 'prof_show_balance'],
+    ['animations', 'Enable animations', 'prof_animations'],
+    ['sound', 'Sound effects', 'prof_sound'],
+    ['chatNotifs', 'Live chat notifications', 'prof_chat_notif'],
+  ];
   return (
     <div id="prof-tab-customization" style={{ display: show ? 'block' : 'none' }}>
       <div className="prof-section">
         <div className="prof-section-title" data-i18n="prof_display">Display Preferences</div>
-        <div className="prof-section-sub" data-i18n="prof_display_desc">Customize your gaming experience</div>
-        <div className="prof-toggle-row">
-          <div className="prof-toggle-info">
-            <div className="prof-toggle-label" data-i18n="prof_show_balance">Show balance in header</div>
+        <div className="prof-section-sub" data-i18n="prof_display_desc">Customize your gaming experience — saved to your account</div>
+        {ROWS.map(([key, label, i18n]) => (
+          <div className="prof-toggle-row" key={key}>
+            <div className="prof-toggle-info">
+              <div className="prof-toggle-label" data-i18n={i18n}>{label}</div>
+            </div>
+            <Toggle checked={!!prefs[key]} onChange={(v) => setPref(key, v)} />
           </div>
-          <Toggle initialOn />
-        </div>
-        <div className="prof-toggle-row">
-          <div className="prof-toggle-info">
-            <div className="prof-toggle-label" data-i18n="prof_animations">Enable animations</div>
-          </div>
-          <Toggle initialOn />
-        </div>
-        <div className="prof-toggle-row">
-          <div className="prof-toggle-info">
-            <div className="prof-toggle-label" data-i18n="prof_sound">Sound effects</div>
-          </div>
-          <Toggle initialOn />
-        </div>
-        <div className="prof-toggle-row">
-          <div className="prof-toggle-info">
-            <div className="prof-toggle-label" data-i18n="prof_chat_notif">Live chat notifications</div>
-          </div>
-          <Toggle />
-        </div>
+        ))}
       </div>
     </div>
   );
@@ -859,7 +881,44 @@ function CustomizationTab({ show }) {
 /* ════════════ TRANSACTIONS PANEL ════════════ */
 function TransactionsPanel({ show }) {
   const [filter, setFilter] = useState('all');
-  const rows = useMemo(() => (filter === 'all' ? TX_DEMO : TX_DEMO.filter((t) => t.type === filter)), [filter]);
+  const [txns, setTxns] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+
+  // Map a backend transaction onto this panel's row shape.
+  const mapTx = (t) => {
+    const src = String(t.source || t.method || '').toLowerCase();
+    const note = t.note || '';
+    let type = 'promotion';
+    if (t.type === 'deposit') type = 'deposit';
+    else if (t.type === 'withdrawal' || t.type === 'transfer') type = 'withdrawal';
+    else if (t.type === 'bonus') {
+      if (src.includes('commission') || src.includes('referral')) type = 'referral';
+      else if (src.includes('cashback') || note.toLowerCase().includes('cashback')) type = 'cashback';
+      else if (src.includes('rebate')) type = 'rebate';
+      else type = 'promotion';
+    }
+    const sign = (t.type === 'withdrawal' || t.type === 'transfer') ? -1 : 1;
+    const d = new Date(t.createdAt || 0);
+    return {
+      date: Number.isNaN(d.getTime()) ? '' : d.toLocaleString(),
+      type,
+      desc: note || `${(t.method || t.source || t.type || '').toString()} ${t.type}`.trim(),
+      amount: sign * Number(t.amount || 0),
+      status: t.status === 'approved' ? 'completed' : t.status === 'rejected' ? 'processing' : (t.status || 'pending'),
+    };
+  };
+
+  useEffect(() => {
+    if (!show) return;
+    let alive = true;
+    playersService.getTransactions().then((data) => {
+      const list = Array.isArray(data) ? data : data?.items || [];
+      if (alive) setTxns(list.map(mapTx));
+    }).catch(() => {}).finally(() => { if (alive) setLoaded(true); });
+    return () => { alive = false; };
+  }, [show]);
+
+  const rows = useMemo(() => (filter === 'all' ? txns : txns.filter((t) => t.type === filter)), [txns, filter]);
   const totalIn = rows.filter((r) => r.amount > 0).reduce((s, r) => s + r.amount, 0);
   const totalOut = rows.filter((r) => r.amount < 0).reduce((s, r) => s + r.amount, 0);
   const net = totalIn + totalOut;
@@ -968,27 +1027,45 @@ function TransactionsPanel({ show }) {
 
 /* ════════════ WAGER PANEL ════════════ */
 function WagerPanel({ show }) {
-  const d = WAGER_DATA;
-  const required = d.bonusAmount * d.multiplier;
-  const pct = Math.min(100, (d.wagered / required) * 100);
-  const remaining = Math.max(0, required - d.wagered);
+  const [w, setW] = useState(null); // { bonusBalance, wageredMonth, wageredTotal, bonuses }
+  useEffect(() => {
+    if (!show) return;
+    let alive = true;
+    api.get('/player/wager').then((r) => { if (alive) setW(r.data); }).catch(() => {});
+    return () => { alive = false; };
+  }, [show]);
+
+  const MULT = 20; // standard wagering requirement on bonuses
+  const bonusAmount = Number(w?.bonusBalance || 0);
+  const wagered = Number(w?.wageredMonth || 0);
+  const required = bonusAmount * MULT;
+  const hasBonus = bonusAmount > 0;
+  const pct = required > 0 ? Math.min(100, (wagered / required) * 100) : 0;
+  const remaining = Math.max(0, required - wagered);
   const pctStr = pct.toFixed(1) + '%';
+  const promos = (w?.bonuses || []).map((b) => ({
+    name: b.note || (b.source === 'kyc-bonus' ? 'KYC Approval Bonus' : b.source === 'agent-commission' ? 'Agent Commission' : b.source === 'mission' ? 'Mission Reward' : 'Bonus Credit'),
+    amount: Number(b.amount || 0), type: b.source === 'agent-commission' ? 'referral' : b.source === 'cashback' ? 'cashback' : 'welcome',
+    date: b.at || '', multiplier: MULT, wagered, required: Number(b.amount || 0) * MULT,
+    status: 'completed',
+  }));
+  const d = { bonusAmount, multiplier: MULT, wagered, promos };
 
   return (
     <div id="prof-wager-panel" style={{ display: show ? 'block' : 'none', flex: 1, minWidth: 0, background: 'var(--surface)', borderRadius: 16, overflow: 'hidden', padding: 28 }}>
 
       {/* Active Promotion Banner */}
-      <div id="wager-promo-banner" style={{ background: 'linear-gradient(135deg,#1a2a0a,#1e3a10)', border: '1px solid rgba(74,222,128,.2)', borderRadius: 12, padding: '16px 20px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+      <div id="wager-promo-banner" style={{ background: hasBonus ? 'linear-gradient(135deg,#1a2a0a,#1e3a10)' : 'var(--bg3)', border: '1px solid ' + (hasBonus ? 'rgba(74,222,128,.2)' : 'var(--border)'), borderRadius: 12, padding: '16px 20px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ fontSize: 28 }}>🎁</div>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 800, color: '#4ade80', marginBottom: 2 }} id="wager-promo-name" data-i18n="wager_promo_active">200% Welcome Bonus Active</div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,.5)' }} data-i18n="wager_unlock_desc">Complete wagering requirement to unlock withdrawal</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: hasBonus ? '#4ade80' : 'var(--text-muted)', marginBottom: 2 }} id="wager-promo-name">{hasBonus ? 'Bonus Balance Active' : 'No active bonus'}</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,.5)' }} data-i18n="wager_unlock_desc">{hasBonus ? 'Complete wagering requirement to unlock withdrawal' : 'Claim a promotion or mission reward to start'}</div>
           </div>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,.4)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 2 }} data-i18n="wager_bonus_amount">Bonus Amount</div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: '#4ade80' }}>+₱4,000.00</div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: '#4ade80' }}>+{peso(bonusAmount, 2)}</div>
         </div>
       </div>
 
@@ -1022,17 +1099,17 @@ function WagerPanel({ show }) {
         <div style={{ background: 'var(--bg3)', borderRadius: 12, padding: 16, textAlign: 'center' }}>
           <div style={{ fontSize: 24, marginBottom: 6 }}>🎰</div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }} data-i18n="wager_total_wagered">Wagered</div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>₱7,360.00</div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{peso(wagered, 2)}</div>
         </div>
         <div style={{ background: 'var(--bg3)', borderRadius: 12, padding: 16, textAlign: 'center' }}>
           <div style={{ fontSize: 24, marginBottom: 6 }}>🎯</div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }} data-i18n="wager_requirement">Requirement</div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--gold)' }}>20× <span data-i18n="wager_bonus_word">Bonus</span></div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--gold)' }}>{MULT}× <span data-i18n="wager_bonus_word">Bonus</span></div>
         </div>
         <div style={{ background: 'var(--bg3)', borderRadius: 12, padding: 16, textAlign: 'center' }}>
           <div style={{ fontSize: 24, marginBottom: 6 }}>💸</div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }} data-i18n="wager_still_needed">Still Needed</div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: '#f87171' }}>₱12,640.00</div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: '#f87171' }}>{peso(remaining, 2)}</div>
         </div>
       </div>
 
@@ -1049,6 +1126,9 @@ function WagerPanel({ show }) {
       <div style={{ marginBottom: 8 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 12 }} data-i18n="wager_promos_taken">Promotions Taken</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }} id="wager-promo-list">
+          {d.promos.length === 0 && (
+            <div style={{ background: 'var(--bg3)', borderRadius: 12, padding: '16px', fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>No bonuses received yet — check the Promotions and Missions pages.</div>
+          )}
           {d.promos.map((p, i) => {
             const pt = PTYPE[p.type] || { icon: '🎁', color: '#fbbf24' };
             const pPct = Math.min(100, (p.wagered / p.required) * 100);
@@ -1086,6 +1166,21 @@ function WagerPanel({ show }) {
 
 /* ════════════ GAME HISTORY PANEL ════════════ */
 function GameHistoryPanel({ show }) {
+  const [hist, setHist] = useState([]);
+  useEffect(() => {
+    if (!show) return;
+    let alive = true;
+    playersService.getGameHistory().then((data) => {
+      const list = Array.isArray(data) ? data : data?.items || [];
+      if (alive) setHist(list.map((g) => ({
+        id: g.id || g.refId || '', game: g.game || g.gameName || 'Game',
+        provider: g.provider || '', cat: g.category || g.cat || 'slots',
+        wager: Number(g.wager ?? g.amount ?? 0), win: Number(g.win || 0),
+        date: g.createdAt ? new Date(g.createdAt).toLocaleString() : (g.date || ''),
+      })));
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [show]);
   const [search, setSearch] = useState('');
   const [dateFilt, setDateFilt] = useState('all');
   const [provFilt, setProvFilt] = useState('all');
@@ -1096,7 +1191,7 @@ function GameHistoryPanel({ show }) {
     const todayStr = '2025-06-10';
     const weekStart = new Date(now); weekStart.setDate(now.getDate() - 7);
     const monthStart = new Date(now); monthStart.setDate(now.getDate() - 30);
-    let r = GH_DEMO;
+    let r = hist;
     if (dateFilt === 'today') r = r.filter((x) => x.date.startsWith(todayStr));
     else if (dateFilt === 'week') r = r.filter((x) => new Date(x.date.substring(0, 10)) >= weekStart);
     else if (dateFilt === 'month') r = r.filter((x) => new Date(x.date.substring(0, 10)) >= monthStart);
@@ -1107,7 +1202,7 @@ function GameHistoryPanel({ show }) {
     const s = search.toLowerCase();
     if (s) r = r.filter((x) => x.game.toLowerCase().includes(s) || x.provider.toLowerCase().includes(s) || x.id.toLowerCase().includes(s));
     return r;
-  }, [search, dateFilt, provFilt, resFilt]);
+  }, [hist, search, dateFilt, provFilt, resFilt]);
 
   const totalW = rows.reduce((s, r) => s + r.wager, 0);
   const totalWin = rows.reduce((s, r) => s + r.win, 0);

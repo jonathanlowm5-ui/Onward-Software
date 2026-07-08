@@ -115,6 +115,40 @@ router.get('/tiers', (req, res) => {
   res.json(currentTiers());
 });
 
+// Player's live VIP progress: level + real deposit/points totals vs the next
+// tier's thresholds (dep = total approved deposits, exp = total wagered).
+const { requirePlayer } = require('../auth');
+router.get('/me', requirePlayer, (req, res) => {
+  const p = store.get('players', req.auth.sub);
+  if (!p) return res.status(404).json({ error: 'Player not found' });
+  const tiers = currentTiers();
+  const depDone = store.list('transactions')
+    .filter((t) => String(t.playerId) === String(p.id) && t.type === 'deposit' && t.status === 'approved')
+    .reduce((s, t) => s + Number(t.amount || 0), 0);
+  const ptsDone = store.list('bets')
+    .filter((b) => String(b.playerId) === String(p.id))
+    .reduce((s, b) => s + Number(b.amount || 0), 0);
+
+  // Level derived from thresholds (never below the admin-set player.vipLevel).
+  let computed = 0;
+  for (const t of tiers) {
+    if (depDone >= Number(t.dep || 0) && ptsDone >= Number(t.exp || 0)) computed = t.lv;
+  }
+  const level = Math.max(Number(p.vipLevel || 0), computed);
+  const next = tiers.find((t) => t.lv === level + 1) || null;
+
+  res.json({
+    level,
+    levelName: (tiers.find((t) => t.lv === level) || {}).n || (level === 0 ? 'Member' : `VIP ${level}`),
+    depDone, ptsDone,
+    next: next ? { lv: next.lv, n: next.n, dep: Number(next.dep || 0), exp: Number(next.exp || 0) } : null,
+    progress: next ? Math.min(100, Math.round(Math.min(
+      depDone / Math.max(1, Number(next.dep || 1)),
+      ptsDone / Math.max(1, Number(next.exp || 1))
+    ) * 100)) : 100,
+  });
+});
+
 router.put('/tiers', requireAuth, requirePerm('settings.manage'), (req, res) => {
   const incoming = Array.isArray(req.body) ? req.body : req.body && req.body.tiers;
   if (!Array.isArray(incoming) || !incoming.length) {

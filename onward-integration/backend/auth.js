@@ -36,12 +36,31 @@ function signPlayer(player) {
   );
 }
 
+// Mutating admin requests are recorded to audit_log (viewed in System → Audit
+// Logs). GETs and the marketing scheduler tick are skipped to keep it useful.
+function auditLog(req) {
+  try {
+    if (req.method === 'GET') return;
+    const path = req.originalUrl || req.url || '';
+    if (path.includes('/marketing/tick')) return;
+    const store = require('./store');
+    store.insert('audit_log', {
+      admin: req.user?.sub || 'unknown',
+      role: req.user?.role || '',
+      method: req.method,
+      path: path.slice(0, 200),
+      ip: (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip || '',
+    });
+  } catch { /* never block the request on logging */ }
+}
+
 function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (!token) return res.status(401).json({ error: 'Missing authorization token' });
   try {
     req.user = jwt.verify(token, JWT_SECRET);
+    auditLog(req);
     next();
   } catch {
     return res.status(401).json({ error: 'Invalid or expired token' });

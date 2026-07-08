@@ -3,6 +3,42 @@ import { useUI } from '../context/UIContext';
 import { getSettings, updateSettings } from '../services/cmsService';
 import { getGeoBlock, saveGeoBlock } from '../services/playerService';
 import { getCurrencyRates, saveCurrencyRates } from '../services/currencyRatesService';
+import { getConfig, saveConfig } from '../services/configService';
+
+/* Player-site live numbers: jackpot pool base, online-count baseline, referral
+ * reward text. Served to players via GET /public/stats + /player/referral. */
+function SiteNumbersCard() {
+  const { toast } = useUI();
+  const [pool, setPool] = useState('');
+  const [baseline, setBaseline] = useState('');
+  const [reward, setReward] = useState('');
+  useEffect(() => {
+    getConfig().then((c) => {
+      setPool(c.jackpotPool != null ? String(c.jackpotPool) : '');
+      setBaseline(c.onlineBaseline != null ? String(c.onlineBaseline) : '');
+      setReward(c.referralReward || '');
+    }).catch(() => {});
+  }, []);
+  const save = async () => {
+    try {
+      await saveConfig({
+        jackpotPool: Number(pool) || 0,
+        onlineBaseline: Number(baseline) || 0,
+        referralReward: reward,
+      });
+      toast('Player-site numbers saved ✔ — live on /public/stats');
+    } catch (e) { toast('⚠ ' + (e.message || 'Save failed')); }
+  };
+  return (
+    <div className="set-card" style={{ marginTop: 16 }}>
+      <div className="ch">🎰 Player-Site Numbers</div>
+      <div className="gss-set-fld"><label>Jackpot Pool base (₱ — grows with real wagering)</label><input value={pool} inputMode="numeric" onChange={(e) => setPool(e.target.value)} placeholder="e.g. 1000000" /></div>
+      <div className="gss-set-fld"><label>Online-count baseline (added to the real online count; 0 = raw)</label><input value={baseline} inputMode="numeric" onChange={(e) => setBaseline(e.target.value)} placeholder="0" /></div>
+      <div className="gss-set-fld"><label>Referral reward text (shown on the Referral page)</label><input value={reward} onChange={(e) => setReward(e.target.value)} placeholder="e.g. ₱500 per active friend" /></div>
+      <button className="gss-savebtn" onClick={save}>Save Changes</button>
+    </div>
+  );
+}
 
 // Self-contained country / IP restriction panel. Blocks registration AND login
 // from the listed countries (ISO 3166 alpha-2 codes, e.g. US, GB, CN).
@@ -289,6 +325,7 @@ export default function SiteSettings() {
             <div className="gss-sec-tog"><label className="switch"><input type="checkbox" checked={sec.regOpen} onChange={() => secToggle('regOpen')} /><span className="slider"></span></label> New registrations open</div>
             <div className="gss-set-fld" style={{ margin: '6px 0 0' }}><label>Max Withdrawal / Day (₱)</label><input value={cfg.maxWdDay} inputMode="numeric" onChange={(e) => setCfgField('maxWdDay', e.target.value)} /></div>
           </div>
+          <SiteNumbersCard />
           <GeoBlockCard />
           <CurrencyRatesCard />
         </div>

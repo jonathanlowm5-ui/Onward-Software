@@ -61,6 +61,39 @@ router.get('/', (req, res) => {
   res.json(items);
 });
 
+// Live leaderboard: top players by REAL wagering on the tournament's games
+// (or its provider) within the start/end window.
+router.get('/:id/leaderboard', (req, res) => {
+  const t = list().find((x) => String(x.id) === String(req.params.id));
+  if (!t) return res.status(404).json({ error: 'Tournament not found' });
+  const start = t.start ? Date.parse(t.start) : 0;
+  const end = t.end ? Date.parse(t.end) : Infinity;
+  const games = new Set((t.games || []).map((g) => String(g).toLowerCase()));
+  const provider = String(t.provider || '').toLowerCase();
+
+  const byPlayer = {};
+  for (const b of store.list('bets')) {
+    const ts = Date.parse(b.createdAt || '');
+    if (Number.isNaN(ts) || ts < start || ts > end) continue;
+    const game = String(b.game || b.gameName || '').toLowerCase();
+    const prov = String(b.provider || '').toLowerCase();
+    if (games.size && !games.has(game)) {
+      if (!provider || prov !== provider) continue;
+    } else if (!games.size && provider && prov !== provider) continue;
+    const key = String(b.playerId);
+    byPlayer[key] = byPlayer[key] || { playerId: key, username: b.username || 'player', wagered: 0, won: 0, bets: 0 };
+    byPlayer[key].wagered += Number(b.amount || 0);
+    byPlayer[key].won += Number(b.win || 0);
+    byPlayer[key].bets += 1;
+  }
+  const mask = (u) => { const s = String(u || 'player'); return s.length <= 3 ? s[0] + '***' : s.slice(0, 3) + '***' + (s.length > 6 ? s.slice(-1) : ''); };
+  const rows = Object.values(byPlayer)
+    .sort((a, b) => b.wagered - a.wagered)
+    .slice(0, 50)
+    .map((r, i) => ({ rank: i + 1, player: mask(r.username), wagered: r.wagered, won: r.won, bets: r.bets }));
+  res.json({ id: t.id, name: t.name || t.title || '', start: t.start || '', end: t.end || '', rows });
+});
+
 router.put('/', requireAuth, requirePerm('settings.manage'), (req, res) => {
   const items = (Array.isArray(req.body && req.body.items) ? req.body.items : [])
     .map(clean).filter(Boolean).slice(0, 100);

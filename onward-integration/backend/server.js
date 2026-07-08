@@ -72,6 +72,9 @@ app.use('/api/marketing', require('./routes/marketing'));
 app.use('/api/top-buttons', require('./routes/topbuttons'));
 app.use('/api/web-design', require('./routes/webdesign'));
 app.use('/api/floating', require('./routes/floating'));
+app.use('/api/reports', require('./routes/reports'));
+app.use('/api/public', require('./routes/public'));
+app.use('/api/giveaways', require('./routes/giveaways'));
 
 app.get('/api/health', (req, res) => res.json({ ok: true, service: 'onward-api' }));
 

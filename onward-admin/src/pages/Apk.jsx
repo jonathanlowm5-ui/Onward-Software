@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useUI } from '../context/UIContext';
+import { getConfig, saveConfig } from '../services/configService';
 
 const IOS_ROWS = [
   { ver: '測試-law', pkg: 'law', force: 'no', url: 'law.com', sig: '3', content: '1', chg: '2026-05-07 10:37:34', cr: '2026-05-07 10:37:34', active: false },
@@ -39,6 +40,7 @@ const apkTrunc = (u, n) => (u.length > n ? u.slice(0, n) + '…' : u);
 
 export default function Apk() {
   const { toast } = useUI();
+  const [loaded, setLoaded] = useState(false);
   const [platform, setPlatform] = useState('ios');
   const [adUrl, setAdUrl] = useState({ ios: '', android: '' });
   const [iosRows, setIosRows] = useState(IOS_ROWS);
@@ -48,12 +50,33 @@ export default function Apk() {
   const [editIdx, setEditIdx] = useState(-1);
   const [form, setForm] = useState({ ver: '', pkg: '', url: '', sig: '', content: '', force: 'no' });
 
+  // Persisted as settings.apkVersions = { ios: [...], android: [...] }.
+  useEffect(() => {
+    getConfig()
+      .then((c) => {
+        const v = c.apkVersions;
+        if (v) {
+          if (Array.isArray(v.ios)) setIosRows(v.ios);
+          if (Array.isArray(v.android)) setAndroidRows(v.android);
+        }
+      })
+      .catch(() => toast('⚠ Could not load saved APK config — showing defaults'))
+      .finally(() => setLoaded(true));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const ios = platform === 'ios';
   const pf = ios ? 'iOS' : 'Android';
   const unit = ios ? 'IPA' : 'APK';
   const rows = ios ? iosRows : androidRows;
-  const setRows = ios ? setIosRows : setAndroidRows;
   const active = rows.find((r) => r.active);
+
+  // Set the current platform's rows and persist both platforms immediately.
+  const persistRows = (next, msg) => {
+    (ios ? setIosRows : setAndroidRows)(next);
+    saveConfig({ apkVersions: { ios: ios ? next : iosRows, android: ios ? androidRows : next } })
+      .then(() => msg && toast(msg))
+      .catch((e) => toast('⚠ ' + (e.message || 'Save failed')));
+  };
 
   const warn = ios
     ? 'When updating, the system prioritizes the version currently used by the member. If the member is using the AD version, the AD download URL will be used first. If no AD URL is configured, the TF download URL will be used instead.'
@@ -66,8 +89,8 @@ export default function Apk() {
 
   const use = (i) => {
     const ver = rows[i].ver;
-    setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, active: true, chg: apkNow() } : { ...r, active: false })));
-    toast('Version set active ✅ ' + ver + ' — now used by members (' + (ios ? 'iOS' : 'Android') + ')');
+    const next = rows.map((r, idx) => (idx === i ? { ...r, active: true, chg: apkNow() } : { ...r, active: false }));
+    persistRows(next, 'Version set active ✅ ' + ver + ' — now used by members (' + (ios ? 'iOS' : 'Android') + ')');
   };
 
   const del = (i) => {
@@ -76,8 +99,7 @@ export default function Apk() {
       return;
     }
     const ver = rows[i].ver;
-    setRows((prev) => prev.filter((_, idx) => idx !== i));
-    toast('Version deleted 🗑 ' + ver);
+    persistRows(rows.filter((_, idx) => idx !== i), 'Version deleted 🗑 ' + ver);
   };
 
   const publish = () => {
@@ -86,8 +108,8 @@ export default function Apk() {
       toast('⚠ No active version — click "use" on a version first');
       return;
     }
-    setRows((prev) => prev.map((r) => (r.active ? { ...r, chg: apkNow() } : r)));
-    toast('Published 🚀 ' + (ios ? 'iOS' : 'Android') + ' ' + a.ver + ' released to members' + (adUrl[platform] ? ' · AD URL set' : ''));
+    const next = rows.map((r) => (r.active ? { ...r, chg: apkNow() } : r));
+    persistRows(next, 'Published 🚀 ' + (ios ? 'iOS' : 'Android') + ' ' + a.ver + ' released to members' + (adUrl[platform] ? ' · AD URL set' : ''));
   };
 
   const gen = () => {
@@ -97,8 +119,7 @@ export default function Apk() {
     const nv = parts.join('.');
     const rec = { ver: nv, pkg: ios ? '' : 'com.pusta88.android', force: 'no', url: '', content: 'Auto-generated build', chg: apkNow(), cr: apkNow(), active: false };
     if (ios) rec.sig = '';
-    setRows((prev) => [rec, ...prev]);
-    toast('New ' + unit + ' generated 🛠 ' + nv + ' — download, re-sign, then click "use"');
+    persistRows([rec, ...rows], 'New ' + unit + ' generated 🛠 ' + nv + ' — download, re-sign, then click "use"');
   };
 
   const refresh = () => {
@@ -167,11 +188,9 @@ export default function Apk() {
     if (editIdx < 0) {
       data.cr = apkNow();
       data.active = false;
-      setRows((prev) => [data, ...prev]);
-      toast('Version added ✅ ' + ver + ' — click "use" to activate');
+      persistRows([data, ...rows], 'Version added ✅ ' + ver + ' — click "use" to activate');
     } else {
-      setRows((prev) => prev.map((r, idx) => (idx === editIdx ? { ...r, ...data } : r)));
-      toast('Version updated 💾 ' + ver);
+      persistRows(rows.map((r, idx) => (idx === editIdx ? { ...r, ...data } : r)), 'Version updated 💾 ' + ver);
     }
     close();
   };
@@ -185,6 +204,8 @@ export default function Apk() {
   const contentLbl = pf + ' Update Content';
   const title = (editIdx < 0 ? 'Add ' : 'Edit ') + pf + ' Version';
   const saveBtnText = editIdx < 0 ? '✅ Add Version' : '💾 Save Changes';
+
+  if (!loaded) return <div className="hist-empty">Loading APK config…</div>;
 
   return (
     <>

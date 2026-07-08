@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import useSectionNav from '../hooks/useSectionNav';
 import { useUI } from '../context/UIContext';
+import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
 
 const GW_DATA = [
   {
@@ -40,11 +42,37 @@ const GW_DATA = [
 const BADGE_CLASS = { exclusive: 'gw-badge-exclusive', free: 'gw-badge-free', vip: 'gw-badge-vip', limited: 'gw-badge-limited' };
 const pad = (n) => String(n).padStart(2, '0');
 
-function GWCard({ g, openModal }) {
+const GW_BTN_COLORS = ['purple', 'blue', 'gold', 'red'];
+const GW_PRIZE_COLORS = ['orange', 'blue', 'gold', 'purple'];
+const isImg = (s) => /^(https?:\/\/|\/|data:)/.test(String(s || ''));
+
+// Map an admin giveaway (/api/giveaways) into the card shape this page renders.
+function apiToCard(g, i) {
+  const min = Number(g.minDeposit) || 0;
+  return {
+    id: g.id || 'gw' + i,
+    badge: min > 0 ? 'exclusive' : 'free',
+    badgeLabel: min > 0 ? 'EXCLUSIVE' : 'FREE',
+    title: g.title || 'Giveaway',
+    sub: g.desc || '',
+    participants: Number(g.participants) || 0,
+    slides: g.image ? [g.image] : [g.icon || '🎁'],
+    prize: g.prize || '',
+    prizeLabel: min > 0 ? `₱${min.toLocaleString()}+` : 'FREE',
+    prizeColor: GW_PRIZE_COLORS[i % GW_PRIZE_COLORS.length],
+    endsIn: g.endsAt ? Date.parse(g.endsAt) || 0 : 0, // 0 = no countdown
+    btnColor: GW_BTN_COLORS[i % GW_BTN_COLORS.length],
+    minDeposit: min,
+    active: true,
+  };
+}
+
+function GWCard({ g, openModal, isLoggedIn, toast }) {
   const [slide, setSlide] = useState(0);
-  const [diff, setDiff] = useState(() => Math.max(0, g.endsIn - Date.now()));
+  const [diff, setDiff] = useState(() => (g.endsIn ? Math.max(0, g.endsIn - Date.now()) : 0));
 
   useEffect(() => {
+    if (!g.endsIn) { setDiff(0); return undefined; }
     const t = setInterval(() => {
       const d = Math.max(0, g.endsIn - Date.now());
       setDiff(d);
@@ -52,6 +80,11 @@ function GWCard({ g, openModal }) {
     }, 1000);
     return () => clearInterval(t);
   }, [g.endsIn]);
+
+  const takePart = () => {
+    if (!isLoggedIn) { openModal('register'); return; }
+    toast(g.minDeposit ? `Deposit ₱${g.minDeposit}+ to enter` : 'Play to collect entries!');
+  };
 
   const d = Math.floor(diff / 86400000);
   const h = Math.floor((diff % 86400000) / 3600000);
@@ -73,7 +106,11 @@ function GWCard({ g, openModal }) {
       <div className="gw-carousel">
         <div className="gw-carousel-slides" id={`gw-slides-${g.id}`} style={{ transform: `translateX(-${slide * 100}%)` }}>
           {g.slides.map((sl, i) => (
-            <div key={i} className="gw-carousel-slide" style={{ background: 'var(--bg3)' }}>{sl}</div>
+            <div key={i} className="gw-carousel-slide" style={{ background: 'var(--bg3)' }}>
+              {isImg(sl)
+                ? <img src={sl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                : sl}
+            </div>
           ))}
         </div>
         <button className="gw-carousel-arrow left" onClick={() => goDir(-1)}>‹</button>
@@ -88,27 +125,46 @@ function GWCard({ g, openModal }) {
         <div className="gw-prize-name" data-i18n={g.prizeKey || ''}>{g.prize}</div>
         <div className={`gw-prize-badge ${g.prizeColor}`}>{g.prizeLabel}</div>
       </div>
-      <div className="gw-total-row">
-        <div className="gw-total-label"><span data-i18n="gw_total_word">Total</span> <span>{g.totalPrizes} <span data-i18n="gw_prizes">prizes</span></span></div>
-        <div className="gw-total-prize" style={{ background: g.totalColor, color: g.totalColor === 'var(--gold)' ? '#06091a' : '#fff' }}>{g.totalLabel}</div>
-      </div>
-      <div className="gw-countdown" id={`gw-cd-${g.id}`}>
-        <div className="gw-countdown-unit"><div className="gw-countdown-num" id={`gw-d-${g.id}`}>{pad(d)}</div><div className="gw-countdown-label" data-i18n="misc_days">Days</div></div>
-        <div className="gw-countdown-unit"><div className="gw-countdown-num" id={`gw-h-${g.id}`}>{pad(h)}</div><div className="gw-countdown-label" data-i18n="misc_hours">Hours</div></div>
-        <div className="gw-countdown-unit"><div className="gw-countdown-num" id={`gw-m-${g.id}`}>{pad(m)}</div><div className="gw-countdown-label" data-i18n="misc_minutes">Minutes</div></div>
-        <div className="gw-countdown-unit"><div className="gw-countdown-num" id={`gw-s-${g.id}`}>{pad(s)}</div><div className="gw-countdown-label" data-i18n="misc_seconds">Seconds</div></div>
-      </div>
-      <button className={`gw-take-btn ${g.btnColor}`} onClick={() => openModal('register')} data-i18n="gw_take">TAKE PART</button>
+      {g.totalLabel && (
+        <div className="gw-total-row">
+          <div className="gw-total-label"><span data-i18n="gw_total_word">Total</span> <span>{g.totalPrizes} <span data-i18n="gw_prizes">prizes</span></span></div>
+          <div className="gw-total-prize" style={{ background: g.totalColor, color: g.totalColor === 'var(--gold)' ? '#06091a' : '#fff' }}>{g.totalLabel}</div>
+        </div>
+      )}
+      {g.endsIn > 0 && (
+        <div className="gw-countdown" id={`gw-cd-${g.id}`}>
+          <div className="gw-countdown-unit"><div className="gw-countdown-num" id={`gw-d-${g.id}`}>{pad(d)}</div><div className="gw-countdown-label" data-i18n="misc_days">Days</div></div>
+          <div className="gw-countdown-unit"><div className="gw-countdown-num" id={`gw-h-${g.id}`}>{pad(h)}</div><div className="gw-countdown-label" data-i18n="misc_hours">Hours</div></div>
+          <div className="gw-countdown-unit"><div className="gw-countdown-num" id={`gw-m-${g.id}`}>{pad(m)}</div><div className="gw-countdown-label" data-i18n="misc_minutes">Minutes</div></div>
+          <div className="gw-countdown-unit"><div className="gw-countdown-num" id={`gw-s-${g.id}`}>{pad(s)}</div><div className="gw-countdown-label" data-i18n="misc_seconds">Seconds</div></div>
+        </div>
+      )}
+      <button className={`gw-take-btn ${g.btnColor}`} onClick={takePart} data-i18n="gw_take">TAKE PART</button>
     </div>
   );
 }
 
 export default function Giveaways() {
   const go = useSectionNav();
-  const { openModal } = useUI();
+  const { openModal, toast } = useUI();
+  const { isLoggedIn } = useAuth();
   const [tab, setTab] = useState('active');
 
-  const activeData = useMemo(() => GW_DATA.filter((g) => g.active), []);
+  // Admin-managed giveaways from the backend; the bundled showcase set stays
+  // as the fallback while loading / when the API returns an empty list.
+  const [apiGws, setApiGws] = useState([]);
+  useEffect(() => {
+    let alive = true;
+    api.get('/giveaways', { params: { active: 1 } })
+      .then((r) => { if (alive && Array.isArray(r.data)) setApiGws(r.data.map(apiToCard)); })
+      .catch(() => { /* keep the showcase set */ });
+    return () => { alive = false; };
+  }, []);
+
+  const activeData = useMemo(
+    () => (apiGws.length ? apiGws : GW_DATA.filter((g) => g.active)),
+    [apiGws],
+  );
   const total = tab === 'archive' ? 0 : activeData.length;
 
   return (
@@ -139,7 +195,7 @@ export default function Giveaways() {
           {tab === 'archive' ? (
             <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)', fontSize: '15px' }}>No archived giveaways yet.</div>
           ) : (
-            activeData.map((g) => <GWCard key={g.id} g={g} openModal={openModal} />)
+            activeData.map((g) => <GWCard key={g.id} g={g} openModal={openModal} isLoggedIn={isLoggedIn} toast={toast} />)
           )}
         </div>
 

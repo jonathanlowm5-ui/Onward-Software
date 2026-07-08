@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUI } from '../../context/UIContext';
+import api from '../../services/api';
 import useSectionNav from '../../hooks/useSectionNav';
 import useFavorites from '../../hooks/useFavorites';
 import useWebDesign from '../../hooks/useWebDesign';
@@ -28,6 +29,14 @@ const SPORT_GROUPS = [
     subs: ['▶ Live & Upcoming', '🏅 Outrights', '⚾ MLB', '⊞ View All'] },
 ];
 
+// Compact ₱ figure for the Jackpots badge (e.g. ₱1.2M / ₱830K).
+const fmtPool = (n) => {
+  if (n >= 1e9) return `₱${(n / 1e9).toFixed(1).replace(/\.0$/, '')}B`;
+  if (n >= 1e6) return `₱${(n / 1e6).toFixed(1).replace(/\.0$/, '')}M`;
+  if (n >= 1e3) return `₱${Math.round(n / 1e3)}K`;
+  return `₱${Math.round(n)}`;
+};
+
 const SPORT_SINGLES = [
   { icon: '🏈', label: 'American Football', i18n: 'sport_am_football' },
   { icon: '🏐', label: 'Volleyball', i18n: 'sport_volleyball' },
@@ -47,6 +56,16 @@ export default function Sidebar() {
   const navigate = useNavigate();
 
   const toggleGroup = (id) => setOpenGroups((g) => ({ ...g, [id]: !g[id] }));
+
+  // Real jackpot pool for the Jackpots badge (showcase text while loading).
+  const [jpBadge, setJpBadge] = useState('₱128M');
+  useEffect(() => {
+    let alive = true;
+    api.get('/public/stats')
+      .then((r) => { const pool = Number(r.data?.jackpotPool); if (alive && pool > 0) setJpBadge(fmtPool(pool)); })
+      .catch(() => { /* keep the fallback badge */ });
+    return () => { alive = false; };
+  }, []);
 
   // filterSidebar(cat) — show a filtered slots view.
   const filterSidebar = (cat) => {
@@ -91,7 +110,7 @@ export default function Sidebar() {
           <SbItem img={icGiveaway} icon="⚡" label="Giveaways" i18n="nav_giveaways" badge={{ cls: 'hot', text: 'HOT' }} onClick={() => go('giveaways')} />
           <SbItem img={icRewards} icon="🎯" label="Mission" i18n="nav_mission" onClick={() => go('missions')} />
           <SbItem img={icUseCode} icon="🎟️" label="Use Code" i18n="nav_use_code" onClick={openUseCodeModal} />
-          <SbItem img={icCrown} icon="👑" label="Jackpots" i18n="nav_jackpots" badge={{ cls: 'hot', text: '₱128M' }} onClick={() => go('jackpots')} />
+          <SbItem img={icCrown} icon="👑" label="Jackpots" i18n="nav_jackpots" badge={{ cls: 'hot', text: jpBadge }} onClick={() => go('jackpots')} />
           <SbItem icon="🤝" label="Referral" i18n="nav_referral" onClick={() => go('referral')} />
 
           <div className="sb-divider"></div>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useUI } from '../context/UIContext';
 import { useAuth } from '../context/AuthContext';
 import useSectionNav from '../hooks/useSectionNav';
@@ -7,6 +7,7 @@ import PageBanner from '../components/common/PageBanner.jsx';
 import usePageHero from '../hooks/usePageHero';
 import { JP_WINNINGS, ALL_SLOTS, LIVE_GAMES } from '../services/data/gameData';
 import { launchGame as resolveLaunch } from '../services/gamesService';
+import api from '../services/api';
 import { makeDisplayMoney } from '../utils/displayMoney';
 // Uploaded jackpot tier badges (replace the medal/crown emoji on each card).
 import jpImperial from '../assets/jackpot/jackpot-imperial.avif';
@@ -88,26 +89,50 @@ export default function Jackpots() {
     else openModal('game', { name: g.name, icon: g.icon });
   };
 
+  // Real public stats: jackpot pool seeds the headline counter, recent big
+  // wins replace the showcase "Last winnings" table when there are any.
+  const [poolBase, setPoolBase] = useState(null); // real pool (PHP) or null
+  const [bigWins, setBigWins] = useState([]);
+  const seededAt = useRef(Date.now()); // pool ticks up from the moment it loads
+  useEffect(() => {
+    let alive = true;
+    api.get('/public/stats')
+      .then((r) => {
+        if (!alive || !r.data) return;
+        const pool = Number(r.data.jackpotPool);
+        if (pool > 0) { seededAt.current = Date.now(); setPoolBase(pool); }
+        if (Array.isArray(r.data.bigWins) && r.data.bigWins.length) setBigWins(r.data.bigWins);
+      })
+      .catch(() => { /* keep the showcase figures if stats can't be loaded */ });
+    return () => { alive = false; };
+  }, []);
+
   // Progressive counters grow deterministically from a fixed epoch, so every
   // player sees the SAME jackpot value at the same moment (and it no longer
-  // resets on refresh). A little sine wobble keeps the growth organic.
+  // resets on refresh). A little sine wobble keeps the growth organic. Once
+  // the real pool loads, the headline counter is seeded with it and keeps the
+  // same client-side ticking animation on top.
   const JP_EPOCH = 1735689600000; // 2025-01-01
-  const jpAt = (base, perSec) => {
-    const secs = (Date.now() - JP_EPOCH) / 1000;
+  const jpAt = (base, perSec, epoch) => {
+    const secs = (Date.now() - epoch) / 1000;
     return base + secs * perSec + Math.sin(secs / 9) * perSec * 4;
   };
   const compute = () => ({
-    t1: jpAt(7740000, 1.15),
-    t2: jpAt(173550, 0.11),
-    t3: jpAt(16560, 0.021),
-    t4: jpAt(682200, 0.05),
-    mega: jpAt(8610389.37, 1.3),
+    t1: jpAt(7740000, 1.15, JP_EPOCH),
+    t2: jpAt(173550, 0.11, JP_EPOCH),
+    t3: jpAt(16560, 0.021, JP_EPOCH),
+    t4: jpAt(682200, 0.05, JP_EPOCH),
+    mega: poolBase != null
+      ? jpAt(poolBase, 1.3, seededAt.current)
+      : jpAt(8610389.37, 1.3, JP_EPOCH),
   });
   const [jp, setJp] = useState(compute);
   useEffect(() => {
+    setJp(compute());
     const id = setInterval(() => setJp(compute()), 1600);
     return () => clearInterval(id);
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [poolBase]);
   const tiers = jp;
   const mega = jp.mega;
 
@@ -226,7 +251,26 @@ export default function Jackpots() {
                 </tr>
               </thead>
               <tbody id="jp-winnings-tbody">
-                {JP_WINNINGS.map((w, i) => (
+                {bigWins.length ? bigWins.map((w, i) => (
+                  <tr key={i}>
+                    <td style={{ color: 'rgba(255,255,255,.45)', fontSize: '12px' }}>{(w.at || '').slice(0, 10)}</td>
+                    <td>
+                      <div className="jp-user-cell">
+                        <div className="jp-user-avatar">{String(w.player || 'P').charAt(0).toUpperCase()}</div>
+                        {w.player}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="jp-jackpot-cell">
+                        <span className="jp-jackpot-crown">🏅</span>
+                        <span className="golden-color">{w.game}</span>
+                      </div>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <span className="jp-prize-cell golden-color">{money(w.win, { base: w.currency || 'PHP' })}</span>
+                    </td>
+                  </tr>
+                )) : JP_WINNINGS.map((w, i) => (
                   <tr key={i}>
                     <td style={{ color: 'rgba(255,255,255,.45)', fontSize: '12px' }}>{w.date}</td>
                     <td>
@@ -248,7 +292,7 @@ export default function Jackpots() {
                     </td>
                   </tr>
                 ))}
-              </tbody>
+              </tbody>{/* real bigWins when available, showcase otherwise */}
             </table>
           </div>
           <button className="jp-winnings-btn" onClick={() => go('slots')} data-i18n="jp_play_games">PLAY GAMES</button>
