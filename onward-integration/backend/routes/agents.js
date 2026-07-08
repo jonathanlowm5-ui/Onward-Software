@@ -178,6 +178,9 @@ router.post('/apply', requirePlayer, (req, res) => {
   if (!b.bankName || !b.bankAccountName || !b.bankAccountNo) {
     return res.status(400).json({ error: 'Banking details (bank, account name, account number) are required' });
   }
+  if (!b.selfieWithId) {
+    return res.status(400).json({ error: 'A selfie holding your ID is required' });
+  }
 
   const app = store.insert(APPS, {
     playerId: req.auth.sub,
@@ -196,6 +199,7 @@ router.post('/apply', requirePlayer, (req, res) => {
     bankName: b.bankName, bankAccountName: b.bankAccountName,
     bankAccountNo: b.bankAccountNo, bankBranch: b.bankBranch || '',
     // documents (urls from /api/upload)
+    selfieWithId: b.selfieWithId || '',
     documents: Array.isArray(b.documents) ? b.documents : [],
     // workflow
     status: 'pending',

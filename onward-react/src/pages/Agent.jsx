@@ -191,9 +191,11 @@ function ApplyForm({ profile, toast, onDone }) {
     bankName: '', bankAccountName: '', bankAccountNo: '', bankBranch: '',
   });
   const [docs, setDocs] = useState([]); // [{name,url}]
+  const [selfie, setSelfie] = useState(''); // selfie-with-ID url
   const [uploading, setUploading] = useState(false);
   const [sending, setSending] = useState(false);
   const fileRef = useRef(null);
+  const selfieRef = useRef(null);
   const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
   const toggleCh = (c) => set('channels', f.channels.includes(c) ? f.channels.filter((x) => x !== c) : [...f.channels, c]);
 
@@ -210,12 +212,24 @@ function ApplyForm({ profile, toast, onDone }) {
     finally { setUploading(false); }
   };
 
+  const pickSelfie = async (file) => {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { url } = await uploadFile(file, 'agent');
+      setSelfie(url);
+      toast('Selfie uploaded ✔', 'success');
+    } catch (e) { toast('Upload failed: ' + (e.response?.data?.error || e.message), 'error'); }
+    finally { setUploading(false); }
+  };
+
   const submit = async () => {
     if (!f.fullName || !f.phone || !f.email) { toast('Fill in your name, phone and email', 'error'); return; }
     if (!f.bankName || !f.bankAccountName || !f.bankAccountNo) { toast('Banking details are required', 'error'); return; }
+    if (!selfie) { toast('Please upload a selfie holding your ID', 'error'); return; }
     setSending(true);
     try {
-      await api.post('/agents/apply', { ...f, documents: docs });
+      await api.post('/agents/apply', { ...f, selfieWithId: selfie, documents: docs });
       toast('Application submitted! 🎉 Track its status here.', 'success');
       onDone();
     } catch (e) { toast(e.response?.data?.error || 'Could not submit application', 'error'); }
@@ -261,6 +275,20 @@ function ApplyForm({ profile, toast, onDone }) {
         <Fld label="Account holder name" req><input style={inputSt} value={f.bankAccountName} onChange={(e) => set('bankAccountName', e.target.value)} /></Fld>
         <Fld label="Account number" req><input style={inputSt} value={f.bankAccountNo} onChange={(e) => set('bankAccountNo', e.target.value)} /></Fld>
         <Fld label="Branch (optional)"><input style={inputSt} value={f.bankBranch} onChange={(e) => set('bankBranch', e.target.value)} /></Fld>
+      </div>
+
+      <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--gold,#ffd166)', margin: '18px 0 10px' }}>🤳 Selfie with ID <span style={{ color: '#e8293a' }}>*</span></div>
+      <div style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', marginBottom: 8 }}>A clear photo of yourself holding your IC / passport next to your face — both your face and the ID details must be readable.</div>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+        {selfie && (
+          <span style={{ position: 'relative', display: 'inline-block' }}>
+            <img src={selfie} alt="Selfie with ID" style={{ width: 110, height: 82, objectFit: 'cover', borderRadius: 10, border: '1px solid rgba(34,197,94,.5)' }} />
+            <button onClick={() => setSelfie('')} style={{ position: 'absolute', top: -7, right: -7, width: 20, height: 20, borderRadius: '50%', border: 'none', background: '#e8293a', color: '#fff', fontSize: 11, cursor: 'pointer', lineHeight: 1 }}>✕</button>
+          </span>
+        )}
+        <input ref={selfieRef} type="file" accept="image/*" capture="user" style={{ display: 'none' }} onChange={(e) => pickSelfie(e.target.files?.[0])} />
+        <button type="button" className="ref-copy-btn" disabled={uploading} onClick={() => selfieRef.current?.click()}>{uploading ? 'Uploading…' : (selfie ? '🔄 Replace selfie' : '🤳 Upload selfie with ID')}</button>
+        {selfie && <span style={{ fontSize: 12, color: '#22c55e', fontWeight: 700 }}>✓ Uploaded</span>}
       </div>
 
       <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--gold,#ffd166)', margin: '18px 0 10px' }}>📎 Supporting Documents</div>

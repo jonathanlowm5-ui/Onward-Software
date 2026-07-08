@@ -184,7 +184,7 @@ export default function AgentApproval() {
                   <td><span className="ag-user">{a.username}</span></td>
                   <td>{a.phone || '—'}</td>
                   <td><div style={{ fontWeight: 700 }}>{a.bankName || '—'}</div><div className="ag-email">{a.bankAccountNo || ''}</div></td>
-                  <td>{(a.documents || []).length} file{(a.documents || []).length === 1 ? '' : 's'}</td>
+                  <td>{a.selfieWithId ? '🤳 ' : ''}{(a.documents || []).length} file{(a.documents || []).length === 1 ? '' : 's'}</td>
                   <td style={{ color: '#aab4cc' }}>{(a.createdAt || '').slice(0, 10)}</td>
                   <td><span style={{ color: RISK_COLOR[a.riskLevel] || 'var(--muted)', fontWeight: 800, textTransform: 'capitalize' }}>{a.riskLevel || 'unrated'}</span></td>
                   <td>{stBadge(a.status)}</td>
@@ -244,6 +244,17 @@ export default function AgentApproval() {
                 {cell('Account number', detail.bankAccountNo)}
                 {cell('Branch', detail.bankBranch)}
               </div>
+
+              {/* selfie with ID */}
+              <div className="card-title" style={{ marginTop: 14 }}>🤳 Selfie with ID</div>
+              {detail.selfieWithId ? (
+                <a href={detail.selfieWithId} target="_blank" rel="noreferrer" style={{ display: 'inline-block', width: 180 }}>
+                  <img src={detail.selfieWithId} alt="Selfie with ID" style={{ width: 180, height: 120, objectFit: 'cover', borderRadius: 10, border: '1px solid var(--border)', display: 'block' }} />
+                  <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4, textAlign: 'center' }}>Selfie with ID · View full</div>
+                </a>
+              ) : (
+                <div className="kyc-note" style={{ color: '#ff8c42' }}>⚠ No selfie with ID uploaded (older application).</div>
+              )}
 
               {/* documents */}
               <div className="card-title" style={{ marginTop: 14 }}>📎 Documents ({(detail.documents || []).length})</div>
