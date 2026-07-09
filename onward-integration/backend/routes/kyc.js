@@ -18,6 +18,7 @@ const express = require('express');
 const store = require('../store');
 const { requireAuth, requirePlayer } = require('../auth');
 const { requirePerm } = require('../permissions');
+const { safeMediaUrl } = require('../playerUtils');
 
 const router = express.Router();
 const COLLECTION = 'kyc';
@@ -74,9 +75,9 @@ router.post('/', requirePlayer, (req, res) => {
     playerId,
     username: (player && player.username) || b.username || '',
     docType: b.docType || 'id',
-    frontUrl: b.frontUrl || '',
-    backUrl: b.backUrl || '',
-    selfieUrl: b.selfieUrl || '',
+    frontUrl: safeMediaUrl(b.frontUrl),
+    backUrl: safeMediaUrl(b.backUrl),
+    selfieUrl: safeMediaUrl(b.selfieUrl),
     status: 'pending',
     note: '',
   });

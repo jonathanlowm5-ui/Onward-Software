@@ -16,6 +16,7 @@
 const express = require('express');
 const store = require('../store');
 const { requireAuth } = require('../auth');
+const { requirePerm } = require('../permissions');
 
 const router = express.Router();
 const LEVELS = ['info', 'warning', 'critical'];
@@ -81,10 +82,10 @@ router.get('/', (req, res) => {
   res.json(current());
 });
 
-// Any logged-in admin can post/clear announcements (no elevated permission so
-// an emergency notice can go out fast). Only the keys present in the body are
-// updated; everything else is preserved.
-router.put('/', requireAuth, (req, res) => {
+// Posting/clearing the site-wide announcement is content management — guard it
+// so a zero-permission (viewer) admin cannot deface the ticker/pop-out. Only
+// the keys present in the body are updated; everything else is preserved.
+router.put('/', requireAuth, requirePerm('content.manage'), (req, res) => {
   const b = req.body || {};
   const prev = current();
   const next = { ...prev };

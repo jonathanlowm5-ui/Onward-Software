@@ -59,7 +59,15 @@ function requireAuth(req, res, next) {
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (!token) return res.status(401).json({ error: 'Missing authorization token' });
   try {
-    req.user = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET);
+    // Player/agent tokens are signed with the same secret as admin tokens, so a
+    // valid signature alone is not enough — the admin API is for admin roles only.
+    // Without this, a logged-in player could read /players, /kyc, /transactions,
+    // etc. (any route guarded by bare requireAuth without requirePerm).
+    if (decoded.role === 'player' || decoded.role === 'agent') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+    req.user = decoded;
     auditLog(req);
     next();
   } catch {

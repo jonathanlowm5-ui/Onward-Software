@@ -221,14 +221,21 @@ router.get('/referral-tree', requireAuth, (req, res) => {
     const code = p.referralCode || p.referral_code || '';
     if (code) (byRef[code] = byRef[code] || []).push(p);
   }
-  const node = (p) => ({
+  // A referral cycle (A refers B, B's code refers A) or excessive depth must not
+  // blow the stack — track visited codes and cap depth.
+  const node = (p, seen, depth) => ({
     id: p.id, username: p.username, playerCode: p.playerCode,
     registered: dayOf(p.createdAt), status: p.status,
-    children: (byRef[p.playerCode] || []).map(node), // players referred by this player's code
+    children: childrenOf(p.playerCode, seen, depth),
   });
+  const childrenOf = (code, seen, depth) => {
+    if (!code || depth > 20 || seen.has(code)) return [];
+    const next = new Set(seen); next.add(code);
+    return (byRef[code] || []).map((child) => node(child, next, depth + 1));
+  };
   const tree = agents.map((a) => ({
     id: a.id, agent: a.username, code: a.code, status: a.status || 'active',
-    children: (byRef[a.code] || []).map(node),
+    children: childrenOf(a.code, new Set(), 0),
   }));
   // players referred by another player's code but not under any agent
   const agentCodes = new Set(agents.map((a) => a.code));
@@ -237,7 +244,7 @@ router.get('/referral-tree', requireAuth, (req, res) => {
   const playersByCode = Object.fromEntries(players.map((p) => [p.playerCode, p]));
   const playerRoots = orphanRefs.map((c) => ({
     id: 'p-' + c, agent: playersByCode[c]?.username + ' (player)', code: c, status: 'player',
-    children: (byRef[c] || []).map(node),
+    children: childrenOf(c, new Set(), 0),
   }));
   res.json({ tree: [...tree, ...playerRoots] });
 });

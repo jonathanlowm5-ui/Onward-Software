@@ -84,6 +84,18 @@ export default function Profile() {
   const [drilled, setDrilled] = useState(false);
   const openSection = (section) => { setNav(section); setDrilled(true); };
 
+  // Real referral code for the "share promocode" card (the player's own code).
+  const [refCode, setRefCode] = useState('');
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    api.get('/player/referral').then((r) => setRefCode(r.data?.code || '')).catch(() => {});
+  }, [isLoggedIn]);
+  const copyRefCode = async () => {
+    if (!refCode) return;
+    try { await navigator.clipboard.writeText(refCode); toast('Promocode copied!', 'success'); }
+    catch { toast(refCode, 'info'); }
+  };
+
   // Open a specific section when arriving from the avatar dropdown
   // (e.g. "Game History" -> history panel).
   const location = useLocation();
@@ -174,12 +186,12 @@ export default function Profile() {
               <button className="prof-referral-btn" onClick={() => go('referral')} data-i18n="ref_invite_btn">🎁 Invite a Friend</button>
             </div>
             <div className="prof-promo-create">
-              <div className="prof-promo-label" data-i18n="ref_create_code">Create and share promocode</div>
-              <div className="prof-promo-desc" data-i18n="ref_promo_rules">You can use letters of the Latin alphabet and numbers from 0 to 9. The length of the promocode must be from 6 to 20 characters.</div>
+              <div className="prof-promo-label" data-i18n="ref_create_code">Share your promocode</div>
+              <div className="prof-promo-desc" data-i18n="ref_promo_rules">Share this code with friends — when they register with it, they join your referral network and you both earn rewards.</div>
               <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }} data-i18n="ref_your_code">Your promocode</div>
               <div className="prof-promo-input-row">
-                <input type="text" placeholder="Create promocode" className="prof-promo-input" maxLength="20" data-i18n-placeholder="ref_create_code_ph" />
-                <button className="prof-promo-save" onClick={() => toast('Promocode saved!', 'success')} data-i18n="ui_save">SAVE</button>
+                <input type="text" className="prof-promo-input" value={refCode || '—'} readOnly />
+                <button className="prof-promo-save" onClick={copyRefCode} data-i18n="ui_copy">COPY</button>
               </div>
             </div>
           </div>

@@ -91,6 +91,20 @@ function clientIp(req) {
   return xff || req.ip || req.socket?.remoteAddress || '';
 }
 
+// Sanitize a user-supplied media/document URL before it is stored and later
+// rendered in the admin panel (KYC docs, agent selfies). Only http(s), inline
+// image data-URIs, and site-relative /uploads paths are allowed; dangerous
+// schemes like javascript:/vbscript:/file: are dropped to '' so a reviewing
+// admin can never trigger script execution by opening a document link.
+function safeMediaUrl(value) {
+  const s = String(value || '').trim();
+  if (!s) return '';
+  if (/^https?:\/\//i.test(s)) return s;
+  if (/^data:image\/(png|jpe?g|gif|webp|bmp);base64,/i.test(s)) return s;
+  if (s.startsWith('/')) return s;
+  return '';
+}
+
 // Tiny user-agent summary for the admin "Device Information" column.
 function deviceFrom(ua = '') {
   const s = String(ua);
@@ -150,4 +164,5 @@ module.exports = {
   deviceFrom,
   recordLogin,
   gen6,
+  safeMediaUrl,
 };

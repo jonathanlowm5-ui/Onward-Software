@@ -42,6 +42,7 @@ const express = require('express');
 const store = require('../store');
 const { requireAuth, requirePlayer } = require('../auth');
 const { requirePerm, can } = require('../permissions');
+const { safeMediaUrl } = require('../playerUtils');
 
 const router = express.Router();
 const APPS = 'agent_applications';
@@ -117,7 +118,10 @@ function downlineFor(code) {
     .filter((p) => (p.referralCode || p.referral_code || '') === code)
     .map((p) => {
       const txns = store.list('transactions').filter((t) => String(t.playerId) === String(p.id) && t.status === 'approved');
-      const deposits = txns.filter((t) => t.type === 'deposit');
+      // Agent→member P2P transfers are booked as deposits for the member's
+      // ledger, but they are the agent's own money — they must not count as
+      // real downline deposits (that would let an agent inflate their stats).
+      const deposits = txns.filter((t) => t.type === 'deposit' && t.source !== 'agent-transfer');
       const withdrawals = txns.filter((t) => t.type === 'withdrawal');
       const bets = store.list('bets').filter((b) => String(b.playerId) === String(p.id));
       const wagered = bets.reduce((s, b) => s + Number(b.amount || 0), 0);
@@ -198,9 +202,10 @@ router.post('/apply', requirePlayer, (req, res) => {
     // banking
     bankName: b.bankName, bankAccountName: b.bankAccountName,
     bankAccountNo: b.bankAccountNo, bankBranch: b.bankBranch || '',
-    // documents (urls from /api/upload)
-    selfieWithId: b.selfieWithId || '',
-    documents: Array.isArray(b.documents) ? b.documents : [],
+    // documents (urls from /api/upload) — sanitized so a malicious javascript:
+    // URL can't execute when an admin opens the link during review.
+    selfieWithId: safeMediaUrl(b.selfieWithId),
+    documents: Array.isArray(b.documents) ? b.documents.map(safeMediaUrl).filter(Boolean) : [],
     // workflow
     status: 'pending',
     remarks: '', riskLevel: 'unrated', managerId: '', planId: '',
@@ -547,7 +552,8 @@ router.post('/commissions/generate', requireAuth, requirePerm('agents.commission
         let qualified = 0;
         for (const p of dl) {
           const deps = store.list('transactions')
-            .filter((t) => String(t.playerId) === String(p.id) && t.type === 'deposit' && t.status === 'approved')
+            .filter((t) => String(t.playerId) === String(p.id) && t.type === 'deposit'
+              && t.status === 'approved' && t.source !== 'agent-transfer')
             .sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
           const first = deps[0];
           if (first && (first.createdAt || '').slice(0, 7) === period && Number(first.amount || 0) >= Number(plan.minDeposit || 0)) qualified++;

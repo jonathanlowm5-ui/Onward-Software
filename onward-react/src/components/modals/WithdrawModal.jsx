@@ -107,6 +107,7 @@ export default function WithdrawModal() {
     if (!isLoggedIn) { toast('Please log in to withdraw', 'error'); return; }
     if (amt < MIN) { toast(`Minimum withdrawal is ${money(MIN)}`, 'error'); return; }
     if (insufficient) { toast('Insufficient funds', 'error'); return; }
+    if (!String(dest || '').trim()) { toast(`Please enter ${destLabel.toLowerCase()}`, 'error'); return; }
     setBusy(true);
     try {
       await withdraw({ amount: amt, method: active.name || 'Withdrawal', destination: dest });

@@ -22,9 +22,10 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const store = require('../store');
 const { signPlayer, requirePlayer } = require('../auth');
+const { rateLimit } = require('../rateLimit');
 const {
   CURRENCIES, normalizeCurrency, generatePlayerCode, ensurePlayerCode,
-  publicView, registeredFullName, holderMatchesPlayer, clientIp, deviceFrom, recordLogin, gen6,
+  publicView, registeredFullName, holderMatchesPlayer, clientIp, deviceFrom, recordLogin, gen6, safeMediaUrl,
 } = require('../playerUtils');
 const { geoLookup, isBlocked } = require('../geoip');
 
@@ -60,7 +61,7 @@ function view(p) {
 }
 
 // ---------- public: register ----------
-router.post('/register', async (req, res) => {
+router.post('/register', rateLimit('player-register', 10, 60_000), async (req, res) => {
   const b = req.body || {};
   const username = String(b.username || '').trim();
   const email = String(b.email || '').trim().toLowerCase();
@@ -130,7 +131,7 @@ router.post('/register', async (req, res) => {
 });
 
 // ---------- public: login (username or email) ----------
-router.post('/login', async (req, res) => {
+router.post('/login', rateLimit('player-login', 20, 60_000), async (req, res) => {
   const id = String(req.body?.username || req.body?.email || '').trim().toLowerCase();
   const password = String(req.body?.password || '');
   let player = store.list(PLAYERS).find(
@@ -165,7 +166,7 @@ router.post('/login', async (req, res) => {
 });
 
 // ---------- public: forgot password (issues a reset acknowledgement) ----------
-router.post('/forgot-password', (req, res) => {
+router.post('/forgot-password', rateLimit('player-forgot', 5, 60_000), (req, res) => {
   const email = String(req.body?.email || '').trim().toLowerCase();
   if (emailOk(email)) {
     const p = store.list(PLAYERS).find((x) => (x.email || '').toLowerCase() === email);
@@ -236,7 +237,13 @@ router.put('/me', requirePlayer, (req, res) => {
     patch.phone = String(mobile).trim();
     if (patch.phone !== (p.phone || '')) patch.mobileVerified = false;
   }
-  if (b.avatar !== undefined) patch.avatar = b.avatar;
+  // Cap the avatar so it can't blow past Firestore's 1 MB document limit. A
+  // small data-URI (or a URL) is fine; anything larger is rejected.
+  if (b.avatar !== undefined) {
+    const avatar = String(b.avatar || '');
+    if (avatar.length > 500_000) return res.status(413).json({ error: 'Avatar image is too large (max ~350 KB)' });
+    patch.avatar = safeMediaUrl(avatar);
+  }
   // Per-player game favourites (array of game ids/names).
   if (b.favorites !== undefined && Array.isArray(b.favorites)) {
     patch.favorites = [...new Set(b.favorites.map((x) => String(x).slice(0, 64)))].slice(0, 500);
@@ -254,9 +261,13 @@ router.post('/me/change-password', requirePlayer, async (req, res) => {
   if (!p.passwordHash || !bcrypt.compareSync(current, p.passwordHash))
     return res.status(400).json({ error: 'Current password is incorrect' });
   if (next.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters' });
-  store.update(PLAYERS, p.id, { passwordHash: bcrypt.hashSync(next, 10) });
+  // Invalidate every existing session (sessionValidAfter is checked in
+  // requirePlayer) so a stolen/old token stops working after a password change,
+  // then mint a fresh token for the caller so their current session continues.
+  const nowSec = Math.floor(Date.now() / 1000);
+  const updated = store.update(PLAYERS, p.id, { passwordHash: bcrypt.hashSync(next, 10), sessionValidAfter: nowSec + 1 });
   await recordLogin(store, p, req, 'password-change');
-  res.json({ ok: true });
+  res.json({ ok: true, token: signPlayer(updated) });
 });
 
 // ---------- player: two-factor toggle (mock — stores the preference) ----------
@@ -274,7 +285,7 @@ function requestCode(field) {
     if (!p) return res.status(404).json({ error: 'Player not found' });
     const code = gen6();
     const expires = Date.now() + 10 * 60 * 1000;
-    store.update(PLAYERS, p.id, { [`${field}Otp`]: code, [`${field}OtpExpires`]: expires });
+    store.update(PLAYERS, p.id, { [`${field}Otp`]: code, [`${field}OtpExpires`]: expires, [`${field}OtpTries`]: 0 });
     store.insert('otp_log', {
       playerId: p.id, username: p.username, channel: field,
       target: field === 'email' ? p.email : p.phone, action: 'sent',
@@ -292,7 +303,11 @@ function confirmCode(field) {
     const code = String(req.body?.code || '').trim();
     if (!p[`${field}Otp`] || Date.now() > Number(p[`${field}OtpExpires`] || 0))
       return res.status(400).json({ error: 'Code expired — request a new one' });
+    // Cap wrong attempts so a 6-digit code can't be brute-forced in its window.
+    const tries = Number(p[`${field}OtpTries`] || 0);
+    if (tries >= 5) return res.status(429).json({ error: 'Too many attempts — request a new code' });
     if (code !== String(p[`${field}Otp`])) {
+      store.update(PLAYERS, p.id, { [`${field}OtpTries`]: tries + 1 });
       store.insert('otp_log', { playerId: p.id, username: p.username, channel: field, target: field === 'email' ? p.email : p.phone, action: 'failed', ip: clientIp(req) });
       return res.status(400).json({ error: 'Invalid verification code' });
     }
@@ -301,9 +316,9 @@ function confirmCode(field) {
     res.json(view(store.update(PLAYERS, p.id, { [flag]: true, [`${field}Otp`]: null, [`${field}OtpExpires`]: null })));
   };
 }
-router.post('/me/verify/email/request', requirePlayer, requestCode('email'));
+router.post('/me/verify/email/request', requirePlayer, rateLimit('otp-req', 6, 60_000), requestCode('email'));
 router.post('/me/verify/email/confirm', requirePlayer, confirmCode('email'));
-router.post('/me/verify/mobile/request', requirePlayer, requestCode('mobile'));
+router.post('/me/verify/mobile/request', requirePlayer, rateLimit('otp-req', 6, 60_000), requestCode('mobile'));
 router.post('/me/verify/mobile/confirm', requirePlayer, confirmCode('mobile'));
 
 // ---------- player: wallet ----------
@@ -317,7 +332,7 @@ router.get('/wallet', requirePlayer, (req, res) => {
 router.post('/deposit', requirePlayer, (req, res) => {
   const p = currentPlayer(req);
   const amount = Number(req.body?.amount || 0);
-  if (!(amount >= 100)) return res.status(400).json({ error: 'Minimum deposit is 100' });
+  if (!Number.isFinite(amount) || !(amount >= 100)) return res.status(400).json({ error: 'Minimum deposit is 100' });
   // Responsible-gaming: self-exclusion + daily deposit limit (set in Profile).
   const limits = p.limits || {};
   if (limits.selfExcludeUntil && Date.parse(limits.selfExcludeUntil) > Date.now()) {
@@ -351,12 +366,18 @@ router.post('/withdraw', requirePlayer, (req, res) => {
     return res.status(403).json({ error: 'Please bind a bank account before withdrawing', code: 'BANK_REQUIRED' });
   if ((p.kyc_status || 'unverified') !== 'approved')
     return res.status(403).json({ error: 'Please complete KYC verification before withdrawing', code: 'KYC_REQUIRED' });
-  if (!(amount >= 500)) return res.status(400).json({ error: 'Minimum withdrawal is 500' });
-  if (amount > Number(p.balance || 0)) return res.status(400).json({ error: 'Amount exceeds balance' });
+  if (!Number.isFinite(amount) || !(amount >= 500)) return res.status(400).json({ error: 'Minimum withdrawal is 500' });
+  const bal = Number(p.balance || 0);
+  if (amount > bal) return res.status(400).json({ error: 'Amount exceeds balance' });
+  // Reserve the funds immediately so a player cannot queue multiple withdrawals
+  // that each pass the balance check and overdraw when all are approved. The
+  // held amount is refunded if the withdrawal is later rejected.
+  store.update('players', p.id, { balance: bal - amount });
   const tx = store.insert('transactions', {
     playerId: p.id, username: p.username, type: 'withdrawal', amount,
     currency: normalizeCurrency(p.currency),
-    method: req.body?.method || 'Bank', accountId: req.body?.accountId || null, status: 'pending', note: '',
+    method: req.body?.method || 'Bank', accountId: req.body?.accountId || null,
+    status: 'pending', note: '', held: true,
   });
   res.status(201).json(tx);
 });
@@ -480,7 +501,7 @@ router.post('/kyc', requirePlayer, (req, res) => {
   const b = req.body || {};
   const rec = store.insert('kyc', {
     playerId: p.id, username: p.username, docType: b.docType || 'id',
-    frontUrl: b.frontUrl || '', backUrl: b.backUrl || '', selfieUrl: b.selfieUrl || '',
+    frontUrl: safeMediaUrl(b.frontUrl), backUrl: safeMediaUrl(b.backUrl), selfieUrl: safeMediaUrl(b.selfieUrl),
     status: 'pending', note: '',
   });
   store.update(PLAYERS, p.id, { kyc_status: 'pending' });
@@ -565,6 +586,8 @@ router.post('/me/prefs', requirePlayer, (req, res) => {
   const p = currentPlayer(req);
   if (!p) return res.status(404).json({ error: 'Player not found' });
   const prefs = { ...(p.prefs || {}), ...(req.body || {}) };
+  // Bound the stored preferences blob so a client can't bloat the player doc.
+  if (JSON.stringify(prefs).length > 20_000) return res.status(413).json({ error: 'Preferences payload is too large' });
   store.update(PLAYERS, p.id, { prefs });
   res.json(prefs);
 });

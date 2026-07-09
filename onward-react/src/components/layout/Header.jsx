@@ -514,7 +514,7 @@ export default function Header() {
     return v.toFixed(2);
   };
   const balance = fmt(profile?.balance, '0.00');
-  const bonus = fmt(profile?.bonus, '500.00');
+  const bonus = fmt(profile?.bonus, '0.00');
 
   return (
     <>

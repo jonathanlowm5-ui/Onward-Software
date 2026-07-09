@@ -66,11 +66,30 @@ router.put('/config', requireAuth, requirePerm('settings.manage'), (req, res) =>
   res.json(out);
 });
 
+// Reject URLs that resolve to loopback / private / link-local ranges so this
+// server-side fetch can't be used for SSRF (e.g. probing cloud metadata at
+// 169.254.169.254 or internal services). Hostnames are checked syntactically;
+// literal private IPs are blocked outright.
+function isBlockedHost(host) {
+  const h = String(host || '').toLowerCase().replace(/^\[|\]$/g, '');
+  if (!h || h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.internal') || h.endsWith('.local')) return true;
+  if (h === '0.0.0.0' || h === '::1' || h.startsWith('fe80:') || h.startsWith('fc') || h.startsWith('fd')) return true;
+  const m = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (m) {
+    const [a, b] = [Number(m[1]), Number(m[2])];
+    if (a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || a === 0) return true;
+  }
+  return false;
+}
+
 // Server-side reachability check for the admin's integration pages (game API
 // connectors, payment gateways, domains). Never throws — returns { ok, ms }.
-router.post('/ping-url', requireAuth, async (req, res) => {
+router.post('/ping-url', requireAuth, requirePerm('settings.manage'), async (req, res) => {
   const url = String(req.body?.url || '').trim();
   if (!/^https?:\/\//i.test(url)) return res.status(400).json({ error: 'Enter a full http(s) URL' });
+  let host = '';
+  try { host = new URL(url).hostname; } catch { return res.status(400).json({ error: 'Invalid URL' }); }
+  if (isBlockedHost(host)) return res.status(400).json({ error: 'That host is not allowed' });
   const started = Date.now();
   try {
     const ctrl = new AbortController();
