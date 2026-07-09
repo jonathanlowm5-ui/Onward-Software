@@ -29,7 +29,7 @@ function normalize(g, i) {
     hot: g.hot ? 1 : 0,
     seq: g.seq ?? g.sequence ?? 0,
     on: (g.on ?? g.enabled ?? g.active ?? 1) ? 1 : 0,
-    pop: g.pop ? 1 : 0,
+    pop: (g.pop || g.popular) ? 1 : 0,
     popD: g.popD ? 1 : 0,
     popM: g.popM ? 1 : 0,
   };
@@ -41,6 +41,15 @@ export default function GameList() {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ q: '', prov: '', cat: '', st: '' });
   const [syncing, setSyncing] = useState(false);
+
+  // Star toggle: features/removes a game in the player site's Popular sections.
+  const togglePopular = async (g) => {
+    try {
+      const r = await api.patch(`/games/${g.id}/popular`);
+      setGames((prev) => prev.map((x) => (x.id === g.id ? { ...x, pop: r.data.popular ? 1 : 0 } : x)));
+      toast(r.data.popular ? `⭐ ${g.n} featured in Popular Games` : `☆ ${g.n} removed from Popular Games`);
+    } catch (e) { toast('⚠ ' + (e.message || 'Update failed')); }
+  };
 
   // One-click import of the bundled heibao catalogue (4,995 games with hosted
   // webp icons, all ≤29KB). Idempotent — only missing games are added.
@@ -206,8 +215,8 @@ export default function GameList() {
                     </span>
                   </td>
                   <td>
-                    <button className={`star-btn ${(g.popD || g.popM) ? 'on' : ''}`} onClick={() => toast('Feature in Popular Games: ' + g.n + ' — demo')} title="Feature in Popular Games">
-                      {(g.popD || g.popM) ? '⭐' : '☆'}
+                    <button className={`star-btn ${(g.pop || g.popD || g.popM) ? 'on' : ''}`} onClick={() => togglePopular(g)} title="Feature in Popular Games">
+                      {(g.pop || g.popD || g.popM) ? '⭐' : '☆'}
                     </button>
                   </td>
                 </tr>

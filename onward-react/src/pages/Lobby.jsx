@@ -144,9 +144,18 @@ export default function Lobby() {
   const realWins = Array.isArray(stats?.bigWins) ? stats.bigWins : [];
   const realPool = Number(stats?.jackpotPool) || 0;
 
-  // Popular grid: use bundled popular games, filtered by category + global search.
+  // Popular grid: admin-starred games first, then the freshest real-artwork
+  // games from the live catalogue (bundled showcase only as offline fallback).
   const popular = useMemo(() => {
-    const source = games.length ? games : POPULAR_GAMES;
+    let source;
+    if (games.length) {
+      const good = games.filter((g) => g.img && !String(g.img).startsWith('data:'));
+      const starred = good.filter((g) => g.popular);
+      const rest = good.filter((g) => !g.popular);
+      source = [...starred, ...rest];
+    } else {
+      source = POPULAR_GAMES;
+    }
     let list = cat === 'all' ? source : source.filter((g) => g.cat === cat);
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();

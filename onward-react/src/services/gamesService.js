@@ -30,6 +30,7 @@ function toCard(g) {
     color: g.color || '',
     img: g.image || g.img || '',
     launchUrl: g.launchUrl || '',
+    popular: !!g.popular,
   };
 }
 

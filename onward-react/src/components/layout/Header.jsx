@@ -7,7 +7,7 @@ import useSectionNav from '../../hooks/useSectionNav';
 import { IMG0 as LOGO } from '../../assets/images';
 import PlayerAvatar from '../common/PlayerAvatar';
 import { POPULAR_GAMES, ALL_SLOTS } from '../../services/data/gameData';
-import { launchGame as resolveLaunch, fetchPromotions } from '../../services/gamesService';
+import { launchGame as resolveLaunch, fetchPromotions, fetchGames } from '../../services/gamesService';
 import api from '../../services/api';
 
 // Flag + short name shown on the header language button for the active language.
@@ -251,13 +251,25 @@ function SearchPanel({ variant }) {
   }, [open]);
 
   const q = searchQuery.trim().toLowerCase();
-  const popular = useMemo(() => POPULAR_GAMES.slice(0, 12), []);
+  // Live catalogue (session-cached): admin-starred games first, real artwork only.
+  const [liveGames, setLiveGames] = useState([]);
+  useEffect(() => {
+    let alive = true;
+    fetchGames().then((g) => { if (alive && Array.isArray(g)) setLiveGames(g); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  const popular = useMemo(() => {
+    const good = liveGames.filter((g) => g.img && !String(g.img).startsWith('data:'));
+    if (!good.length) return POPULAR_GAMES.slice(0, 12);
+    return [...good.filter((g) => g.popular), ...good.filter((g) => !g.popular)].slice(0, 12);
+  }, [liveGames]);
   const results = useMemo(() => {
     if (!q) return popular;
-    return ALL_SLOTS
+    const source = liveGames.length ? liveGames : ALL_SLOTS;
+    return source
       .filter((g) => g.name.toLowerCase().includes(q) || (g.provider || '').toLowerCase().includes(q))
       .slice(0, 18);
-  }, [q, popular]);
+  }, [q, popular, liveGames]);
 
   const saveRecent = (term) => {
     const t = String(term || '').trim();

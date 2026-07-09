@@ -33,6 +33,7 @@ function clean(body) {
     launchUrl: body.launchUrl || body.gameUrl || '',
     image: body.image || '',
     enabled: body.enabled === undefined ? true : !!body.enabled,
+    popular: !!body.popular,
     order: Number.isFinite(+body.order) ? +body.order : 0,
   };
 }
@@ -76,6 +77,13 @@ router.put('/:id', requireAuth, requirePerm('content.manage'), (req, res) => {
   const updated = store.update(COLLECTION, req.params.id, clean(req.body));
   if (!updated) return res.status(404).json({ error: 'Game not found' });
   res.json(updated);
+});
+
+// ---- ADMIN: feature in Popular Games ----
+router.patch('/:id/popular', requireAuth, requirePerm('content.manage'), (req, res) => {
+  const game = store.get(COLLECTION, req.params.id);
+  if (!game) return res.status(404).json({ error: 'Game not found' });
+  res.json(store.update(COLLECTION, req.params.id, { popular: !game.popular }));
 });
 
 // ---- ADMIN: enable / disable ----
