@@ -236,6 +236,26 @@ module.exports = function seed() {
     }
   }
 
+  // ---- one-time: retire the legacy showcase games ----
+  // The original-site seed games carry low-res / mismatched artwork and sort
+  // first on the Slots page. Disable every game that isn't from the heibao
+  // catalogue (admins can re-enable any of them in Game List).
+  {
+    const st = store.getSettings();
+    if (!st.legacyGamesDisabledV1) {
+      let disabled = 0;
+      for (const g of store.list('games')) {
+        const isHb = typeof g.externalId === 'string' && g.externalId.startsWith('hb:');
+        if (!isHb && g.enabled !== false) {
+          store.update('games', g.id, { enabled: false, note: 'legacy showcase art — retired' });
+          disabled += 1;
+        }
+      }
+      if (disabled) console.log(`Disabled ${disabled} legacy showcase games`);
+      store.saveSettings({ legacyGamesDisabledV1: true });
+    }
+  }
+
   // ---- default API configuration ----
   const s = store.getSettings();
   if (!s.environment) {
