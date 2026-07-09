@@ -227,12 +227,12 @@ module.exports = function seed() {
   // of Firestore writes; matched by externalId so it self-heals until done.
   {
     const st = store.getSettings();
-    if (!st.heibaoImportDone) {
+    if (!st.heibaoImportDoneV2) {
       const { importMissing } = require('./heibaoImport');
       const chunk = Number(process.env.HEIBAO_IMPORT_CHUNK || 1500);
       const r = importMissing(chunk);
-      if (r.imported) console.log(`Imported ${r.imported} heibao games (${r.remaining} remaining of ${r.total})`);
-      if (r.total > 0 && r.remaining === 0) store.saveSettings({ heibaoImportDone: true });
+      if (r.imported || r.updated) console.log(`heibao: +${r.imported} new, ${r.updated} updated (${r.remaining} remaining of ${r.total})`);
+      if (r.total > 0 && r.remaining === 0) store.saveSettings({ heibaoImportDoneV2: true });
     }
   }
 

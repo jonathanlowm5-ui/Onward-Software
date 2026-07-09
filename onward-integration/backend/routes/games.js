@@ -60,7 +60,7 @@ router.get('/providers', (req, res) => {
 router.post('/heibao-sync', requireAuth, requirePerm('content.manage'), (req, res) => {
   const { importMissing } = require('../heibaoImport');
   const r = importMissing(Number(req.body?.limit) || Infinity);
-  if (r.remaining === 0 && r.total > 0) store.saveSettings({ heibaoImportDone: true });
+  if (r.remaining === 0 && r.total > 0) store.saveSettings({ heibaoImportDoneV2: true });
   res.json(r);
 });
 

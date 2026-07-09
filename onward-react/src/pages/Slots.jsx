@@ -5,6 +5,7 @@ import GameCard from '../components/casino/GameCard.jsx';
 import useFavorites from '../hooks/useFavorites';
 import useGames from '../hooks/useGames';
 import { ALL_SLOTS, GAMES, ALL_GAME_ICONS, LIVE_GAMES, PROVIDERS, PROVIDER_LOGOS, POPULAR_GAMES } from '../services/data/gameData';
+import HB_LOGOS from '../services/data/heibaoLogos.json';
 
 // Every bundled game, so the "favorite" view can resolve a favourited id even if
 // it isn't a slot (live, table, etc.).
@@ -48,7 +49,7 @@ function buildProviderList(games) {
   if (!games || !games.length) return STATIC_PROVIDER_LIST;
   const counts = {};
   games.forEach((g) => { if (g.provider) counts[g.provider] = (counts[g.provider] || 0) + 1; });
-  const logoFor = (name) => PROVIDERS.find((p) => p.name.toLowerCase() === name.toLowerCase())?.logo || null;
+  const logoFor = (name) => HB_LOGOS[name] || PROVIDERS.find((p) => p.name.toLowerCase() === name.toLowerCase())?.logo || null;
   return [
     { name: 'All', key: 'all', label: 'All', logo: null },
     ...Object.entries(counts).sort((a, b) => b[1] - a[1])

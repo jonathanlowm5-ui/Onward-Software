@@ -1,12 +1,15 @@
 /*
  * heibaoImport.js — imports the bundled heibaoIcons game catalogue
- * (seed-data/heibao-games.json: 4,995 games with 208×280 webp icons, all
- * ≤29KB, hosted on raw.githubusercontent.com) into the `games` collection.
+ * (seed-data/heibao-games.json: 4,995 games; icons are self-hosted on the
+ * player site under /gicons/g/<id>.webp — 208×280, max 29KB each).
  *
- * Self-healing and idempotent: games are matched by externalId ("hb:<id>"),
- * so re-running only inserts whatever is missing. `limit` caps how many are
- * inserted per call (the boot seed imports in chunks; the admin
- * POST /api/games/heibao-sync endpoint imports everything remaining).
+ * Self-healing and idempotent:
+ *  - a catalogue entry already imported (externalId "hb:<id>") is skipped,
+ *    but its image is migrated if the catalogue URL changed
+ *  - a LEGACY game with the same provider+name is claimed and updated in
+ *    place (correct high-res art, category, externalId) instead of creating
+ *    a duplicate tile
+ *  - anything else is inserted, up to `limit` per call
  */
 const fs = require('fs');
 const path = require('path');
@@ -24,24 +27,51 @@ function load() {
   return catalogue;
 }
 
+const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
 function importMissing(limit = Infinity) {
   const list = load();
-  if (!list.length) return { imported: 0, remaining: 0, total: 0 };
-  const existing = new Set(
-    store.list('games').map((g) => g.externalId).filter((x) => typeof x === 'string' && x.startsWith('hb:'))
-  );
-  let order = store.list('games').length;
+  if (!list.length) return { imported: 0, updated: 0, remaining: 0, total: 0 };
+
+  const games = store.list('games');
+  const byExt = new Map();
+  const byName = new Map(); // "provider|name" -> game (legacy matcher)
+  for (const g of games) {
+    if (typeof g.externalId === 'string' && g.externalId.startsWith('hb:')) byExt.set(g.externalId, g);
+    byName.set(norm(g.provider) + '|' + norm(g.name), g);
+  }
+
+  let order = games.length;
   let imported = 0;
-  for (const g of list) {
-    if (imported >= limit) break;
-    const ext = 'hb:' + g.id;
-    if (existing.has(ext)) continue;
-    store.insert('games', {
+  let updated = 0;
+  for (const c of list) {
+    const ext = 'hb:' + c.id;
+    const existing = byExt.get(ext);
+    if (existing) {
+      // migrate the icon if the catalogue moved (e.g. github → self-hosted)
+      if (existing.image !== c.image) { store.update('games', existing.id, { image: c.image }); updated += 1; }
+      continue;
+    }
+    const legacy = byName.get(norm(c.provider) + '|' + norm(c.name));
+    if (legacy) {
+      // claim the legacy record: correct art + category, no duplicate tile
+      store.update('games', legacy.id, {
+        externalId: ext,
+        image: c.image,
+        category: legacy.category || c.category,
+        provider: legacy.provider || c.provider,
+      });
+      byExt.set(ext, legacy);
+      updated += 1;
+      continue;
+    }
+    if (imported >= limit) continue;
+    const rec = store.insert('games', {
       externalId: ext,
-      name: g.name,
-      provider: g.provider,
-      category: g.category,
-      image: g.image,
+      name: c.name,
+      provider: c.provider,
+      category: c.category,
+      image: c.image,
       icon: '🎰',
       color: '',
       badge: '',
@@ -50,11 +80,30 @@ function importMissing(limit = Infinity) {
       order: order++,
       source: 'heibao',
     });
-    existing.add(ext);
+    byExt.set(ext, rec);
+    byName.set(norm(c.provider) + '|' + norm(c.name), rec);
     imported += 1;
   }
-  const remaining = list.filter((g) => !existing.has('hb:' + g.id)).length;
-  return { imported, remaining, total: list.length };
+  // Dedupe sweep: legacy records (old low-res showcase art) that duplicate an
+  // imported heibao game are disabled so only the high-res tile shows.
+  let deduped = 0;
+  const hbKeys = new Map(); // normKey -> hb game id
+  for (const g of store.list('games')) {
+    if (typeof g.externalId === 'string' && g.externalId.startsWith('hb:')) {
+      hbKeys.set(norm(g.provider) + '|' + norm(g.name), g.id);
+    }
+  }
+  for (const g of store.list('games')) {
+    if (typeof g.externalId === 'string' && g.externalId.startsWith('hb:')) continue;
+    const key = norm(g.provider) + '|' + norm(g.name);
+    if (hbKeys.has(key) && g.enabled !== false) {
+      store.update('games', g.id, { enabled: false, note: 'duplicate of heibao catalogue entry' });
+      deduped += 1;
+    }
+  }
+
+  const remaining = list.filter((c) => !byExt.has('hb:' + c.id)).length;
+  return { imported, updated, deduped, remaining, total: list.length };
 }
 
 module.exports = { importMissing };

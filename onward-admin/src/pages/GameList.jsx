@@ -47,11 +47,18 @@ export default function GameList() {
   const syncHeibao = async () => {
     setSyncing(true);
     try {
-      const r = await api.post('/games/heibao-sync');
-      toast(r.data.imported
-        ? `Imported ${r.data.imported} games ✅ (${r.data.remaining} remaining of ${r.data.total}) — reloading…`
-        : 'Catalogue already complete ✔');
-      if (r.data.imported) setTimeout(() => window.location.reload(), 1200);
+      let total = 0;
+      let round = 0;
+      // Repeat until the whole catalogue is present (each call is idempotent).
+      for (;;) {
+        const r = await api.post('/games/heibao-sync', { limit: 1200 });
+        total += r.data.imported;
+        round += 1;
+        toast(`Importing… ${r.data.total - r.data.remaining}/${r.data.total} games`);
+        if (!r.data.remaining || round > 10) break;
+      }
+      toast(total ? `Imported ${total} games ✅ — reloading…` : 'Catalogue already complete ✔');
+      if (total) setTimeout(() => window.location.reload(), 1200);
     } catch (e) { toast('⚠ ' + (e.message || 'Import failed')); }
     finally { setSyncing(false); }
   };
