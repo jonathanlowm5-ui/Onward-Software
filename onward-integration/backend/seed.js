@@ -166,6 +166,22 @@ module.exports = function seed() {
     }
   }
 
+  // ---- one-time: restore the default top-banner buttons ----
+  // A partial save left a single bare button in settings.topButtons; clearing
+  // the override makes /api/top-buttons serve its built-in defaults again
+  // (Promotions + Giveaway on; Casino/Sport/Rewards off, ready to enable).
+  {
+    const st = store.getSettings();
+    if (!st.topButtonsDefaultV1) {
+      if (Array.isArray(st.topButtons) && st.topButtons.length < 2) {
+        store.saveSettings({ topButtons: [], topButtonsDefaultV1: true });
+        console.log('Reset top-banner buttons to defaults');
+      } else {
+        store.saveSettings({ topButtonsDefaultV1: true });
+      }
+    }
+  }
+
   // ---- demo player for testing the agent application flow ----
   // Fully verified (email + mobile + approved KYC) so the Agent page shows the
   // application form immediately. Login: demoagent / Demo1234

@@ -393,6 +393,21 @@ function TopBannerButtonsCard() {
     finally { setBusy(false); }
   };
 
+  // Restore the built-in default set (Promotions + Giveaway on; Casino,
+  // Sport, Rewards ready to switch on). The backend treats an empty list as
+  // "use defaults".
+  const resetDefaults = async () => {
+    if (!window.confirm('Replace the current buttons with the default set (Promotions + Giveaway)?')) return;
+    setBusy(true);
+    try {
+      const { default: api } = await import('../services/api');
+      const r = await api.put('/top-buttons', { bg: '', buttons: [] });
+      setCfg(r.data);
+      toast('Top banner reset to defaults ↺ — live on the player site');
+    } catch (e) { toast('⚠ ' + (e.message || 'Reset failed')); }
+    finally { setBusy(false); }
+  };
+
   if (!cfg) return <div className="wd-card" style={{ marginTop: 16 }}><h3>🏟️ Top Banner Buttons</h3><div className="wd-d">Loading…</div></div>;
   const inp = { padding: '7px 10px', borderRadius: 8, background: 'var(--bg3,#0b1224)', color: 'var(--text,#fff)', border: '1px solid var(--border,#243049)', fontFamily: 'inherit', fontSize: 13 };
 
@@ -401,6 +416,7 @@ function TopBannerButtonsCard() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <h3 style={{ marginBottom: 0 }}>🏟️ Top Banner Buttons</h3>
         <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          <button className="mini-btn" onClick={resetDefaults} disabled={busy}>↺ Reset to default</button>
           <button className="mini-btn" onClick={addBtn}>＋ Add button</button>
           <button className="btn-search" onClick={save} disabled={busy}>{busy ? 'Saving…' : '💾 Save'}</button>
         </span>
