@@ -448,6 +448,9 @@ function TopBannerButtonsCard() {
         </span>
       </div>
       <div className="wd-d">The category buttons across the top of the player site. Toggle which show, set colours, icon and where each one sends the customer (internal route like /promotions or a full https:// URL).</div>
+      <div className="wd-d" style={{ color: 'var(--gold)', marginTop: 2 }}>
+        🖼️ Icon uploads: square <b>PNG with transparent background</b>, <b>96 × 96 px</b> recommended (64–128 px works — it renders at 20 × 20 in the pill), keep it under <b>100 KB</b>.
+      </div>
 
       <div className="wd-row" style={{ marginBottom: 10 }}>
         <label>Bar background</label>
