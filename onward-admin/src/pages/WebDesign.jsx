@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useUI } from '../context/UIContext';
 import { uploadImage } from '../services/uploadService';
 import { getPageBanners, savePageBanners, getPageHeroes, savePageHeroes, getSocialLinks, saveSocialLinks } from '../services/pageBannerService';
@@ -365,6 +365,24 @@ function TopBannerButtonsCard() {
   const { toast } = useUI();
   const [cfg, setCfg] = useState(null);
   const [busy, setBusy] = useState(false);
+  const iconInputRef = useRef(null);
+  const iconTargetRef = useRef(-1);
+
+  // Upload a custom icon image for one button (replaces the emoji on the site).
+  const pickIcon = (i) => { iconTargetRef.current = i; iconInputRef.current?.click(); };
+  const onIconFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    const i = iconTargetRef.current;
+    if (!file || i < 0) return;
+    try {
+      const { uploadImage } = await import('../services/uploadService');
+      const { url } = await uploadImage(file);
+      const next = { ...cfg, buttons: cfg.buttons.map((b, j) => (j === i ? { ...b, iconImg: url } : b)) };
+      setCfg(next);
+      persist(next, 'Icon uploaded ✔ — live on the player site (refresh it)');
+    } catch (err) { toast('⚠ Upload failed: ' + (err.message || '')); }
+  };
 
   useEffect(() => {
     import('../services/api').then(({ default: api }) =>
@@ -415,6 +433,7 @@ function TopBannerButtonsCard() {
 
   return (
     <div className="wd-card" style={{ marginTop: 16 }}>
+      <input ref={iconInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={onIconFile} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <h3 style={{ marginBottom: 0 }}>🏟️ Top Banner Buttons</h3>
         <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
@@ -437,7 +456,13 @@ function TopBannerButtonsCard() {
       {cfg.buttons.map((b, i) => (
         <div key={b.id || i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', opacity: b.enabled === false ? 0.55 : 1 }}>
           <label className="switch" title="Show on the player site (applies immediately)"><input type="checkbox" checked={b.enabled !== false} onChange={(e) => toggleEnabled(i, e.target.checked)} /><span className="slider"></span></label>
-          <input style={{ ...inp, width: 52, textAlign: 'center', fontSize: 16 }} value={b.icon} onChange={(e) => setBtn(i, 'icon', e.target.value)} title="Icon (emoji)" />
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            {b.iconImg
+              ? <img src={b.iconImg} alt="" style={{ width: 30, height: 30, objectFit: 'contain', borderRadius: 6, background: 'rgba(0,0,0,.3)' }} />
+              : <input style={{ ...inp, width: 52, textAlign: 'center', fontSize: 16 }} value={b.icon} onChange={(e) => setBtn(i, 'icon', e.target.value)} title="Icon (emoji fallback)" />}
+            <button className="mini-btn" style={{ padding: '5px 8px' }} title="Upload icon image" onClick={() => pickIcon(i)}>🖼️</button>
+            {b.iconImg && <button className="del-btn" style={{ padding: '4px 7px' }} title="Remove image, use emoji" onClick={() => { const next = { ...cfg, buttons: cfg.buttons.map((x, j) => (j === i ? { ...x, iconImg: '' } : x)) }; setCfg(next); persist(next, 'Icon image removed — emoji restored'); }}>✕</button>}
+          </span>
           <input style={{ ...inp, width: 140 }} value={b.label} onChange={(e) => setBtn(i, 'label', e.target.value)} placeholder="Label" />
           <div className="wd-col"><span className="hex">Start</span><input type="color" value={b.c1} onChange={(e) => setBtn(i, 'c1', e.target.value)} /></div>
           <div className="wd-col"><span className="hex">End</span><input type="color" value={b.c2} onChange={(e) => setBtn(i, 'c2', e.target.value)} /></div>
@@ -457,7 +482,9 @@ function TopBannerButtonsCard() {
       <div className="wd-banners" style={cfg.bg ? { background: cfg.bg, padding: 10, borderRadius: 10 } : undefined}>
         {cfg.buttons.filter((b) => b.enabled !== false).map((b, i) => (
           <div className="wd-pill" key={i} style={{ background: `linear-gradient(110deg,${b.c1},${b.c2})` }}>
-            <span className="pe">{b.icon}</span>{b.label}
+            {b.iconImg
+              ? <img src={b.iconImg} alt="" style={{ width: 18, height: 18, objectFit: 'contain', marginRight: 6, verticalAlign: 'middle' }} />
+              : <span className="pe">{b.icon}</span>}{b.label}
           </div>
         ))}
       </div>

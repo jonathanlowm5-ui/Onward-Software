@@ -581,7 +581,9 @@ export default function Header() {
           <div className="hdr-pills-scroll">
             {topButtons.length > 0 ? topButtons.map((b) => (
               <button key={b.id} className="hdr-pill" style={{ background: `linear-gradient(110deg,${b.c1},${b.c2})` }} onClick={() => goTopButton(b)}>
-                <span className="hdr-pill-icon">{b.icon}</span>
+                {b.iconImg
+                  ? <img src={b.iconImg} alt="" style={{ width: 20, height: 20, objectFit: 'contain', display: 'block' }} />
+                  : <span className="hdr-pill-icon">{b.icon}</span>}
                 <span className="hdr-pill-label">{b.label}</span>
                 {b.badge && promoCount > 0 && <span className="hdr-pill-badge">{promoCount}</span>}
               </button>

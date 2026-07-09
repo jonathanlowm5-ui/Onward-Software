@@ -37,6 +37,7 @@ function cleanButton(b) {
     id: str(b.id, 40) || newId(),
     label,
     icon: str(b.icon, 8).trim() || '🎯',
+    iconImg: str(b.iconImg, 500).trim(),
     c1: color(b.c1, '#b81a5a'),
     c2: color(b.c2, '#7d0d3d'),
     url: str(b.url, 500).trim() || '/',
