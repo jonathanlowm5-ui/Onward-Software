@@ -382,30 +382,32 @@ function TopBannerButtonsCard() {
     return { ...p, buttons: arr };
   });
 
-  const save = async () => {
+  const persist = async (nextCfg, msg) => {
     setBusy(true);
     try {
       const { default: api } = await import('../services/api');
-      const r = await api.put('/top-buttons', cfg);
+      const r = await api.put('/top-buttons', nextCfg);
       setCfg(r.data);
-      toast('Top banner buttons saved ✔ — live on the player site');
-    } catch (e) { toast('⚠ ' + (e.message || 'Save failed')); }
+      toast(msg || 'Top banner buttons saved ✔ — live on the player site (refresh the site to see it)');
+    } catch (e) { toast('⚠ ' + (e.response?.data?.error || e.message || 'Save failed')); }
     finally { setBusy(false); }
+  };
+
+  const save = () => persist(cfg);
+
+  // Show/hide switches apply immediately — no separate save needed.
+  const toggleEnabled = (i, v) => {
+    const next = { ...cfg, buttons: cfg.buttons.map((b, j) => (j === i ? { ...b, enabled: v } : b)) };
+    setCfg(next);
+    persist(next, v ? 'Button shown ✔ — live on the player site (refresh it)' : 'Button hidden ✔ — live on the player site (refresh it)');
   };
 
   // Restore the built-in default set (Promotions + Giveaway on; Casino,
   // Sport, Rewards ready to switch on). The backend treats an empty list as
   // "use defaults".
-  const resetDefaults = async () => {
+  const resetDefaults = () => {
     if (!window.confirm('Replace the current buttons with the default set (Promotions + Giveaway)?')) return;
-    setBusy(true);
-    try {
-      const { default: api } = await import('../services/api');
-      const r = await api.put('/top-buttons', { bg: '', buttons: [] });
-      setCfg(r.data);
-      toast('Top banner reset to defaults ↺ — live on the player site');
-    } catch (e) { toast('⚠ ' + (e.message || 'Reset failed')); }
-    finally { setBusy(false); }
+    persist({ buttons: [], bg: '' }, 'Top banner reset to defaults ↺ — live on the player site');
   };
 
   if (!cfg) return <div className="wd-card" style={{ marginTop: 16 }}><h3>🏟️ Top Banner Buttons</h3><div className="wd-d">Loading…</div></div>;
@@ -434,7 +436,7 @@ function TopBannerButtonsCard() {
 
       {cfg.buttons.map((b, i) => (
         <div key={b.id || i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', opacity: b.enabled === false ? 0.55 : 1 }}>
-          <label className="switch" title="Show on the player site"><input type="checkbox" checked={b.enabled !== false} onChange={(e) => setBtn(i, 'enabled', e.target.checked)} /><span className="slider"></span></label>
+          <label className="switch" title="Show on the player site (applies immediately)"><input type="checkbox" checked={b.enabled !== false} onChange={(e) => toggleEnabled(i, e.target.checked)} /><span className="slider"></span></label>
           <input style={{ ...inp, width: 52, textAlign: 'center', fontSize: 16 }} value={b.icon} onChange={(e) => setBtn(i, 'icon', e.target.value)} title="Icon (emoji)" />
           <input style={{ ...inp, width: 140 }} value={b.label} onChange={(e) => setBtn(i, 'label', e.target.value)} placeholder="Label" />
           <div className="wd-col"><span className="hex">Start</span><input type="color" value={b.c1} onChange={(e) => setBtn(i, 'c1', e.target.value)} /></div>
