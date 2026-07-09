@@ -27,7 +27,7 @@ export default function GameCard({ game }) {
   return (
     <div className="game-card" onClick={launch}>
       {g.img ? (
-        <img src={g.img} alt={g.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', position: 'absolute', inset: 0 }} />
+        <img src={g.img} alt={g.name} loading="lazy" decoding="async" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', position: 'absolute', inset: 0 }} />
       ) : (
         <div className="game-img" style={{ background: `linear-gradient(135deg,${(g.color || '#1a1a2e')}22,${(g.color || '#1a1a2e')}11)` }}>
           <span style={{ fontSize: '52px' }}>{g.icon || '🎰'}</span>

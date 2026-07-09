@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useUI } from '../context/UIContext';
 import { listGames, toggleGame, updateGame } from '../services/gameService';
+import api from '../services/api';
 
 // ---- Static demo catalog (original GAMES) — used as fallback on API error/empty ----
 const PG_NAMES = ['Alchemy Gold', "Alibaba's Cave Of Fortune", 'Anubis Wrath', 'Asgardian Rising', 'Bakery Bonanza', 'Bali Vacation', 'Battleground Royale', 'Bikini Paradise', 'Buffalo Win', 'Butterfly Blossom', 'Caishen Wins', 'Candy Bonanza'];
@@ -39,6 +40,21 @@ export default function GameList() {
   const [games, setGames] = useState(DEMO_GAMES);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ q: '', prov: '', cat: '', st: '' });
+  const [syncing, setSyncing] = useState(false);
+
+  // One-click import of the bundled heibao catalogue (4,995 games with hosted
+  // webp icons, all ≤29KB). Idempotent — only missing games are added.
+  const syncHeibao = async () => {
+    setSyncing(true);
+    try {
+      const r = await api.post('/games/heibao-sync');
+      toast(r.data.imported
+        ? `Imported ${r.data.imported} games ✅ (${r.data.remaining} remaining of ${r.data.total}) — reloading…`
+        : 'Catalogue already complete ✔');
+      if (r.data.imported) setTimeout(() => window.location.reload(), 1200);
+    } catch (e) { toast('⚠ ' + (e.message || 'Import failed')); }
+    finally { setSyncing(false); }
+  };
 
   useEffect(() => {
     let active = true;
@@ -150,7 +166,10 @@ export default function GameList() {
           <div className="card-title" style={{ marginBottom: 0 }}>
             🎰 Game List <span className="res-chip" id="glCount">{list.length} games</span>
           </div>
-          <span className="pr"><button className="mini-btn" onClick={exportGames}>⬇ Export</button></span>
+          <span className="pr" style={{ display: 'flex', gap: 8 }}>
+            <button className="mini-btn gold" onClick={syncHeibao} disabled={syncing}>{syncing ? 'Importing…' : '📥 Import Game Catalogue'}</button>
+            <button className="mini-btn" onClick={exportGames}>⬇ Export</button>
+          </span>
         </div>
         <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}>
           <table id="glTbl" style={{ minWidth: 1080 }}>

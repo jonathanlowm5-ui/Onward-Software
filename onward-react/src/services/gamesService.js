@@ -33,14 +33,22 @@ function toCard(g) {
   };
 }
 
+// The catalogue is large (thousands of games), so fetch it once per session
+// and share the promise between the lobby, slots and search screens.
+let gamesCache = null;
 export async function fetchGames() {
-  try {
-    const { data } = await api.get('/games?enabled=1');
-    if (Array.isArray(data) && data.length) return data.map(toCard);
-  } catch {
-    /* fall through to bundled data */
-  }
-  return [...ALL_SLOTS]; // bundled fallback
+  if (gamesCache) return gamesCache;
+  gamesCache = (async () => {
+    try {
+      const { data } = await api.get('/games?enabled=1');
+      if (Array.isArray(data) && data.length) return data.map(toCard);
+    } catch {
+      /* fall through to bundled data */
+    }
+    return [...ALL_SLOTS]; // bundled fallback
+  })();
+  try { return await gamesCache; }
+  catch (e) { gamesCache = null; throw e; }
 }
 
 export async function fetchBanners() {

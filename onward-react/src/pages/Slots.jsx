@@ -38,11 +38,23 @@ const CAT_TITLE = {
   fishing: '🐟 Fishing Games',
 };
 
-// Provider scroller buttons matching the original provider-filter-btns.
-const PROVIDER_LIST = [
+// Provider scroller buttons — built from the live catalogue when loaded (all
+// providers, sorted by game count) with bundled logos where the names match.
+const STATIC_PROVIDER_LIST = [
   { name: 'All', key: 'all', label: 'All', logo: null },
   ...PROVIDERS.map((p) => ({ name: p.name, key: p.key, label: p.name, logo: p.logo })),
 ];
+function buildProviderList(games) {
+  if (!games || !games.length) return STATIC_PROVIDER_LIST;
+  const counts = {};
+  games.forEach((g) => { if (g.provider) counts[g.provider] = (counts[g.provider] || 0) + 1; });
+  const logoFor = (name) => PROVIDERS.find((p) => p.name.toLowerCase() === name.toLowerCase())?.logo || null;
+  return [
+    { name: 'All', key: 'all', label: 'All', logo: null },
+    ...Object.entries(counts).sort((a, b) => b[1] - a[1])
+      .map(([name]) => ({ name, key: name, label: name, logo: logoFor(name) })),
+  ];
+}
 
 export default function Slots() {
   const { searchQuery } = useUI();
@@ -68,6 +80,10 @@ export default function Slots() {
     return m;
   }, [liveGames]);
 
+  // Live catalogue is the primary source (thousands of admin-managed games
+  // with real icons); the bundled showcase is only the offline fallback.
+  const baseList = (liveGames && liveGames.length) ? liveGames : ALL_SLOTS;
+
   const filtered = useMemo(() => {
     // Favourites view: resolve the saved ids against the full catalogue.
     let list;
@@ -75,21 +91,21 @@ export default function Slots() {
       list = favorites.map((fid) => catalog.get(String(fid))).filter(Boolean);
     } else if (catParam === 'new') {
       // "New" = freshly-added games (badge=new), topped up with the newest games.
-      const flagged = ALL_SLOTS.filter((g) => g.badge === 'new');
+      const flagged = baseList.filter((g) => g.badge === 'new');
       const seen = new Set(flagged.map((g) => g.id));
-      list = [...flagged, ...ALL_SLOTS.slice(0, 48).filter((g) => !seen.has(g.id))];
+      list = [...flagged, ...baseList.slice(0, 48).filter((g) => !seen.has(g.id))];
     } else if (catParam === 'popular') {
-      list = POPULAR_GAMES;
+      list = (liveGames && liveGames.length) ? liveGames.slice(0, 60) : POPULAR_GAMES;
     } else if (catParam === 'roulette') {
-      list = ALL_SLOTS.filter((g) => /roulette/i.test(g.name) || /roulette/i.test(g.provider || ''));
+      list = baseList.filter((g) => /roulette/i.test(g.name) || /roulette/i.test(g.provider || ''));
     } else if (catParam && CAT_KEYWORDS[catParam]) {
       const re = CAT_KEYWORDS[catParam];
-      list = ALL_SLOTS.filter((g) => re.test(g.name) || re.test(g.provider || '')
+      list = baseList.filter((g) => re.test(g.name) || re.test(g.provider || '')
         || (catParam === 'jackpot' && g.badge === 'jackpot'));
     } else if (catParam) {
-      list = ALL_SLOTS.filter((g) => g.cat === catParam);
+      list = baseList.filter((g) => g.cat === catParam);
     } else {
-      list = ALL_SLOTS;
+      list = baseList;
     }
     if (provider !== 'all') list = list.filter((g) => g.provider === provider);
     if (searchQuery.trim()) {
@@ -97,7 +113,7 @@ export default function Slots() {
       list = list.filter((g) => g.name.toLowerCase().includes(q) || (g.provider || '').toLowerCase().includes(q));
     }
     return list;
-  }, [provider, searchQuery, catParam, isFavView, favorites, catalog]);
+  }, [provider, searchQuery, catParam, isFavView, favorites, catalog, baseList, liveGames]);
 
   const visible = filtered.slice(0, page * PER_PAGE);
   const scrollProviders = (dir) => trackRef.current?.scrollBy({ left: dir * 300, behavior: 'smooth' });
@@ -119,7 +135,7 @@ export default function Slots() {
           <button onClick={() => scrollProviders(-1)} style={arrowStyle('left')}>‹</button>
           <div ref={trackRef} style={{ overflowX: 'auto', scrollBehavior: 'smooth', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             <div style={{ display: 'flex', gap: '10px', padding: '4px 2px', width: 'max-content' }}>
-              {PROVIDER_LIST.map((p) => {
+              {buildProviderList(liveGames).map((p) => {
                 const active = provider === (p.name === 'All' ? 'all' : p.name);
                 return (
                   <button key={p.key} className={`prov-card${active ? ' active' : ''}`} onClick={() => setProvider(p.name === 'All' ? 'all' : p.name)}

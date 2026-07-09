@@ -222,6 +222,20 @@ module.exports = function seed() {
     }
   }
 
+  // ---- heibao game catalogue (4,995 games with hosted webp icons) ----
+  // Imported in chunks per boot so a single cold start never fires thousands
+  // of Firestore writes; matched by externalId so it self-heals until done.
+  {
+    const st = store.getSettings();
+    if (!st.heibaoImportDone) {
+      const { importMissing } = require('./heibaoImport');
+      const chunk = Number(process.env.HEIBAO_IMPORT_CHUNK || 1500);
+      const r = importMissing(chunk);
+      if (r.imported) console.log(`Imported ${r.imported} heibao games (${r.remaining} remaining of ${r.total})`);
+      if (r.total > 0 && r.remaining === 0) store.saveSettings({ heibaoImportDone: true });
+    }
+  }
+
   // ---- default API configuration ----
   const s = store.getSettings();
   if (!s.environment) {

@@ -56,6 +56,14 @@ router.get('/providers', (req, res) => {
   res.json(Object.entries(counts).map(([name, games]) => ({ name, games })).sort((a, b) => a.name.localeCompare(b.name)));
 });
 
+// ---- ADMIN: import the bundled heibao catalogue (idempotent, by externalId) ----
+router.post('/heibao-sync', requireAuth, requirePerm('content.manage'), (req, res) => {
+  const { importMissing } = require('../heibaoImport');
+  const r = importMissing(Number(req.body?.limit) || Infinity);
+  if (r.remaining === 0 && r.total > 0) store.saveSettings({ heibaoImportDone: true });
+  res.json(r);
+});
+
 // ---- ADMIN: create ----
 router.post('/', requireAuth, requirePerm('content.manage'), (req, res) => {
   const data = clean(req.body);
