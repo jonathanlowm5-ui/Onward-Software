@@ -223,8 +223,13 @@ export default function WebDesign() {
             </div>
             <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>Players pick one of these 3 styles on the withdrawal card. Leave a style empty to use its default colour; text stays overlaid.</div>
           </div>
-          <div className="wd-prev-label">Preview (Style 1)</div>
-          <div className="wd-cardp" style={pageBanners.withdrawCard1 ? { background: `linear-gradient(rgba(6,12,26,.3),rgba(6,12,26,.45)), url(${pageBanners.withdrawCard1}) center/cover` } : { background: 'linear-gradient(135deg,#1f4e79,#0e8a7a)' }}>
+          <div className="wd-prev-label">Preview (Style 1) — real player-site card size</div>
+          <div className="wd-cardp" style={{
+            maxWidth: 420, aspectRatio: '1.586 / 1', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+            ...(pageBanners.withdrawCard1
+              ? { background: `linear-gradient(rgba(6,12,26,.3),rgba(6,12,26,.45)), url(${pageBanners.withdrawCard1}) center/cover` }
+              : { background: 'linear-gradient(135deg,#1f4e79,#0e8a7a)' }),
+          }}>
             <div className="ttl">Your credit card</div><div className="lbl">Enter number</div>
             <div className="num">0000 0000 0000 0000</div>
             <div className="brands"><span>VISA</span><span className="mc"><i></i><i></i></span></div>
@@ -456,12 +461,23 @@ function TopBannerButtonsCard() {
       {cfg.buttons.map((b, i) => (
         <div key={b.id || i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', opacity: b.enabled === false ? 0.55 : 1 }}>
           <label className="switch" title="Show on the player site (applies immediately)"><input type="checkbox" checked={b.enabled !== false} onChange={(e) => toggleEnabled(i, e.target.checked)} /><span className="slider"></span></label>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            {b.iconImg
-              ? <img src={b.iconImg} alt="" style={{ width: 30, height: 30, objectFit: 'contain', borderRadius: 6, background: 'rgba(0,0,0,.3)' }} />
-              : <input style={{ ...inp, width: 52, textAlign: 'center', fontSize: 16 }} value={b.icon} onChange={(e) => setBtn(i, 'icon', e.target.value)} title="Icon (emoji fallback)" />}
-            <button className="mini-btn" style={{ padding: '5px 8px' }} title="Upload icon image" onClick={() => pickIcon(i)}>🖼️</button>
-            {b.iconImg && <button className="del-btn" style={{ padding: '4px 7px' }} title="Remove image, use emoji" onClick={() => { const next = { ...cfg, buttons: cfg.buttons.map((x, j) => (j === i ? { ...x, iconImg: '' } : x)) }; setCfg(next); persist(next, 'Icon image removed — emoji restored'); }}>✕</button>}
+          <span style={{ position: 'relative', display: 'inline-flex' }}>
+            <button
+              onClick={() => pickIcon(i)}
+              title="Click to upload an icon (PNG/JPG/WebP)"
+              style={{ width: 42, height: 36, borderRadius: 8, border: '1px dashed var(--border,#243049)', background: 'rgba(0,0,0,.3)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 2 }}
+            >
+              {b.iconImg
+                ? <img src={b.iconImg} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                : <span style={{ fontSize: 16 }}>{b.icon || '⬆'}</span>}
+            </button>
+            {b.iconImg && (
+              <button
+                title="Remove image"
+                onClick={() => { const next = { ...cfg, buttons: cfg.buttons.map((x, j) => (j === i ? { ...x, iconImg: '' } : x)) }; setCfg(next); persist(next, 'Icon image removed'); }}
+                style={{ position: 'absolute', top: -6, right: -6, width: 16, height: 16, borderRadius: '50%', border: 'none', background: '#e8506a', color: '#fff', fontSize: 9, lineHeight: 1, cursor: 'pointer', padding: 0 }}
+              >✕</button>
+            )}
           </span>
           <input style={{ ...inp, width: 140 }} value={b.label} onChange={(e) => setBtn(i, 'label', e.target.value)} placeholder="Label" />
           <div className="wd-col"><span className="hex">Start</span><input type="color" value={b.c1} onChange={(e) => setBtn(i, 'c1', e.target.value)} /></div>
