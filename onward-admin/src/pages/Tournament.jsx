@@ -3,6 +3,7 @@ import { useUI } from '../context/UIContext';
 import { listTournaments, saveTournaments } from '../services/tournamentService';
 import { listGames } from '../services/gameService';
 import { uploadImage } from '../services/uploadService';
+import { gameImg } from '../services/assets';
 
 /*
  * Tournament admin — create/edit the tournaments shown on the player site
@@ -213,7 +214,7 @@ export default function Tournament() {
                         <button type="button" key={g.id ?? g.name} className={`tgp-row${on ? ' on' : ''}`} onClick={() => toggleGame(g.name)}>
                           <span className="tgp-check">{on ? '✓' : ''}</span>
                           {g.image
-                            ? <img className="tgp-thumb" src={g.image} alt="" loading="lazy" />
+                            ? <img className="tgp-thumb" src={gameImg(g.image)} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                             : <span className="tgp-thumb-ph">🎰</span>}
                           <span className="tgp-name">{g.name}</span>
                           <span className="tgp-prov">{g.provider}</span>
