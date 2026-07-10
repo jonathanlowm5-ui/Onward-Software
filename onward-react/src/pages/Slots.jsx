@@ -6,6 +6,7 @@ import useFavorites from '../hooks/useFavorites';
 import useGames from '../hooks/useGames';
 import { ALL_SLOTS, GAMES, ALL_GAME_ICONS, LIVE_GAMES, PROVIDERS, PROVIDER_LOGOS, POPULAR_GAMES } from '../services/data/gameData';
 import HB_LOGOS from '../services/data/heibaoLogos.json';
+import svgAll from '../assets/sidebar/svg/all.svg';
 
 // Every bundled game, so the "favorite" view can resolve a favourited id even if
 // it isn't a slot (live, table, etc.).
@@ -42,7 +43,7 @@ const CAT_TITLE = {
 // Provider scroller buttons — built from the live catalogue when loaded (all
 // providers, sorted by game count) with bundled logos where the names match.
 const STATIC_PROVIDER_LIST = [
-  { name: 'All', key: 'all', label: 'All', logo: null },
+  { name: 'All', key: 'all', label: 'All', logo: svgAll },
   ...PROVIDERS.map((p) => ({ name: p.name, key: p.key, label: p.name, logo: p.logo })),
 ];
 function buildProviderList(games) {
@@ -51,7 +52,7 @@ function buildProviderList(games) {
   games.forEach((g) => { if (g.provider) counts[g.provider] = (counts[g.provider] || 0) + 1; });
   const logoFor = (name) => HB_LOGOS[name] || PROVIDERS.find((p) => p.name.toLowerCase() === name.toLowerCase())?.logo || null;
   return [
-    { name: 'All', key: 'all', label: 'All', logo: null },
+    { name: 'All', key: 'all', label: 'All', logo: svgAll },
     ...Object.entries(counts).sort((a, b) => b[1] - a[1])
       .map(([name]) => ({ name, key: name, label: name, logo: logoFor(name) })),
   ];
