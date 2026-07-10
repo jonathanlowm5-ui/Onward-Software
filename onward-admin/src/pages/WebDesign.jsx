@@ -210,17 +210,7 @@ export default function WebDesign() {
               </label>
               {wd.logo.img && <button type="button" className="mini-btn" onClick={() => setLogo('img', '')} style={{ color: 'var(--red,#ff4d5e)' }}>Remove</button>}
             </div>
-            <div className="wd-d" style={{ marginTop: 6 }}>Recommended: a wide PNG with transparent background, ~264 × 88 px (renders ~132 × 44). When set, it replaces the emoji + text below.</div>
-          </div>
-
-          <div className="wd-fld"><label>Logo Text {wd.logo.img && <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(fallback when no image)</span>}</label><input className="wd-txt" value={wd.logo.text} onChange={(e) => setLogo('text', e.target.value)} /></div>
-          <div className="wd-fld"><label>Logo Icon (emoji or symbol)</label><input className="wd-txt" value={wd.logo.emoji} onChange={(e) => setLogo('emoji', e.target.value)} /></div>
-          <div className="wd-prev-label">Preview</div>
-          <div className="wd-logo-prev">
-            {wd.logo.img
-              ? <img src={wd.logo.img} alt="logo" style={{ maxHeight: 34, maxWidth: 150, objectFit: 'contain' }} />
-              : <><span className="wd-logo-emoji">{wd.logo.emoji}</span><span className="wd-logo-text">{wd.logo.text}</span></>}
-            <span className="wd-logo-chip">CASINO</span>
+            <div className="wd-d" style={{ marginTop: 6 }}>Recommended: a wide PNG with transparent background, ~264 × 88 px (renders ~132 × 44).</div>
           </div>
         </div>
 

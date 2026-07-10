@@ -97,16 +97,11 @@ export default function Sidebar() {
   return (
     <aside id="sidebar-nav" className={sidebarOpen ? 'open' : ''}>
       <div className="sb-inner">
-        {/* Admin-configured sidebar logo (Website Design → Side Panel Logo).
-            An uploaded image wins; otherwise the emoji + text is shown. */}
-        {(wd?.logo?.img || wd?.logo?.text) && (
+        {/* Admin-configured sidebar logo image (Website Design → Side Panel Logo).
+            Only shown when an image has been uploaded. */}
+        {wd?.logo?.img && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '13px 16px 9px', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
-            {wd.logo.img
-              ? <img src={wd.logo.img} alt={wd.logo.text || 'logo'} style={{ maxHeight: 34, maxWidth: 160, objectFit: 'contain' }} />
-              : <>
-                  {wd.logo.emoji && <span style={{ fontSize: 20 }} aria-hidden="true">{wd.logo.emoji}</span>}
-                  <span style={{ fontWeight: 900, letterSpacing: '.06em', fontSize: 15, color: 'var(--text)' }}>{wd.logo.text}</span>
-                </>}
+            <img src={wd.logo.img} alt="logo" style={{ maxHeight: 34, maxWidth: 160, objectFit: 'contain' }} />
           </div>
         )}
 
