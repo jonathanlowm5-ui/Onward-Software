@@ -14,6 +14,22 @@ import icGiveaway from '../../assets/sidebar/giveaway.avif';
 import icRewards from '../../assets/sidebar/rewards.avif';
 import icUseCode from '../../assets/sidebar/use-code.avif';
 import icCrown from '../../assets/sidebar/crown.avif';
+// Uploaded monochrome SVG line icons for the menu. Only items with a matching
+// icon get one; the rest keep their emoji. Unused SVGs (blackjack, baccarat,
+// sicbo, gameshow, recentplay, profile, providers, all) are kept in
+// assets/sidebar/svg/ for later use.
+import svgPromo from '../../assets/sidebar/svg/promo.svg';
+import svgChallenge from '../../assets/sidebar/svg/challenge.svg';
+import svgReferral from '../../assets/sidebar/svg/referral.svg';
+import svgHot from '../../assets/sidebar/svg/hot.svg';
+import svgFavorites from '../../assets/sidebar/svg/favorites.svg';
+import svgNew from '../../assets/sidebar/svg/newgames.svg';
+import svgFast from '../../assets/sidebar/svg/fastgames.svg';
+import svgLive from '../../assets/sidebar/svg/livecasino.svg';
+import svgSlots from '../../assets/sidebar/svg/slots.svg';
+import svgRoulette from '../../assets/sidebar/svg/roulette.svg';
+import svgSupport from '../../assets/sidebar/svg/support.svg';
+import svgHome from '../../assets/sidebar/svg/home.svg';
 
 // Collapsible sport groups (id, icon, label, i18n, sub-links).
 const SPORT_GROUPS = [
@@ -105,25 +121,25 @@ export default function Sidebar() {
         <div className={`sb-panel${tab === 'casino' ? ' active' : ''}`} id="sb-casino">
           <SbItem img={icFortune} icon="🎡" label="Mini Games" i18n="nav_fortune_wheel" onClick={openFortuneWheel} />
           <SbItem img={icTournament} icon="🏆" label="Tournaments" i18n="nav_tournaments" onClick={() => go('tournaments')} />
-          <SbItem img={icGift} icon="🎁" label="Promotions" i18n="nav_promos" onClick={() => go('promos')} />
+          <SbItem img={svgPromo} icon="🎁" label="Promotions" i18n="nav_promos" onClick={() => go('promos')} />
           <SbItem img={icDiamond} icon="💎" label="VIP Club" i18n="nav_vip" onClick={() => go('vip')} />
           <SbItem img={icGiveaway} icon="⚡" label="Giveaways" i18n="nav_giveaways" badge={{ cls: 'hot', text: 'HOT' }} onClick={() => go('giveaways')} />
-          <SbItem img={icRewards} icon="🎯" label="Mission" i18n="nav_mission" onClick={() => go('missions')} />
+          <SbItem img={svgChallenge} icon="🎯" label="Mission" i18n="nav_mission" onClick={() => go('missions')} />
           <SbItem img={icUseCode} icon="🎟️" label="Use Code" i18n="nav_use_code" onClick={openUseCodeModal} />
           <SbItem img={icCrown} icon="👑" label="Jackpots" i18n="nav_jackpots" badge={{ cls: 'hot', text: jpBadge }} onClick={() => go('jackpots')} />
-          <SbItem icon="🤝" label="Referral" i18n="nav_referral" onClick={() => go('referral')} />
+          <SbItem img={svgReferral} icon="🤝" label="Referral" i18n="nav_referral" onClick={() => go('referral')} />
 
           <div className="sb-divider"></div>
 
-          <SbItem icon="🔥" label="Popular" i18n="nav_popular" active={filter === 'popular'} onClick={() => filterSidebar('popular')} />
-          <SbItem icon="❤️" label="Favorite" i18n="nav_favorite" active={filter === 'favorite'} badge={favCount > 0 ? { cls: 'hot', text: String(favCount) } : undefined} onClick={() => filterSidebar('favorite')} />
-          <SbItem icon="🆕" label="New" i18n="nav_new" badge={{ cls: 'new', text: 'NEW' }} onClick={() => filterSidebar('new')} />
-          <SbItem icon="⚡" label="Instant Games" i18n="nav_instant" onClick={() => filterSidebar('crash')} />
-          <SbItem icon="📡" label="Live Casino" i18n="nav_live" onClick={() => go('live')} />
-          <SbItem icon="🎰" label="Slots" i18n="nav_slots" onClick={() => go('slots')} />
+          <SbItem img={svgHot} icon="🔥" label="Popular" i18n="nav_popular" active={filter === 'popular'} onClick={() => filterSidebar('popular')} />
+          <SbItem img={svgFavorites} icon="❤️" label="Favorite" i18n="nav_favorite" active={filter === 'favorite'} badge={favCount > 0 ? { cls: 'hot', text: String(favCount) } : undefined} onClick={() => filterSidebar('favorite')} />
+          <SbItem img={svgNew} icon="🆕" label="New" i18n="nav_new" badge={{ cls: 'new', text: 'NEW' }} onClick={() => filterSidebar('new')} />
+          <SbItem img={svgFast} icon="⚡" label="Instant Games" i18n="nav_instant" onClick={() => filterSidebar('crash')} />
+          <SbItem img={svgLive} icon="📡" label="Live Casino" i18n="nav_live" onClick={() => go('live')} />
+          <SbItem img={svgSlots} icon="🎰" label="Slots" i18n="nav_slots" onClick={() => go('slots')} />
           <SbItem icon="💎" label="Jackpot" i18n="nav_jackpot_games" onClick={() => filterSidebar('jackpot')} />
           <SbItem icon="🎇" label="Megaways" i18n="nav_megaways" onClick={() => filterSidebar('megaways')} />
-          <SbItem icon="🎡" label="Roulette" i18n="nav_roulette" onClick={() => filterSidebar('roulette')} />
+          <SbItem img={svgRoulette} icon="🎡" label="Roulette" i18n="nav_roulette" onClick={() => filterSidebar('roulette')} />
           <SbItem icon="🎲" label="Table Games" i18n="nav_table" onClick={() => filterSidebar('table')} />
           <SbItem icon="🃏" label="Cards" i18n="nav_cards" onClick={() => filterSidebar('cards')} />
           <SbItem icon="♠️" label="Poker" i18n="nav_poker" onClick={() => go('poker')} />
@@ -135,14 +151,14 @@ export default function Sidebar() {
           <div className="sb-divider"></div>
 
           <div className="sb-bottom">
-            <SbItem icon="❓" label="FAQ" i18n="nav_faq" onClick={closeSidebar} />
+            <SbItem img={svgSupport} icon="❓" label="FAQ" i18n="nav_faq" onClick={closeSidebar} />
             <SbItem icon="📱" label="Download APP" i18n="nav_mini" onClick={openDownloadModal} />
           </div>
         </div>
 
         {/* SPORT PANEL */}
         <div className={`sb-panel${tab === 'sport' ? ' active' : ''}`} id="sb-sport">
-          <SbItem icon="🏠" label="Home" i18n="nav_lobby" onClick={() => go('sports')} />
+          <SbItem img={svgHome} icon="🏠" label="Home" i18n="nav_lobby" onClick={() => go('sports')} />
           <SbItem icon="🔴" label="Live Events" i18n="sec_live_events" badge={{ cls: 'hot', text: 'LIVE' }} onClick={() => go('sports')} />
 
           <div className="sb-divider"></div>
