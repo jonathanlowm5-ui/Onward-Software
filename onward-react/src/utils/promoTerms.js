@@ -77,6 +77,23 @@ export function localizePromo(promo = {}, lang = 'en') {
 // Pick the banner image to show a viewer: the per-currency banner for their own
 // currency wins, then the promo's pinned-currency banner, then the default
 // image. Lets one promotion carry MYR / PHP / … artwork with localized amounts.
+// Inline style overrides for a promo banner's title / description, set by the
+// admin (font colour + size in px). Returns {} when nothing is customised so
+// the site's default banner typography is kept.
+const isHex = (v) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(String(v || '').trim());
+export function promoTitleStyle(promo = {}) {
+  const s = {};
+  if (isHex(promo.titleColor)) s.color = promo.titleColor;
+  if (Number(promo.titleSize) > 0) s.fontSize = `${Number(promo.titleSize)}px`;
+  return s;
+}
+export function promoDescStyle(promo = {}) {
+  const s = {};
+  if (isHex(promo.descColor)) s.color = promo.descColor;
+  if (Number(promo.descSize) > 0) s.fontSize = `${Number(promo.descSize)}px`;
+  return s;
+}
+
 export function resolvePromoBanner(promo = {}, viewerCurrency) {
   const p = promo || {};
   const map = p.banners && typeof p.banners === 'object' ? p.banners : null;

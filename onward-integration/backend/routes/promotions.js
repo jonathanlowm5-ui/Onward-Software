@@ -43,6 +43,10 @@ function cleanI18n(src) {
   return out;
 }
 const num = (x, d = 0) => { const n = parseFloat(x); return Number.isFinite(n) ? n : d; };
+// A CSS hex colour (#rgb / #rrggbb), else '' (frontend falls back to its theme).
+const hexColor = (v) => (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(String(v || '').trim()) ? String(v).trim() : '');
+// A font size in px, clamped to a sane range; 0 = use the default.
+const fontPx = (v) => { const n = Math.round(num(v, 0)); return n > 0 ? Math.min(120, Math.max(8, n)) : 0; };
 const truthy = (v) => v === true || v === 1 || v === 'yes' || v === 'true' || v === '1' || v === 'on';
 const pickOne = (v, list, d) => (list.includes(v) ? v : d);
 
@@ -65,6 +69,12 @@ function clean(body) {
     banners: cleanBanners(body.banners),
     title: String(body.title || '').trim(),
     description: String(body.description || '').trim(),
+    // Banner text styling (admin-configurable, wired to the player banner).
+    // Empty colour / 0 size = inherit the site theme's default.
+    titleColor: hexColor(body.titleColor),
+    titleSize: fontPx(body.titleSize),
+    descColor: hexColor(body.descColor),
+    descSize: fontPx(body.descSize),
     // Economic / display fields (shown on the admin table and player cards).
     type: String(body.type || 'welcome').trim(),
     // Optional currency restriction. Empty = auto (follows the viewing

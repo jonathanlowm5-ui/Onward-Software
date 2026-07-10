@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import Modal from './Modal.jsx';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
-import { buildPromoTerms, resolvePromoBanner, localizePromo, localizePromoMoney } from '../../utils/promoTerms';
+import { buildPromoTerms, resolvePromoBanner, localizePromo, localizePromoMoney, promoTitleStyle, promoDescStyle } from '../../utils/promoTerms';
 
 /*
  * Promotion detail modal (#promo). Opened from any promo card on the
@@ -78,9 +78,9 @@ export default function PromoDetailModal() {
         {banner ? (
           <div className="promo-detail-banner promo-detail-banner-box" style={{ backgroundImage: `url(${banner})` }}>
             <div className="promo-detail-banner-text">
-              <span className="promo-detail-banner-title">{title}</span>
+              <span className="promo-detail-banner-title" style={promoTitleStyle(p)}>{title}</span>
               {(extras.length > 0 || lines.length > 0) && (
-                <div className="promo-detail-banner-desc">
+                <div className="promo-detail-banner-desc" style={promoDescStyle(p)}>
                   {(extras.length ? extras : lines).map((l, i) => <div key={i}>{l}</div>)}
                 </div>
               )}
@@ -89,7 +89,7 @@ export default function PromoDetailModal() {
         ) : (
           <div className="promo-detail-banner promo-detail-banner--gradient">
             {(p.deco || p.bonus || pct) && <span className="promo-detail-deco">{p.deco || p.bonus || pct}</span>}
-            <span className="promo-detail-banner-title">{title}</span>
+            <span className="promo-detail-banner-title" style={promoTitleStyle(p)}>{title}</span>
           </div>
         )}
 

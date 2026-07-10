@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useUI } from '../context/UIContext';
 import { useAuth } from '../context/AuthContext';
 import useSectionNav from '../hooks/useSectionNav';
-import { resolvePromoBanner, localizePromo } from '../utils/promoTerms';
+import { resolvePromoBanner, localizePromo, promoTitleStyle, promoDescStyle } from '../utils/promoTerms';
 import usePageBanner from '../hooks/usePageBanner';
 import api from '../services/api';
 // Uploaded welcome-tier icons (coin → bag → chest → crown).
@@ -235,15 +235,15 @@ export default function Promotions() {
         {banner ? (
           <div className="pb-banner-box" style={{ backgroundImage: `url(${banner})` }}>
             <div className="pb-banner-text">
-              <div className="pb-title">{p.title}</div>
-              {lines && <div className="pb-detail">{lines}</div>}
+              <div className="pb-title" style={promoTitleStyle(p)}>{p.title}</div>
+              {lines && <div className="pb-detail" style={promoDescStyle(p)}>{lines}</div>}
             </div>
           </div>
         ) : (
           <>
             {p.bonus && <div className="pb-deco">{p.bonus}</div>}
-            <div className="pb-title">{p.title}</div>
-            {lines && <div className="pb-detail">{lines}</div>}
+            <div className="pb-title" style={promoTitleStyle(p)}>{p.title}</div>
+            {lines && <div className="pb-detail" style={promoDescStyle(p)}>{lines}</div>}
           </>
         )}
         <button className="wh-tier-btn primary" style={{ marginTop: 12, width: '100%' }}>{p.buttonText || 'Claim now'}</button>

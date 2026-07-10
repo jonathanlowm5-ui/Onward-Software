@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
-import { resolvePromoBanner, localizePromo } from '../../utils/promoTerms';
+import { resolvePromoBanner, localizePromo, promoTitleStyle, promoDescStyle } from '../../utils/promoTerms';
 import { convertMoneyInText } from '../../utils/displayMoney';
 import { fetchPromotions } from '../../services/gamesService';
 
@@ -78,8 +78,8 @@ export default function BannerCarousel({ promos, className = '' }) {
               <img src={s.img} alt={title || 'Promotion'} className="onward-banner-img" />
               {(title || lines) && (
                 <div className="onward-banner-text">
-                  {title && <div className="onward-banner-title">{title}</div>}
-                  {lines && <div className="onward-banner-desc">{lines}</div>}
+                  {title && <div className="onward-banner-title" style={promoTitleStyle(s.p)}>{title}</div>}
+                  {lines && <div className="onward-banner-desc" style={promoDescStyle(s.p)}>{lines}</div>}
                 </div>
               )}
             </div>

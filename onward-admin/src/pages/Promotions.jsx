@@ -101,6 +101,8 @@ function normalizePromo(p) {
 const EMPTY_PROMO = {
   title: '', type: 'welcome', currency: '', country: '', bonus: '', maxBonus: '', minDeposit: '', wager: '', turnover: '',
   description: '', image: '', banners: {}, startDate: '', endDate: '', status: 'active', buttonText: '', buttonLink: '',
+  // Banner text styling (empty colour / 0 size = site default).
+  titleColor: '', titleSize: 0, descColor: '', descSize: 0,
   customTerms: '',
   i18n: {},
   // promotion rules / eligibility logic
@@ -123,6 +125,28 @@ const PROMO_RISK_GROUPS = ['Low Risk', 'Medium Risk', 'High Risk', 'Watch List']
 // uppercase labels.
 const AL_CB = { width: 16, height: 16, flexShrink: 0, margin: 0, cursor: 'pointer' };
 const AL_ROW = { display: 'inline-flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 13, fontWeight: 600, color: 'var(--text)', textTransform: 'none', letterSpacing: 'normal', cursor: 'pointer', marginBottom: 0, minWidth: 128 };
+// Font colour + size (px) controls for the banner title / description. Empty
+// colour or 0 size means "use the site theme default".
+function TextStyleRow({ label, color, size, onColor, onSize }) {
+  const val = String(color || '').trim();
+  const swatch = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(val) ? val : '#ffffff';
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>
+      <span style={{ textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</span>
+      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, textTransform: 'none' }}>
+        Colour
+        <input type="color" value={swatch} onChange={onColor} style={{ width: 34, height: 26, padding: 0, border: '1px solid var(--border)', borderRadius: 6, background: 'transparent', cursor: 'pointer' }} />
+        <input type="text" value={val} onChange={onColor} placeholder="#RRGGBB" maxLength={7} style={{ width: 92, padding: '5px 8px', borderRadius: 6, background: 'var(--bg3,#0b1224)', color: 'var(--text,#fff)', border: '1px solid var(--border,#243049)', fontSize: 12 }} />
+        {val && <button type="button" onClick={() => onColor({ target: { value: '' } })} title="Reset to default" style={{ border: 'none', background: 'transparent', color: 'var(--muted)', cursor: 'pointer', fontSize: 14 }}>✕</button>}
+      </label>
+      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, textTransform: 'none' }}>
+        Size
+        <input type="number" min={0} max={120} value={size || ''} onChange={onSize} placeholder="auto" style={{ width: 66, padding: '5px 8px', borderRadius: 6, background: 'var(--bg3,#0b1224)', color: 'var(--text,#fff)', border: '1px solid var(--border,#243049)', fontSize: 12 }} /> px
+      </label>
+    </div>
+  );
+}
+
 function AllowList({ title, hint, options, selected, onChange }) {
   const sel = Array.isArray(selected) ? selected : [];
   const allSel = options.length > 0 && options.every((o) => sel.includes(o));
@@ -279,6 +303,9 @@ function PromoEditModal({ initial, onClose, onSaved }) {
               </div>
             </div>
             <div className="pm-fld" style={{ gridColumn: '1 / -1' }}><label>Title {!langTab && <span style={{ color: 'var(--red)' }}>*</span>} {langTab && <span style={{ color: 'var(--gold)', fontWeight: 700 }}>· {langTab.toUpperCase()}</span>}</label><input value={tval('title')} onChange={tset('title')} placeholder={langTab ? `Title in ${langTab.toUpperCase()} (empty = use Default)` : '200% Welcome Bonus'} /></div>
+            <div className="pm-fld" style={{ gridColumn: '1 / -1' }}>
+              <TextStyleRow label="Title style" color={f.titleColor} size={f.titleSize} onColor={set('titleColor')} onSize={set('titleSize')} />
+            </div>
             <div className="pm-fld"><label>Section</label><select value={f.type} onChange={set('type')}><option value="welcome">Welcome</option><option value="deposit">Deposit</option><option value="reload">Reload</option><option value="cashback">Cashback</option><option value="freespin">Freespin</option><option value="referral">Referral</option><option value="tournament">Tournament</option><option value="custom">Custom (Special)</option></select><div className="pm-hint">Which page section it appears in. (Bonus type, %, amounts & limits are set in Promotion Rules below.)</div></div>
             <div className="pm-fld"><label>Country</label><select value={f.country} onChange={onCountry}><option value="">All countries</option>{PROMO_COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
             <div className="pm-fld"><label>Currency</label><select value={f.currency} onChange={set('currency')}><option value="">Auto (player's currency)</option>{PROMO_CURRENCIES.map((c) => <option key={c} value={c}>{c} only</option>)}</select></div>
@@ -291,6 +318,9 @@ function PromoEditModal({ initial, onClose, onSaved }) {
               <textarea value={tval('description')} onChange={tset('description')} rows={2}
                 placeholder={langTab ? `Description in ${langTab.toUpperCase()} (empty = use Default)` : '100% UP TO ₱2,060\n+25 FREE SPINS'}
                 style={{ width: '100%', resize: 'vertical', padding: '9px 12px', borderRadius: 8, background: 'var(--bg3,#0b1224)', color: 'var(--text,#fff)', border: '1px solid var(--border,#243049)', fontFamily: 'inherit', fontSize: 14, lineHeight: 1.5 }} />
+              <div style={{ marginTop: 8 }}>
+                <TextStyleRow label="Description style" color={f.descColor} size={f.descSize} onColor={set('descColor')} onSize={set('descSize')} />
+              </div>
             </div>
             <div className="pm-fld"><label>Button Text</label><input value={f.buttonText} onChange={set('buttonText')} placeholder="Deposit Now" /></div>
             <div className="pm-fld"><label>Button Link</label><input value={f.buttonLink} onChange={set('buttonLink')} placeholder="/deposit" /></div>
@@ -346,14 +376,14 @@ function PromoEditModal({ initial, onClose, onSaved }) {
                   <div style={{ width: '100%', aspectRatio: '1200 / 425', backgroundImage: `url(${f.image})`, backgroundSize: 'cover', backgroundPosition: 'center', borderRadius: 10, marginBottom: 12, position: 'relative', display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
                     <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg,rgba(8,13,26,.88) 0%,rgba(8,13,26,.6) 38%,rgba(8,13,26,.08) 62%,transparent 100%)' }} />
                     <div style={{ position: 'relative', zIndex: 1, padding: '0 14px', maxWidth: '64%' }}>
-                      <div style={{ fontWeight: 800, fontSize: 14, color: '#fff', textTransform: 'uppercase', lineHeight: 1.2, marginBottom: 5 }}>{f.title || '2ND DEPOSIT BONUS'}</div>
-                      <div style={{ fontSize: 10, color: 'rgba(255,255,255,.7)', lineHeight: 1.45, whiteSpace: 'pre-line' }}>{f.description || '100% UP TO ₱2,060\n+25 FREE SPINS'}</div>
+                      <div style={{ fontWeight: 800, fontSize: 14, color: '#fff', textTransform: 'uppercase', lineHeight: 1.2, marginBottom: 5, ...(f.titleColor ? { color: f.titleColor } : {}), ...(f.titleSize ? { fontSize: Number(f.titleSize) } : {}) }}>{f.title || '2ND DEPOSIT BONUS'}</div>
+                      <div style={{ fontSize: 10, color: 'rgba(255,255,255,.7)', lineHeight: 1.45, whiteSpace: 'pre-line', ...(f.descColor ? { color: f.descColor } : {}), ...(f.descSize ? { fontSize: Number(f.descSize) } : {}) }}>{f.description || '100% UP TO ₱2,060\n+25 FREE SPINS'}</div>
                     </div>
                   </div>
                 ) : (
                   <>
-                    <div style={{ fontWeight: 800, fontSize: 17, color: '#fff', textTransform: 'uppercase', lineHeight: 1.2 }}>{f.title || '2ND DEPOSIT BONUS'}</div>
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,.55)', marginTop: 8, lineHeight: 1.5, whiteSpace: 'pre-line' }}>{f.description || '100% UP TO ₱2,060\n+25 FREE SPINS'}</div>
+                    <div style={{ fontWeight: 800, fontSize: 17, color: '#fff', textTransform: 'uppercase', lineHeight: 1.2, ...(f.titleColor ? { color: f.titleColor } : {}), ...(f.titleSize ? { fontSize: Number(f.titleSize) } : {}) }}>{f.title || '2ND DEPOSIT BONUS'}</div>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,.55)', marginTop: 8, lineHeight: 1.5, whiteSpace: 'pre-line', ...(f.descColor ? { color: f.descColor } : {}), ...(f.descSize ? { fontSize: Number(f.descSize) } : {}) }}>{f.description || '100% UP TO ₱2,060\n+25 FREE SPINS'}</div>
                   </>
                 )}
                 <button style={{ marginTop: 12, width: '100%', padding: '9px 0', borderRadius: 8, border: 'none', fontWeight: 800, fontSize: 12, letterSpacing: '.06em', textTransform: 'uppercase', color: '#06091a', background: 'linear-gradient(135deg,#f0c040,#d99a00)', cursor: 'default' }}>{f.buttonText || 'Claim now'}</button>
