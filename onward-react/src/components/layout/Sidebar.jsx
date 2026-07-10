@@ -14,13 +14,11 @@ import icGiveaway from '../../assets/sidebar/giveaway.avif';
 import icRewards from '../../assets/sidebar/rewards.avif';
 import icUseCode from '../../assets/sidebar/use-code.avif';
 import icCrown from '../../assets/sidebar/crown.avif';
-// Uploaded monochrome SVG line icons for the menu. Only items with a matching
-// icon get one; the rest keep their emoji. Unused SVGs (blackjack, baccarat,
-// sicbo, gameshow, recentplay, profile, providers, all) are kept in
-// assets/sidebar/svg/ for later use.
-import svgPromo from '../../assets/sidebar/svg/promo.svg';
-import svgChallenge from '../../assets/sidebar/svg/challenge.svg';
-import svgReferral from '../../assets/sidebar/svg/referral.svg';
+// Uploaded monochrome SVG line icons for the lower menu section (the top group
+// keeps its previous colourful icons). Only items with a matching icon get one;
+// the rest keep their emoji. The remaining SVGs (promo, challenge, referral,
+// blackjack, baccarat, sicbo, gameshow, recentplay, profile, providers, all)
+// are kept in assets/sidebar/svg/ for later use.
 import svgHot from '../../assets/sidebar/svg/hot.svg';
 import svgFavorites from '../../assets/sidebar/svg/favorites.svg';
 import svgNew from '../../assets/sidebar/svg/newgames.svg';
@@ -121,13 +119,13 @@ export default function Sidebar() {
         <div className={`sb-panel${tab === 'casino' ? ' active' : ''}`} id="sb-casino">
           <SbItem img={icFortune} icon="🎡" label="Mini Games" i18n="nav_fortune_wheel" onClick={openFortuneWheel} />
           <SbItem img={icTournament} icon="🏆" label="Tournaments" i18n="nav_tournaments" onClick={() => go('tournaments')} />
-          <SbItem img={svgPromo} icon="🎁" label="Promotions" i18n="nav_promos" onClick={() => go('promos')} />
+          <SbItem img={icGift} icon="🎁" label="Promotions" i18n="nav_promos" onClick={() => go('promos')} />
           <SbItem img={icDiamond} icon="💎" label="VIP Club" i18n="nav_vip" onClick={() => go('vip')} />
           <SbItem img={icGiveaway} icon="⚡" label="Giveaways" i18n="nav_giveaways" badge={{ cls: 'hot', text: 'HOT' }} onClick={() => go('giveaways')} />
-          <SbItem img={svgChallenge} icon="🎯" label="Mission" i18n="nav_mission" onClick={() => go('missions')} />
+          <SbItem img={icRewards} icon="🎯" label="Mission" i18n="nav_mission" onClick={() => go('missions')} />
           <SbItem img={icUseCode} icon="🎟️" label="Use Code" i18n="nav_use_code" onClick={openUseCodeModal} />
           <SbItem img={icCrown} icon="👑" label="Jackpots" i18n="nav_jackpots" badge={{ cls: 'hot', text: jpBadge }} onClick={() => go('jackpots')} />
-          <SbItem img={svgReferral} icon="🤝" label="Referral" i18n="nav_referral" onClick={() => go('referral')} />
+          <SbItem icon="🤝" label="Referral" i18n="nav_referral" onClick={() => go('referral')} />
 
           <div className="sb-divider"></div>
 
