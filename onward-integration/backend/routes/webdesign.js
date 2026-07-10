@@ -27,6 +27,9 @@ router.put('/', requireAuth, requirePerm('settings.manage'), (req, res) => {
     logo: {
       text: str(b.logo?.text, 30).trim(),
       emoji: str(b.logo?.emoji, 8).trim(),
+      // Uploaded logo image URL (from /api/upload). When set, the player
+      // sidebar shows this image instead of the emoji + text.
+      img: str(b.logo?.img, 100000).trim(),
     },
     btnBg: color(b.btnBg, '#f4b223'),
     btnTx: color(b.btnTx, '#10131c'),

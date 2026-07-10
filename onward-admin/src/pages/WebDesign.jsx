@@ -14,7 +14,7 @@ const PAGE_BANNER_LIST = [
 
 // Original WEBDESIGN defaults.
 const DEFAULT_WD = {
-  logo: { text: 'ONWARD', emoji: '⚽' },
+  logo: { text: 'ONWARD', emoji: '⚽', img: '' },
   btnBg: '#f4b223',
   btnTx: '#10131c',
   withdraw: { c1: '#1f4e79', c2: '#0e8a7a' },
@@ -52,6 +52,20 @@ export default function WebDesign() {
   }, []);
 
   const setLogo = (k, v) => setWd((p) => ({ ...p, logo: { ...p.logo, [k]: v } }));
+  const [logoUploading, setLogoUploading] = useState(false);
+  const uploadLogo = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { toast('⚠ Logo too large — keep it under 2 MB'); return; }
+    setLogoUploading(true);
+    try {
+      const { url } = await uploadImage(file);
+      setWd((p) => ({ ...p, logo: { ...p.logo, img: url } }));
+      toast('Logo uploaded ✔ — click Save to publish');
+    } catch (err) { toast('⚠ ' + (err.message || 'Upload failed')); }
+    finally { setLogoUploading(false); }
+  };
   const setField = (k, v) => setWd((p) => ({ ...p, [k]: v }));
   const setWithdraw = (k, v) => setWd((p) => ({ ...p, withdraw: { ...p.withdraw, [k]: v } }));
   const setVip = (k, v) => setWd((p) => ({ ...p, vip: { ...p.vip, [k]: v } }));
@@ -181,10 +195,33 @@ export default function WebDesign() {
         <div className="wd-card">
           <h3>🧩 Side Panel Logo</h3>
           <div className="wd-d">The logo shown at the top of the player site sidebar.</div>
-          <div className="wd-fld"><label>Logo Text</label><input className="wd-txt" value={wd.logo.text} onChange={(e) => setLogo('text', e.target.value)} /></div>
+
+          <div className="wd-fld">
+            <label>Logo Image (upload)</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ width: 132, height: 44, borderRadius: 8, border: '1px dashed var(--border)', background: 'rgba(255,255,255,.03)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                {wd.logo.img
+                  ? <img src={wd.logo.img} alt="logo" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                  : <span style={{ color: 'var(--muted)', fontSize: 11 }}>No image</span>}
+              </div>
+              <label className="mini-btn" style={{ cursor: 'pointer' }}>
+                {logoUploading ? 'Uploading…' : (wd.logo.img ? 'Replace' : '⬆ Upload logo')}
+                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={uploadLogo} disabled={logoUploading} />
+              </label>
+              {wd.logo.img && <button type="button" className="mini-btn" onClick={() => setLogo('img', '')} style={{ color: 'var(--red,#ff4d5e)' }}>Remove</button>}
+            </div>
+            <div className="wd-d" style={{ marginTop: 6 }}>Recommended: a wide PNG with transparent background, ~264 × 88 px (renders ~132 × 44). When set, it replaces the emoji + text below.</div>
+          </div>
+
+          <div className="wd-fld"><label>Logo Text {wd.logo.img && <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(fallback when no image)</span>}</label><input className="wd-txt" value={wd.logo.text} onChange={(e) => setLogo('text', e.target.value)} /></div>
           <div className="wd-fld"><label>Logo Icon (emoji or symbol)</label><input className="wd-txt" value={wd.logo.emoji} onChange={(e) => setLogo('emoji', e.target.value)} /></div>
           <div className="wd-prev-label">Preview</div>
-          <div className="wd-logo-prev"><span className="wd-logo-emoji">{wd.logo.emoji}</span><span className="wd-logo-text">{wd.logo.text}</span><span className="wd-logo-chip">CASINO</span></div>
+          <div className="wd-logo-prev">
+            {wd.logo.img
+              ? <img src={wd.logo.img} alt="logo" style={{ maxHeight: 34, maxWidth: 150, objectFit: 'contain' }} />
+              : <><span className="wd-logo-emoji">{wd.logo.emoji}</span><span className="wd-logo-text">{wd.logo.text}</span></>}
+            <span className="wd-logo-chip">CASINO</span>
+          </div>
         </div>
 
         <div className="wd-card">
