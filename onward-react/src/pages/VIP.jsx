@@ -10,17 +10,19 @@ import useWebDesign from '../hooks/useWebDesign';
 import api from '../services/api';
 
 // ---- Default theme (used until the admin-configured tiers load) ----
+// bg1/bg2 = a distinct dark gradient per tier so every VIP level card has its
+// own colour out of the box (the admin can still override per level).
 const DEFAULT_VIP_LEVELS = [
-  { lvl: 1, c: '#cd7f32', cl: '#e3a565', cd: '#9c5e20', rgb: '205,127,50', rb: '1%' },
-  { lvl: 2, c: '#c0c8d0', cl: '#e6ecf2', cd: '#8b929b', rgb: '192,200,208', rb: '1.5%' },
-  { lvl: 3, c: '#f0c040', cl: '#fbe08a', cd: '#c9971a', rgb: '240,192,64', rb: '2%' },
-  { lvl: 4, c: '#34c759', cl: '#7ee59a', cd: '#1f8f3e', rgb: '52,199,89', rb: '2.5%' },
-  { lvl: 5, c: '#1ab5b5', cl: '#5fe0e0', cd: '#0f8585', rgb: '26,181,181', rb: '3%' },
-  { lvl: 6, c: '#3b82f6', cl: '#7dabff', cd: '#2360c8', rgb: '59,130,246', rb: '4%' },
-  { lvl: 7, c: '#a855f7', cl: '#c89bff', cd: '#7d34c8', rgb: '168,85,247', rb: '5%' },
-  { lvl: 8, c: '#ec4899', cl: '#f888bf', cd: '#bd2e74', rgb: '236,72,153', rb: '6%' },
-  { lvl: 9, c: '#ef4444', cl: '#f88080', cd: '#c22e2e', rgb: '239,68,68', rb: '8%' },
-  { lvl: 10, c: '#5ad1ed', cl: '#a8eeff', cd: '#22b8d4', rgb: '90,209,237', rb: '10%' },
+  { lvl: 1, c: '#cd7f32', cl: '#e3a565', cd: '#9c5e20', rgb: '205,127,50', rb: '1%', bg1: '#4a2f13', bg2: '#17100a' },
+  { lvl: 2, c: '#c0c8d0', cl: '#e6ecf2', cd: '#8b929b', rgb: '192,200,208', rb: '1.5%', bg1: '#3c424b', bg2: '#14171b' },
+  { lvl: 3, c: '#f0c040', cl: '#fbe08a', cd: '#c9971a', rgb: '240,192,64', rb: '2%', bg1: '#4d3c12', bg2: '#191307' },
+  { lvl: 4, c: '#34c759', cl: '#7ee59a', cd: '#1f8f3e', rgb: '52,199,89', rb: '2.5%', bg1: '#123f22', bg2: '#08170d' },
+  { lvl: 5, c: '#1ab5b5', cl: '#5fe0e0', cd: '#0f8585', rgb: '26,181,181', rb: '3%', bg1: '#0f3f3f', bg2: '#071818' },
+  { lvl: 6, c: '#3b82f6', cl: '#7dabff', cd: '#2360c8', rgb: '59,130,246', rb: '4%', bg1: '#16305f', bg2: '#070f22' },
+  { lvl: 7, c: '#a855f7', cl: '#c89bff', cd: '#7d34c8', rgb: '168,85,247', rb: '5%', bg1: '#311c4d', bg2: '#130920' },
+  { lvl: 8, c: '#ec4899', cl: '#f888bf', cd: '#bd2e74', rgb: '236,72,153', rb: '6%', bg1: '#4d1735', bg2: '#1c0a14' },
+  { lvl: 9, c: '#ef4444', cl: '#f88080', cd: '#c22e2e', rgb: '239,68,68', rb: '8%', bg1: '#4d1616', bg2: '#1c0808' },
+  { lvl: 10, c: '#5ad1ed', cl: '#a8eeff', cd: '#22b8d4', rgb: '90,209,237', rb: '10%', bg1: '#123f49', bg2: '#07191d' },
 ];
 
 // Map an admin VIP tier (from /api/vip/tiers) into the shape this page renders.
@@ -32,6 +34,7 @@ function tierToLevel(t, i) {
     cl: t.cl || def.cl,
     cd: t.cd || def.cd,
     rgb: t.rgb || def.rgb,
+    bg1: def.bg1, bg2: def.bg2,  // per-tier default card gradient
     rb: t.rake || def.rb,        // rakeback chip on the card
     name: t.n || '',             // admin-configured tier name
     ic: t.ic || '',              // emoji icon
@@ -98,7 +101,9 @@ function VipHCard({ l, idx, active, mine, onTap, cardRef, levels, me, tierColors
       style={{ '--vc': ac, '--vc-l': l.cl, '--vc-d': l.cd, '--vc-rgb': l.rgb,
         ...(tierBg
           ? { backgroundImage: `linear-gradient(rgba(8,6,2,.45),rgba(8,6,2,.6)), url(${tierBg})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-          : (hasTc && tc.c1 ? { background: `linear-gradient(135deg,${tc.c1},${tc.c2 || tc.c1})` } : {})) }}
+          : (hasTc && tc.c1
+            ? { background: `linear-gradient(135deg,${tc.c1},${tc.c2 || tc.c1})` }
+            : (l.bg1 ? { background: `linear-gradient(135deg,${l.bg1},${l.bg2 || l.bg1})` } : {}))) }}
       onClick={onTap}
     >
       {mine && <div className="vipw-mine-tag">{T.ribbon}</div>}

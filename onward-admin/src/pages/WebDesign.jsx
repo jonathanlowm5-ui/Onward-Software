@@ -19,7 +19,20 @@ const DEFAULT_WD = {
   btnTx: '#10131c',
   withdraw: { c1: '#1f4e79', c2: '#0e8a7a' },
   vip: { c1: '#3a2410', c2: '#140d06', ac: '#e8a23d' },
-  vipTiers: {}, // per-tier colour overrides: { [1..10]: {c1,c2,ac} }
+  // Per-tier colour overrides: { [1..10]: {c1,c2,ac} }. Seeded with a distinct
+  // palette per level so every VIP tier has its own colour out of the box.
+  vipTiers: {
+    1: { c1: '#4a2f13', c2: '#17100a', ac: '#cd7f32' },
+    2: { c1: '#3c424b', c2: '#14171b', ac: '#c0c8d0' },
+    3: { c1: '#4d3c12', c2: '#191307', ac: '#f0c040' },
+    4: { c1: '#123f22', c2: '#08170d', ac: '#34c759' },
+    5: { c1: '#0f3f3f', c2: '#071818', ac: '#1ab5b5' },
+    6: { c1: '#16305f', c2: '#070f22', ac: '#3b82f6' },
+    7: { c1: '#311c4d', c2: '#130920', ac: '#a855f7' },
+    8: { c1: '#4d1735', c2: '#1c0a14', ac: '#ec4899' },
+    9: { c1: '#4d1616', c2: '#1c0808', ac: '#ef4444' },
+    10: { c1: '#123f49', c2: '#07191d', ac: '#5ad1ed' },
+  },
   banners: [
     { name: 'Casino', c1: '#ff5a3c', c2: '#c41e3a', e: '🎰' },
     { name: 'Sport', c1: '#1fa05f', c2: '#0c5c39', e: '⚽' },
@@ -47,7 +60,7 @@ export default function WebDesign() {
             btnTx: d.btnTx || p.btnTx,
             withdraw: { ...p.withdraw, ...(d.withdraw || {}) },
             vip: { ...p.vip, ...(d.vip || {}) },
-            vipTiers: d.vipTiers && typeof d.vipTiers === 'object' ? d.vipTiers : {},
+            vipTiers: { ...p.vipTiers, ...(d.vipTiers && typeof d.vipTiers === 'object' ? d.vipTiers : {}) },
           }));
         }
       }).catch(() => {}));
