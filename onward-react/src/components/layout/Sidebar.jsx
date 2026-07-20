@@ -4,7 +4,6 @@ import { useUI } from '../../context/UIContext';
 import api from '../../services/api';
 import useSectionNav from '../../hooks/useSectionNav';
 import useFavorites from '../../hooks/useFavorites';
-import useWebDesign from '../../hooks/useWebDesign';
 // Uploaded sidebar icons (replace the emoji on the Casino panel menu).
 import icFortune from '../../assets/sidebar/fortune-wheel.avif';
 import icTournament from '../../assets/sidebar/tournament.avif';
@@ -65,7 +64,6 @@ export default function Sidebar() {
   const [openGroups, setOpenGroups] = useState({});
   const { closeSidebar, openModal, sidebarOpen } = useUI();
   const { count: favCount } = useFavorites();
-  const wd = useWebDesign(); // admin Website Design: optional sidebar logo
   const go = useSectionNav();
   const navigate = useNavigate();
 
@@ -97,13 +95,6 @@ export default function Sidebar() {
   return (
     <aside id="sidebar-nav" className={sidebarOpen ? 'open' : ''}>
       <div className="sb-inner">
-        {/* Admin-configured sidebar logo image (Website Design → Side Panel Logo).
-            Only shown when an image has been uploaded. */}
-        {wd?.logo?.img && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '13px 16px 9px', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
-            <img src={wd.logo.img} alt="logo" style={{ maxHeight: 34, maxWidth: 160, objectFit: 'contain' }} />
-          </div>
-        )}
 
         {/* Casino / Sport Tabs */}
         <div className="sb-tabs">

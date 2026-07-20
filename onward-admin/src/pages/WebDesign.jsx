@@ -217,8 +217,8 @@ export default function WebDesign() {
 
       <div className="wd-grid">
         <div className="wd-card">
-          <h3>🧩 Side Panel Logo</h3>
-          <div className="wd-d">The logo shown at the top of the player site sidebar.</div>
+          <h3>🧩 Webpage Logo</h3>
+          <div className="wd-d">The main logo shown in the player site's top header bar.</div>
 
           <div className="wd-fld">
             <label>Logo Image (upload)</label>
@@ -234,7 +234,7 @@ export default function WebDesign() {
               </label>
               {wd.logo.img && <button type="button" className="mini-btn" onClick={() => setLogo('img', '')} style={{ color: 'var(--red,#ff4d5e)' }}>Remove</button>}
             </div>
-            <div className="wd-d" style={{ marginTop: 6 }}>Recommended: a wide PNG with transparent background, ~264 × 88 px (renders ~132 × 44).</div>
+            <div className="wd-d" style={{ marginTop: 6 }}>Recommended: a wide PNG with transparent background (renders ~40–52 px tall in the header). Leave empty to use the built-in logo.</div>
           </div>
         </div>
 
