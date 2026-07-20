@@ -1,7 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useUI } from '../context/UIContext';
-import { listGames, toggleGame, updateGame } from '../services/gameService';
+import { listGames, toggleGame, updateGame, createGame } from '../services/gameService';
+import { uploadImage } from '../services/uploadService';
 import api from '../services/api';
+
+const EMPTY_GAME = { name: '', provider: '', category: 'slots', image: '', launchUrl: '', enabled: true };
 
 // ---- Static demo catalog (original GAMES) — used as fallback on API error/empty ----
 const PG_NAMES = ['Alchemy Gold', "Alibaba's Cave Of Fortune", 'Anubis Wrath', 'Asgardian Rising', 'Bakery Bonanza', 'Bali Vacation', 'Battleground Royale', 'Bikini Paradise', 'Buffalo Win', 'Butterfly Blossom', 'Caishen Wins', 'Candy Bonanza'];
@@ -41,6 +44,31 @@ export default function GameList() {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ q: '', prov: '', cat: '', st: '' });
   const [syncing, setSyncing] = useState(false);
+  // Add Game modal
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState(EMPTY_GAME);
+  const [addBusy, setAddBusy] = useState(false);
+  const setAdd = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+  const uploadGameImg = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { toast('⚠ Image too large — keep it under 2 MB'); return; }
+    try { const { url } = await uploadImage(file); setAdd('image', url); toast('Icon uploaded ✔'); }
+    catch (err) { toast('⚠ ' + (err.message || 'Upload failed')); }
+  };
+  const submitAdd = async () => {
+    if (!form.name.trim()) { toast('⚠ Game name is required'); return; }
+    if (!form.provider.trim()) { toast('⚠ Provider is required'); return; }
+    setAddBusy(true);
+    try {
+      const created = await createGame({ ...form, name: form.name.trim(), provider: form.provider.trim() });
+      setGames((prev) => [normalize(created), ...prev]);
+      toast(`✅ ${created.name} added`);
+      setShowAdd(false); setForm(EMPTY_GAME);
+    } catch (e) { toast('⚠ ' + (e.message || 'Failed to add game')); }
+    finally { setAddBusy(false); }
+  };
 
   // Star toggle: features/removes a game in the player site's Popular sections.
   const togglePopular = async (g) => {
@@ -183,7 +211,8 @@ export default function GameList() {
             🎰 Game List <span className="res-chip" id="glCount">{list.length} games</span>
           </div>
           <span className="pr" style={{ display: 'flex', gap: 8 }}>
-            <button className="mini-btn gold" onClick={syncHeibao} disabled={syncing}>{syncing ? 'Importing…' : '📥 Import Game Catalogue'}</button>
+            <button className="mini-btn gold" onClick={() => { setForm(EMPTY_GAME); setShowAdd(true); }}>➕ Add Game</button>
+            <button className="mini-btn" onClick={syncHeibao} disabled={syncing}>{syncing ? 'Importing…' : '📥 Import Game Catalogue'}</button>
             <button className="mini-btn" onClick={exportGames}>⬇ Export</button>
           </span>
         </div>
@@ -225,6 +254,59 @@ export default function GameList() {
           </table>
         </div>
       </div>
+
+      {showAdd && (
+        <div className="dep2-ov" onClick={(e) => { if (e.target.classList.contains('dep2-ov')) setShowAdd(false); }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(4,8,18,.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="card" style={{ width: 460, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>➕ Add Game</span>
+              <button className="mini-btn" onClick={() => setShowAdd(false)}>✕</button>
+            </div>
+            <div className="fld" style={{ marginBottom: 10 }}>
+              <label>Game Name <span style={{ color: 'var(--red,#ff4d5e)' }}>*</span></label>
+              <input value={form.name} onChange={(e) => setAdd('name', e.target.value)} placeholder="e.g. Sweet Bonanza" />
+            </div>
+            <div className="fld" style={{ marginBottom: 10 }}>
+              <label>Provider <span style={{ color: 'var(--red,#ff4d5e)' }}>*</span></label>
+              <input list="gl-provs" value={form.provider} onChange={(e) => setAdd('provider', e.target.value)} placeholder="e.g. Pragmatic — type a new one to create it" />
+              <datalist id="gl-provs">{provNames.map((p) => <option key={p} value={p} />)}</datalist>
+            </div>
+            <div className="fld" style={{ marginBottom: 10 }}>
+              <label>Category</label>
+              <select value={form.category} onChange={(e) => setAdd('category', e.target.value)}>
+                <option value="slots">Slots</option>
+                <option value="live">Live Casino</option>
+                <option value="crash">Crash</option>
+                <option value="fishing">Fish</option>
+                <option value="table">Table</option>
+                <option value="sports">Sports</option>
+              </select>
+            </div>
+            <div className="fld" style={{ marginBottom: 10 }}>
+              <label>Game Icon</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 60, height: 60, borderRadius: 8, border: '1px dashed var(--border)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--panel-3,#1b2541)' }}>
+                  {form.image ? <img src={form.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 22 }}>🎰</span>}
+                </div>
+                <label className="mini-btn" style={{ cursor: 'pointer' }}>⬆ Upload<input type="file" accept="image/*" style={{ display: 'none' }} onChange={uploadGameImg} /></label>
+                {form.image && <button className="mini-btn" onClick={() => setAdd('image', '')}>Remove</button>}
+              </div>
+            </div>
+            <div className="fld" style={{ marginBottom: 10 }}>
+              <label>Launch URL <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(optional)</span></label>
+              <input value={form.launchUrl} onChange={(e) => setAdd('launchUrl', e.target.value)} placeholder="https://… (leave empty for aggregator launch)" />
+            </div>
+            <label className="pm-check" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <input type="checkbox" checked={form.enabled} onChange={(e) => setAdd('enabled', e.target.checked)} /> Enabled (visible to players)
+            </label>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button className="mini-btn" onClick={() => setShowAdd(false)}>Cancel</button>
+              <button className="mini-btn gold" onClick={submitAdd} disabled={addBusy}>{addBusy ? 'Adding…' : 'Add Game'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
