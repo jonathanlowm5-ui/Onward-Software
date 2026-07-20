@@ -257,9 +257,16 @@ export default function WebDesign() {
               ? { background: `linear-gradient(rgba(6,12,26,.3),rgba(6,12,26,.45)), url(${pageBanners.withdrawCard1}) center/cover` }
               : { background: 'linear-gradient(135deg,#1f4e79,#0e8a7a)' }),
           }}>
-            <div className="ttl">Your credit card</div><div className="lbl">Enter number</div>
+            <div className="cardp-top">
+              <span className="cardp-logo" title="Bank / e-wallet logo (upload later)" />
+              <span className="cardp-bank">Your credit card</span>
+            </div>
+            <span className="cardp-chip" aria-hidden="true" />
             <div className="num">0000 0000 0000 0000</div>
-            <div className="brands"><span>VISA</span><span className="mc"><i></i><i></i></span></div>
+            <div className="cardp-foot">
+              <span className="cardp-valid"><b>VALID<br />THRU</b><em>09/27</em></span>
+              <span className="brands"><span>VISA</span><span className="mc"><i></i><i></i></span></span>
+            </div>
           </div>
         </div>
 

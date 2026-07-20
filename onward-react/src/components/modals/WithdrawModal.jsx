@@ -65,6 +65,7 @@ export default function WithdrawModal() {
   const [tab, setTab] = useState('All');
   const [method, setMethod] = useState('card');
   const [dest, setDest] = useState('');
+  const [exp, setExp] = useState('');
   const [amount, setAmount] = useState('');
   const [showDetails, setShowDetails] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -110,7 +111,7 @@ export default function WithdrawModal() {
     if (!String(dest || '').trim()) { toast(`Please enter ${destLabel.toLowerCase()}`, 'error'); return; }
     setBusy(true);
     try {
-      await withdraw({ amount: amt, method: active.name || 'Withdrawal', destination: dest });
+      await withdraw({ amount: amt, method: active.name || 'Withdrawal', destination: dest, ...(isCard && exp ? { cardExpiry: exp } : {}) });
       await refreshProfile();
       toast(`Withdrawal request for ${money(amt)} submitted`);
       closeModal();
@@ -164,12 +165,20 @@ export default function WithdrawModal() {
                 />
               ))}
             </div>
-            {/* Real bank-card proportions (85.6 × 54 → 1.586:1) */}
+            {/* Real bank-card proportions (85.6 × 54 → 1.586:1). Layout mirrors a
+                physical card: brand logo top-left, chip, number in the middle,
+                VALID THRU bottom-left, network mark bottom-right. */}
             <div className="wd-dest wd-dest--bankcard" style={cardBgStyle}>
               <div className="wd-dest-top">
-                <span className="wd-dest-title">{destTitle}</span>
-                {isCard && <span className="wd-dest-bank">ONWARD</span>}
+                {/* Brand / e-wallet logo slot (admin uploads these later). */}
+                <span className="wd-card-logo">
+                  {active.logo
+                    ? <img src={active.logo} alt={active.name} />
+                    : <span className="wd-card-logo-ph" aria-hidden="true" />}
+                </span>
+                <span className="wd-dest-bank">{destTitle}</span>
               </div>
+
               {isCard && (
                 <div className="wd-chiprow">
                   <span className="wd-chip" aria-hidden="true"></span>
@@ -180,11 +189,31 @@ export default function WithdrawModal() {
                   </svg>
                 </div>
               )}
-              <div className="wd-dest-bottom">
+
+              {/* Middle: the number / address. */}
+              <div className="wd-card-numrow">
                 <div className="wd-dest-label">{destLabel}</div>
                 <input className="wd-dest-input" placeholder={destPh} value={dest} onChange={(e) => setDest(e.target.value)} />
-                {isCard && <div className="wd-brandrow"><span className="wd-bdg wd-visa">VISA</span><span className="wd-bdg wd-mc">●●</span></div>}
               </div>
+
+              {/* Bottom: VALID THRU (left) + network mark (right). */}
+              {isCard && (
+                <div className="wd-card-footer">
+                  <label className="wd-card-valid">
+                    <span className="wd-card-valid-lbl">VALID<br />THRU</span>
+                    <input className="wd-card-exp" placeholder="MM/YY" value={exp} maxLength={5} inputMode="numeric"
+                      onChange={(e) => {
+                        let v = e.target.value.replace(/[^0-9]/g, '').slice(0, 4);
+                        if (v.length >= 3) v = v.slice(0, 2) + '/' + v.slice(2);
+                        setExp(v);
+                      }} />
+                  </label>
+                  <div className="wd-brandrow">
+                    <span className="wd-bdg wd-visa">VISA</span>
+                    <span className="wd-mc-logo" aria-label="Mastercard"><i></i><i></i></span>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="wd-amt-label">Withdrawal amount</div>

@@ -2148,12 +2148,22 @@ button.rm:hover{filter:brightness(1.15)}
 /* button preview */
 .wd-btn-prev{padding:12px 26px;border:none;border-radius:10px;font-weight:800;font-size:.9rem;cursor:pointer}
 /* withdrawal card preview (Image 2) */
-.wd-cardp{position:relative;border-radius:16px;padding:22px;color:#fff;min-height:150px;box-shadow:0 12px 30px rgba(0,0,0,.4);overflow:hidden}
-.wd-cardp .ttl{font-size:1.1rem;font-weight:800;margin-bottom:18px}
-.wd-cardp .lbl{font-size:.68rem;opacity:.85;font-weight:700;margin-bottom:6px}
-.wd-cardp .num{background:rgba(0,0,0,.28);border-radius:9px;padding:13px 14px;font-family:'Roboto Mono','Courier New',monospace;font-size:1rem;letter-spacing:2px;opacity:.85}
-.wd-cardp .brands{position:absolute;right:18px;bottom:14px;display:flex;align-items:center;gap:9px;font-weight:800;font-style:italic}
-.wd-cardp .mc{display:flex}.wd-cardp .mc i{width:15px;height:15px;border-radius:50%;display:block}.wd-cardp .mc i:first-child{background:#eb001b}.wd-cardp .mc i:last-child{background:#f79e1b;margin-left:-7px;opacity:.9}
+.wd-cardp{position:relative;border-radius:16px;padding:20px 22px;color:#fff;min-height:150px;box-shadow:0 12px 30px rgba(0,0,0,.4);overflow:hidden}
+/* top: brand/e-wallet logo (left) + caption (right) */
+.wd-cardp .cardp-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.wd-cardp .cardp-logo{width:46px;height:30px;border-radius:6px;background:rgba(255,255,255,.14);border:1px dashed rgba(255,255,255,.35);display:block}
+.wd-cardp .cardp-bank{font-size:.72rem;font-weight:700;opacity:.7}
+/* chip */
+.wd-cardp .cardp-chip{width:42px;height:31px;border-radius:6px;background:linear-gradient(135deg,#ecd27c,#c9992f);border:1px solid rgba(0,0,0,.25);position:relative;display:block}
+.wd-cardp .cardp-chip::after{content:'';position:absolute;inset:6px 5px;border:1px solid rgba(0,0,0,.28);border-radius:3px}
+.wd-cardp .num{font-family:'Roboto Mono','Courier New',monospace;font-size:1.15rem;font-weight:700;letter-spacing:2px;opacity:.92}
+/* bottom: VALID THRU (left) + network (right) */
+.wd-cardp .cardp-foot{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+.wd-cardp .cardp-valid{display:flex;align-items:center;gap:7px}
+.wd-cardp .cardp-valid b{font-size:.42rem;line-height:1.05;letter-spacing:.06em;opacity:.75;text-transform:uppercase}
+.wd-cardp .cardp-valid em{font-family:'Roboto Mono','Courier New',monospace;font-style:normal;font-size:.9rem;font-weight:700}
+.wd-cardp .brands{display:flex;align-items:center;gap:9px;font-weight:800;font-style:italic}
+.wd-cardp .mc{display:flex}.wd-cardp .mc i{width:19px;height:19px;border-radius:50%;display:block}.wd-cardp .mc i:first-child{background:#eb001b}.wd-cardp .mc i:last-child{background:#f79e1b;margin-left:-8px;opacity:.9}
 /* banner pills (Image 3) */
 .wd-banners{display:flex;gap:8px;flex-wrap:wrap}
 .wd-pill{display:flex;align-items:center;gap:8px;border-radius:10px;padding:10px 15px;color:#fff;font-weight:800;font-size:.82rem;box-shadow:0 4px 12px rgba(0,0,0,.3)}

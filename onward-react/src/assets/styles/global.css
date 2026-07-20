@@ -1067,10 +1067,17 @@ body::before{
   box-shadow:0 14px 34px rgba(0,0,0,.4);
 }
 .wd-dest-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
-.wd-dest--bankcard .wd-dest-title{margin-bottom:0;font-size:16px}
+/* Brand / e-wallet logo slot (top-left, like the card artwork). */
+.wd-card-logo{display:inline-flex;align-items:center;height:30px;min-width:46px}
+.wd-card-logo img{max-height:30px;max-width:120px;object-fit:contain;display:block}
+.wd-card-logo-ph{
+  width:46px;height:30px;border-radius:6px;
+  background:rgba(255,255,255,.14);
+  border:1px dashed rgba(255,255,255,.3);
+}
 .wd-dest-bank{
-  font-size:12px;font-weight:900;letter-spacing:.14em;
-  color:rgba(255,255,255,.85);
+  font-size:11px;font-weight:700;letter-spacing:.04em;
+  color:rgba(255,255,255,.7);text-align:right;
 }
 .wd-chiprow{display:flex;align-items:center;gap:12px}
 .wd-chip{
@@ -1084,18 +1091,36 @@ body::before{
   border:1px solid rgba(0,0,0,.28);border-radius:3px;
 }
 .wd-nfc{width:22px;height:22px;color:rgba(255,255,255,.85)}
-.wd-dest-bottom{min-width:0}
+/* Middle: number / address. */
+.wd-card-numrow{min-width:0}
 .wd-dest--bankcard .wd-dest-label{margin-bottom:4px;font-size:10.5px;text-transform:uppercase;letter-spacing:.08em}
 .wd-dest--bankcard .wd-dest-input{
+  width:100%;
   background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,.28);
-  border-radius:0;padding:4px 92px 6px 2px;
+  border-radius:0;padding:4px 2px 6px 2px;
   font-family:'Courier New',monospace;font-size:19px;font-weight:700;letter-spacing:.14em;
   color:#fff;
 }
 .wd-dest--bankcard .wd-dest-input:focus{border-bottom-color:rgba(255,255,255,.7)}
-.wd-dest--bankcard .wd-brandrow{
-  position:absolute;right:16px;bottom:14px;margin:0;
+/* Bottom row: VALID THRU (left) + network mark (right). */
+.wd-card-footer{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+.wd-card-valid{display:flex;align-items:center;gap:7px;cursor:text}
+.wd-card-valid-lbl{
+  font-size:7px;font-weight:700;line-height:1.05;letter-spacing:.06em;
+  color:rgba(255,255,255,.7);text-transform:uppercase;
 }
+.wd-card-exp{
+  width:58px;background:transparent;border:none;
+  font-family:'Courier New',monospace;font-size:15px;font-weight:700;letter-spacing:.06em;
+  color:#fff;padding:0;outline:none;
+}
+.wd-card-exp::placeholder{color:rgba(255,255,255,.45)}
+.wd-dest--bankcard .wd-brandrow{position:static;margin:0}
+/* Mastercard interlocking-circles mark. */
+.wd-mc-logo{display:inline-flex;align-items:center}
+.wd-mc-logo i{width:19px;height:19px;border-radius:50%;display:block}
+.wd-mc-logo i:first-child{background:#eb001b}
+.wd-mc-logo i:last-child{background:#f79e1b;margin-left:-8px;opacity:.9}
 @media(max-width:600px){
   .wd-dest--bankcard{max-width:100%}
 }
