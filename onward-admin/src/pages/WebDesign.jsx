@@ -19,6 +19,7 @@ const DEFAULT_WD = {
   btnTx: '#10131c',
   withdraw: { c1: '#1f4e79', c2: '#0e8a7a' },
   vip: { c1: '#3a2410', c2: '#140d06', ac: '#e8a23d' },
+  vipTiers: {}, // per-tier colour overrides: { [1..10]: {c1,c2,ac} }
   banners: [
     { name: 'Casino', c1: '#ff5a3c', c2: '#c41e3a', e: '🎰' },
     { name: 'Sport', c1: '#1fa05f', c2: '#0c5c39', e: '⚽' },
@@ -46,6 +47,7 @@ export default function WebDesign() {
             btnTx: d.btnTx || p.btnTx,
             withdraw: { ...p.withdraw, ...(d.withdraw || {}) },
             vip: { ...p.vip, ...(d.vip || {}) },
+            vipTiers: d.vipTiers && typeof d.vipTiers === 'object' ? d.vipTiers : {},
           }));
         }
       }).catch(() => {}));
@@ -69,11 +71,20 @@ export default function WebDesign() {
   const setField = (k, v) => setWd((p) => ({ ...p, [k]: v }));
   const setWithdraw = (k, v) => setWd((p) => ({ ...p, withdraw: { ...p.withdraw, [k]: v } }));
   const setVip = (k, v) => setWd((p) => ({ ...p, vip: { ...p.vip, [k]: v } }));
+  // Per-tier VIP colours. Editing writes into wd.vipTiers[selVip]; reads fall
+  // back to the shared `vip` defaults when a tier has no override.
+  const [selVip, setSelVip] = useState(1);
+  const tierColor = (n, k) => (wd.vipTiers?.[n]?.[k]) || wd.vip[k];
+  const setTierColor = (n, k, v) => setWd((p) => ({
+    ...p, vipTiers: { ...p.vipTiers, [n]: { ...(p.vipTiers?.[n] || {}), [k]: v } },
+  }));
+  const resetTier = (n) => setWd((p) => { const t = { ...(p.vipTiers || {}) }; delete t[n]; return { ...p, vipTiers: t }; });
+  const tierCustom = (n) => !!(wd.vipTiers?.[n] && Object.keys(wd.vipTiers[n]).length);
   const save = async () => {
     setSaving(true);
     try {
       const { default: api } = await import('../services/api');
-      await api.put('/web-design', { logo: wd.logo, btnBg: wd.btnBg, btnTx: wd.btnTx, withdraw: wd.withdraw, vip: wd.vip });
+      await api.put('/web-design', { logo: wd.logo, btnBg: wd.btnBg, btnTx: wd.btnTx, withdraw: wd.withdraw, vip: wd.vip, vipTiers: wd.vipTiers });
       toast('Website design saved ✔ — live on the player site');
     } catch (e) { toast('⚠ ' + (e.message || 'Save failed')); }
     finally { setSaving(false); }
@@ -272,23 +283,26 @@ export default function WebDesign() {
 
         <div className="wd-card">
           <h3>👑 VIP Background</h3>
-          <div className="wd-d">Background of the VIP level card on the front-end.</div>
-          <div className="wd-row"><label>Gradient Start</label><div className="wd-col"><span className="hex">{wd.vip.c1.toUpperCase()}</span><input type="color" value={wd.vip.c1} onChange={(e) => setVip('c1', e.target.value)} /></div></div>
-          <div className="wd-row"><label>Gradient End</label><div className="wd-col"><span className="hex">{wd.vip.c2.toUpperCase()}</span><input type="color" value={wd.vip.c2} onChange={(e) => setVip('c2', e.target.value)} /></div></div>
-          <div className="wd-row"><label>Accent Color</label><div className="wd-col"><span className="hex">{wd.vip.ac.toUpperCase()}</span><input type="color" value={wd.vip.ac} onChange={(e) => setVip('ac', e.target.value)} /></div></div>
-          <div className="wd-fld" style={{ margin: '8px 0' }}>
-            <label>Per-Tier Backgrounds <span style={{ color: 'var(--gold)', fontWeight: 700 }}>· 1000 × 240 px each</span></label>
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>Upload a different background for each VIP level (1–10). Optional — overrides the gradient for that tier; text stays overlaid.</div>
+          <div className="wd-d">Click a VIP level below to edit its colours &amp; photo. Each level is independent.</div>
+
+          <div className="wd-fld" style={{ margin: '4px 0 10px' }}>
+            <label>VIP Levels <span style={{ color: 'var(--gold)', fontWeight: 700 }}>· click to edit — photo 1000 × 240 px</span></label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 10 }}>
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => {
                 const k = 'vip' + n;
+                const isSel = selVip === n;
+                const tGrad = `linear-gradient(135deg,${tierColor(n, 'c1')},${tierColor(n, 'c2')})`;
                 return (
-                  <div key={k} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 8 }}>
-                    <div style={{ fontWeight: 800, fontSize: 12, marginBottom: 6 }}>VIP {n}</div>
-                    <div style={{ width: '100%', aspectRatio: '1000 / 240', borderRadius: 6, overflow: 'hidden', background: 'var(--panel-3,#1b2541)', border: '1px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
-                      {pageBanners[k] ? <img src={pageBanners[k]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 10, color: 'var(--muted)' }}>gradient</span>}
+                  <div key={k} onClick={() => setSelVip(n)}
+                    style={{ border: `2px solid ${isSel ? 'var(--gold)' : 'var(--border)'}`, borderRadius: 10, padding: 8, cursor: 'pointer', boxShadow: isSel ? '0 0 0 2px rgba(240,192,64,.25)' : 'none', background: isSel ? 'rgba(240,192,64,.06)' : 'transparent' }}>
+                    <div style={{ fontWeight: 800, fontSize: 12, marginBottom: 6, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>VIP {n}</span>
+                      {tierCustom(n) && <span style={{ fontSize: 9, color: 'var(--gold)', fontWeight: 700 }}>● custom</span>}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <div style={{ width: '100%', aspectRatio: '1000 / 240', borderRadius: 6, overflow: 'hidden', background: pageBanners[k] ? 'var(--panel-3,#1b2541)' : tGrad, border: '1px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 6 }}>
+                      {pageBanners[k] ? <img src={pageBanners[k]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 10, color: 'rgba(255,255,255,.75)' }}>gradient</span>}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }} onClick={(e) => e.stopPropagation()}>
                       <input type="file" accept="image/*" onChange={uploadPageBanner(k)} style={{ maxWidth: 112, fontSize: 11 }} />
                       {pbUploading === k && <span style={{ color: 'var(--gold)' }}>…</span>}
                       {pageBanners[k] && <button className="del-btn" onClick={() => clearPageBanner(k)}>🗑</button>}
@@ -298,9 +312,23 @@ export default function WebDesign() {
               })}
             </div>
           </div>
-          <div className="wd-prev-label">Preview (VIP 1)</div>
-          <div className="wd-vipp" style={pageBanners.vip1 ? { background: `linear-gradient(rgba(8,6,2,.45),rgba(8,6,2,.6)), url(${pageBanners.vip1}) center/cover`, '--wd-vac': wd.vip.ac } : { background: `linear-gradient(135deg,${wd.vip.c1},${wd.vip.c2})`, '--wd-vac': wd.vip.ac }}>
-            <span className="cur">Current Level</span><div className="lv">VIP 1</div>
+
+          {/* Colour editor for the selected tier */}
+          <div className="wd-fld" style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', marginBottom: 10 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <label style={{ margin: 0 }}>Editing <span style={{ color: 'var(--gold)' }}>VIP {selVip}</span> colours</label>
+              {tierCustom(selVip) && <button className="del-btn" onClick={() => resetTier(selVip)}>↺ Reset to default</button>}
+            </div>
+            <div className="wd-row"><label>Gradient Start</label><div className="wd-col"><span className="hex">{tierColor(selVip, 'c1').toUpperCase()}</span><input type="color" value={tierColor(selVip, 'c1')} onChange={(e) => setTierColor(selVip, 'c1', e.target.value)} /></div></div>
+            <div className="wd-row"><label>Gradient End</label><div className="wd-col"><span className="hex">{tierColor(selVip, 'c2').toUpperCase()}</span><input type="color" value={tierColor(selVip, 'c2')} onChange={(e) => setTierColor(selVip, 'c2', e.target.value)} /></div></div>
+            <div className="wd-row"><label>Accent Color</label><div className="wd-col"><span className="hex">{tierColor(selVip, 'ac').toUpperCase()}</span><input type="color" value={tierColor(selVip, 'ac')} onChange={(e) => setTierColor(selVip, 'ac', e.target.value)} /></div></div>
+          </div>
+
+          <div className="wd-prev-label">Preview (VIP {selVip})</div>
+          <div className="wd-vipp" style={pageBanners['vip' + selVip]
+            ? { background: `linear-gradient(rgba(8,6,2,.45),rgba(8,6,2,.6)), url(${pageBanners['vip' + selVip]}) center/cover`, '--wd-vac': tierColor(selVip, 'ac') }
+            : { background: `linear-gradient(135deg,${tierColor(selVip, 'c1')},${tierColor(selVip, 'c2')})`, '--wd-vac': tierColor(selVip, 'ac') }}>
+            <span className="cur">Current Level</span><div className="lv">VIP {selVip}</div>
             <div className="vrow">Deposit — PHP 1,000 / 1,600</div><div className="bar"><i style={{ width: '62%' }}></i></div>
             <div className="vrow">VIP Points — 404 / 4,000</div><div className="bar"><i style={{ width: '10%' }}></i></div>
             <div className="hex">★</div>

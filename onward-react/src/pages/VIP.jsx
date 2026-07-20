@@ -6,6 +6,7 @@ import PageBanner from '../components/common/PageBanner.jsx';
 import usePageHero from '../hooks/usePageHero';
 import usePageBanner from '../hooks/usePageBanner';
 import useSectionNav from '../hooks/useSectionNav';
+import useWebDesign from '../hooks/useWebDesign';
 import api from '../services/api';
 
 // ---- Default theme (used until the admin-configured tiers load) ----
@@ -72,8 +73,13 @@ const T = {
 
 // One horizontal VIP rank card (port of vipHCardHTML).
 // `me` is the real /vip/me payload when logged in (null for guests → zero progress).
-function VipHCard({ l, idx, active, mine, onTap, cardRef, levels, me }) {
+function VipHCard({ l, idx, active, mine, onTap, cardRef, levels, me, tierColors }) {
   const tierBg = usePageBanner('vip' + l.lvl); // admin-uploaded per-tier background
+  // Admin per-tier colour override (Web Design → VIP Background). When set for
+  // this level it drives the card gradient (no image) and the accent colour.
+  const tc = tierColors || null;
+  const hasTc = tc && (tc.c1 || tc.c2 || tc.ac);
+  const ac = tc?.ac || l.c;
   const next = levels[idx + 1];
   const nextLabel = next ? 'VIP ' + next.lvl : T.max;
   const maxed = !!me && !me.next; // logged in and already at the top tier
@@ -89,8 +95,10 @@ function VipHCard({ l, idx, active, mine, onTap, cardRef, levels, me }) {
     <div
       ref={cardRef}
       className={'vipw-header vipw-hcard' + (mine ? ' mine' : '') + (active ? ' active' : '')}
-      style={{ '--vc': l.c, '--vc-l': l.cl, '--vc-d': l.cd, '--vc-rgb': l.rgb,
-        ...(tierBg ? { backgroundImage: `linear-gradient(rgba(8,6,2,.45),rgba(8,6,2,.6)), url(${tierBg})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}) }}
+      style={{ '--vc': ac, '--vc-l': l.cl, '--vc-d': l.cd, '--vc-rgb': l.rgb,
+        ...(tierBg
+          ? { backgroundImage: `linear-gradient(rgba(8,6,2,.45),rgba(8,6,2,.6)), url(${tierBg})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+          : (hasTc && tc.c1 ? { background: `linear-gradient(135deg,${tc.c1},${tc.c2 || tc.c1})` } : {})) }}
       onClick={onTap}
     >
       {mine && <div className="vipw-mine-tag">{T.ribbon}</div>}
@@ -117,6 +125,8 @@ export default function VIP() {
   const { profile, isLoggedIn } = useAuth();
   const go = useSectionNav();
   const hero = usePageHero('vip');
+  const webDesign = useWebDesign(); // per-tier VIP colours (Web Design → VIP Background)
+  const vipTiers = webDesign?.vipTiers || {};
 
   // Real VIP progress (/vip/me) when logged in; guests stay at level 0 / 0%.
   const [vipMe, setVipMe] = useState(null);
@@ -351,6 +361,7 @@ export default function VIP() {
                         cardRef={(el) => { cardRefs.current[g] = el; }}
                         levels={VIP_LEVELS}
                         me={isLoggedIn ? vipMe : null}
+                        tierColors={vipTiers[VIP_LEVELS[i]?.lvl]}
                       />
                     );
                   })}
