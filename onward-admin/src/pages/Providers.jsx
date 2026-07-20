@@ -1,17 +1,37 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useUI } from '../context/UIContext';
 import { listGames, toggleGame, updateGame, createGame, removeGame } from '../services/gameService';
 import { uploadImage } from '../services/uploadService';
 import { getConfig, saveConfig } from '../services/configService';
 
-// Game categories offered when adding / editing a game.
 const CATS = [['slots', 'Slots'], ['live', 'Live Casino'], ['crash', 'Crash'], ['fishing', 'Fish'], ['table', 'Table'], ['sports', 'Sports']];
 const catLabel = (c) => (CATS.find(([k]) => k === c)?.[1] || c || 'slots');
-const EMPTY_GAME = { name: '', provider: '', category: 'slots', image: '', launchUrl: '', enabled: true };
 
-// Real providers — derived from the live games catalog. Provider details (logo,
-// enable/disable) persist to providersConfig; per-provider game management edits
-// the games catalog directly.
+// Language support tiles (top-left code · language name), matching the grid.
+const LANGS = [
+  ['US', 'English'], ['CN', 'Chinese'], ['BR', 'Portuguese'], ['ES', 'Spanish'], ['IN', 'Hindi'],
+  ['ID', 'Indonesian'], ['TH', 'Thai'], ['VN', 'Vietnamese'], ['MY', 'Malay'], ['KR', 'Korean'],
+  ['JP', 'Japanese'], ['TR', 'Turkish'], ['SA', 'Arabic'], ['DE', 'German'], ['FR', 'French'],
+  ['RU', 'Russian'], ['PH', 'Filipino'], ['BD', 'Bengali'], ['MM', 'Burmese'], ['KH', 'Khmer'],
+];
+const parseLangs = (s) => new Set(String(s || '').split(',').map((x) => x.trim().toUpperCase()).filter(Boolean));
+const joinLangs = (set) => [...set].join(', ');
+
+const BLANK_FORM = () => ({ editId: null, editRaw: null, name: '', code: '', category: 'slots', rtp: '96.0', langs: new Set(['US']), image: '', hot: false, enabled: true, seq: 0 });
+
+// Build the full backend game object (PUT rebuilds the record, so send everything).
+const gamePayload = (g, edits = {}) => {
+  const r = { ...g, ...edits };
+  return {
+    name: String(r.name || '').trim(), provider: String(r.provider || '').trim(),
+    category: r.category || 'slots', code: String(r.code || '').trim(), langs: String(r.langs || '').trim(),
+    rtp: Number(r.rtp) || 0, image: r.image || '', launchUrl: r.launchUrl || '',
+    badge: r.badge || '', color: r.color || '', icon: r.icon || '',
+    hot: !!r.hot, popular: !!r.popular, enabled: !!r.enabled,
+    order: Number.isFinite(+r.order) ? +r.order : 0,
+  };
+};
+
 export default function Providers() {
   const { toast } = useUI();
   const [games, setGames] = useState([]);
@@ -20,11 +40,7 @@ export default function Providers() {
   const [busyProv, setBusyProv] = useState('');
 
   const load = () => Promise.all([listGames(), getConfig()])
-    .then(([g, c]) => {
-      setGames(Array.isArray(g) ? g : []);
-      setCfg(c?.providersConfig || {});
-      setLoaded(true);
-    })
+    .then(([g, c]) => { setGames(Array.isArray(g) ? g : []); setCfg(c?.providersConfig || {}); setLoaded(true); })
     .catch((e) => { setLoaded(true); toast('⚠ ' + (e.message || 'Failed to load providers')); });
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -37,20 +53,20 @@ export default function Providers() {
       if (g.enabled) map[p].enabled++;
       if (g.category) map[p].cats.add(g.category);
     }
-    // Manually-added providers (saved in config, no games yet) still appear.
-    for (const name of Object.keys(cfg)) {
-      if (!map[name]) map[name] = { name, total: 0, enabled: 0, cats: new Set(), manual: true };
-    }
+    for (const name of Object.keys(cfg)) if (!map[name]) map[name] = { name, total: 0, enabled: 0, cats: new Set(), manual: true };
     return Object.values(map)
       .map((p) => ({ ...p, on: cfg[p.name]?.enabled !== false, logo: cfg[p.name]?.logo || '' }))
       .sort((a, b) => b.total - a.total);
   }, [games, cfg]);
 
-  // ---- Add / edit provider (name + logo, stored in providersConfig) ----
-  const [provModal, setProvModal] = useState(null); // { name, logo, editing } | null
+  const kpi = useMemo(() => ({
+    total: providers.length, on: providers.filter((p) => p.on).length,
+    games: games.length, enabledGames: games.filter((g) => g.enabled).length,
+  }), [providers, games]);
+
+  // ---- Add / edit provider (name + logo) ----
+  const [provModal, setProvModal] = useState(null);
   const [provBusy, setProvBusy] = useState(false);
-  const openAddProvider = () => setProvModal({ name: '', logo: '', editing: false });
-  const openEditProvider = (p) => setProvModal({ name: p.name, orig: p.name, logo: p.logo || '', editing: true });
   const uploadProvLogo = async (e) => {
     const file = e.target.files && e.target.files[0]; e.target.value = '';
     if (!file) return;
@@ -61,125 +77,122 @@ export default function Providers() {
   const submitProvider = async () => {
     const name = provModal.name.trim();
     if (!name) { toast('⚠ Enter a provider name'); return; }
-    const dupe = providers.some((p) => p.name.toLowerCase() === name.toLowerCase() && p.name !== provModal.orig);
-    if (dupe) { toast('⚠ That provider already exists'); return; }
+    if (providers.some((p) => p.name.toLowerCase() === name.toLowerCase() && p.name !== provModal.orig)) { toast('⚠ That provider already exists'); return; }
     setProvBusy(true);
     try {
       let nextCfg = { ...cfg };
-      // Rename: move the config entry and re-tag the provider's games.
       if (provModal.editing && provModal.orig && provModal.orig !== name) {
-        nextCfg[name] = { ...(nextCfg[provModal.orig] || {}), manual: nextCfg[provModal.orig]?.manual };
+        nextCfg[name] = { ...(nextCfg[provModal.orig] || {}) };
         delete nextCfg[provModal.orig];
-        const toMove = games.filter((g) => (g.provider || 'Unknown') === provModal.orig);
-        for (const g of toMove) { await updateGame(g.id, { ...g, provider: name }).catch(() => {}); }
+        for (const g of games.filter((g) => (g.provider || 'Unknown') === provModal.orig)) await updateGame(g.id, gamePayload(g, { provider: name })).catch(() => {});
       }
-      nextCfg[name] = { ...(nextCfg[name] || {}), enabled: nextCfg[name]?.enabled !== false, logo: provModal.logo || '', manual: nextCfg[name]?.manual ?? (providers.find((p) => p.name === name)?.total ? undefined : true) };
+      nextCfg[name] = { ...(nextCfg[name] || {}), enabled: nextCfg[name]?.enabled !== false, logo: provModal.logo || '', manual: nextCfg[name]?.manual ?? true };
       await saveConfig({ providersConfig: nextCfg });
       setCfg(nextCfg);
-      toast(provModal.editing ? `✅ Provider saved` : `✅ Provider "${name}" added — open it to add games`);
+      const wasNew = !provModal.editing;
       setProvModal(null);
-      if (provModal.editing && provModal.orig !== name && selProv === provModal.orig) setSelProv(name);
-      load();
+      toast(provModal.editing ? '✅ Provider saved' : `✅ Provider "${name}" added`);
+      await load();
+      if (wasNew) openDrawer(name); // jump straight into managing its games
     } catch (e) { toast('⚠ ' + (e.message || 'Save failed')); }
     finally { setProvBusy(false); }
   };
 
   const toggleProvider = async (p) => {
-    const target = !p.on;
-    setBusyProv(p.name);
+    const target = !p.on; setBusyProv(p.name);
     try {
       const nextCfg = { ...cfg, [p.name]: { ...(cfg[p.name] || {}), enabled: target } };
-      await saveConfig({ providersConfig: nextCfg });
-      setCfg(nextCfg);
-      // Bulk-toggle this provider's games to match (only the ones out of sync).
+      await saveConfig({ providersConfig: nextCfg }); setCfg(nextCfg);
       const outOfSync = games.filter((g) => (g.provider || 'Unknown') === p.name && !!g.enabled !== target);
-      for (const g of outOfSync) { await toggleGame(g.id).catch(() => {}); }
-      toast(`${p.name} ${target ? 'enabled ✅' : 'disabled ⏸'} — ${outOfSync.length} game(s) ${target ? 'shown' : 'hidden'} on the frontend`);
+      for (const g of outOfSync) await toggleGame(g.id).catch(() => {});
+      toast(`${p.name} ${target ? 'enabled ✅' : 'disabled ⏸'} — ${outOfSync.length} game(s) ${target ? 'shown' : 'hidden'}`);
       load();
     } catch (e) { toast('⚠ ' + (e.message || 'Toggle failed')); }
     finally { setBusyProv(''); }
   };
 
-  // ---- Provider detail: games under one provider ----
-  const [selProv, setSelProv] = useState(null);
+  // ---- Provider drawer (Game Playlist + Add Game tabs) ----
+  const [drawer, setDrawer] = useState(null); // provider name | null
+  const [tab, setTab] = useState('playlist');
   const [gq, setGq] = useState('');
+  const [langFilter, setLangFilter] = useState('');
+  const [form, setForm] = useState(BLANK_FORM());
+  const [gBusy, setGBusy] = useState('');
+  const [saveBusy, setSaveBusy] = useState(false);
+  const fileRef = useRef(null);
+  const openDrawer = (name) => { setDrawer(name); setTab('playlist'); setGq(''); setLangFilter(''); setForm(BLANK_FORM()); };
+
+  const drawerProv = providers.find((p) => p.name === drawer);
+  const drawerCat = drawerProv ? (catLabel([...drawerProv.cats][0] || 'slots')) : 'Slots';
   const provGames = useMemo(() => {
-    if (!selProv) return [];
+    if (!drawer) return [];
     const q = gq.trim().toLowerCase();
     return games
-      .filter((g) => (g.provider || 'Unknown') === selProv)
+      .filter((g) => (g.provider || 'Unknown') === drawer)
       .filter((g) => !q || String(g.name || '').toLowerCase().includes(q))
-      .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
-  }, [games, selProv, gq]);
+      .filter((g) => !langFilter || parseLangs(g.langs).has(langFilter))
+      .sort((a, b) => (a.order || 0) - (b.order || 0) || String(a.name || '').localeCompare(String(b.name || '')));
+  }, [games, drawer, gq, langFilter]);
 
-  const [gameBusy, setGameBusy] = useState('');
-  const toggleOneGame = async (g) => {
-    setGameBusy(g.id);
+  const patchGame = async (g, edits, msg) => {
+    setGBusy(g.id);
     try {
-      const updated = await toggleGame(g.id);
-      setGames((prev) => prev.map((x) => (x.id === g.id ? { ...x, enabled: updated?.enabled ?? !x.enabled } : x)));
-    } catch (e) { toast('⚠ ' + (e.message || 'Toggle failed')); }
-    finally { setGameBusy(''); }
+      const updated = await updateGame(g.id, gamePayload(g, edits));
+      setGames((prev) => prev.map((x) => (x.id === g.id ? { ...x, ...updated } : x)));
+      if (msg) toast(msg);
+    } catch (e) { toast('⚠ ' + (e.message || 'Update failed')); }
+    finally { setGBusy(''); }
+  };
+  const toggleActive = async (g) => {
+    setGBusy(g.id);
+    try { const u = await toggleGame(g.id); setGames((prev) => prev.map((x) => (x.id === g.id ? { ...x, enabled: u?.enabled ?? !x.enabled } : x))); }
+    catch (e) { toast('⚠ ' + (e.message || 'Toggle failed')); } finally { setGBusy(''); }
   };
   const deleteGame = async (g) => {
-    if (!window.confirm(`Delete "${g.name}"? This removes it from the catalog.`)) return;
-    setGameBusy(g.id);
+    if (!window.confirm(`Delete "${g.name}"?`)) return;
+    setGBusy(g.id);
     try { await removeGame(g.id); setGames((prev) => prev.filter((x) => x.id !== g.id)); toast(`🗑 ${g.name} deleted`); }
-    catch (e) { toast('⚠ ' + (e.message || 'Delete failed')); }
-    finally { setGameBusy(''); }
+    catch (e) { toast('⚠ ' + (e.message || 'Delete failed')); } finally { setGBusy(''); }
   };
 
-  // ---- Add / edit a single game ----
-  const [gameModal, setGameModal] = useState(null); // { ...game fields, id?, editing }
-  const [gmBusy, setGmBusy] = useState(false);
-  const openAddGame = () => setGameModal({ ...EMPTY_GAME, provider: selProv, editing: false });
-  const openEditGame = (g) => setGameModal({ id: g.id, name: g.name || '', provider: g.provider || selProv, category: g.category || 'slots', image: g.image || '', launchUrl: g.launchUrl || '', enabled: g.enabled !== false, _orig: g, editing: true });
-  const setGm = (k, v) => setGameModal((m) => ({ ...m, [k]: v }));
-  const uploadGameImg = async (e) => {
-    const file = e.target.files && e.target.files[0]; e.target.value = '';
+  // Add / edit game form
+  const setF = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+  const toggleLang = (code) => setForm((p) => { const s = new Set(p.langs); s.has(code) ? s.delete(code) : s.add(code); return { ...p, langs: s }; });
+  const openEditGame = (g) => { setForm({ editId: g.id, editRaw: g, name: g.name || '', code: g.code || '', category: g.category || 'slots', rtp: String(g.rtp || '96.0'), langs: parseLangs(g.langs), image: g.image || '', hot: !!g.hot, enabled: g.enabled !== false, seq: g.order || 0 }); setTab('add'); };
+  const uploadCover = async (file) => {
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { toast('⚠ Image too large — keep it under 2 MB'); return; }
-    try { const { url } = await uploadImage(file); setGm('image', url); toast('Icon uploaded ✔'); }
+    if (file.size > 2 * 1024 * 1024) { toast('⚠ Image too large — under 2 MB'); return; }
+    try { const { url } = await uploadImage(file); setF('image', url); toast('Cover uploaded ✔'); }
     catch (err) { toast('⚠ ' + (err.message || 'Upload failed')); }
   };
   const submitGame = async () => {
-    if (!gameModal.name.trim()) { toast('⚠ Game name is required'); return; }
-    setGmBusy(true);
+    if (!form.name.trim()) { toast('⚠ Game name is required'); return; }
+    setSaveBusy(true);
     try {
-      const payload = { name: gameModal.name.trim(), provider: (gameModal.provider || '').trim(), category: gameModal.category, image: gameModal.image, launchUrl: gameModal.launchUrl, enabled: gameModal.enabled };
-      if (gameModal.editing) {
-        // PUT rebuilds the record — send the full existing game merged with edits.
-        const updated = await updateGame(gameModal.id, { ...gameModal._orig, ...payload });
-        setGames((prev) => prev.map((x) => (x.id === gameModal.id ? { ...x, ...updated } : x)));
-        toast(`✅ ${payload.name} saved`);
+      const fields = { name: form.name.trim(), provider: drawer, category: form.category, code: form.code.trim(), langs: joinLangs(form.langs), rtp: Number(form.rtp) || 0, image: form.image, hot: form.hot, enabled: form.enabled, order: Number(form.seq) || 0 };
+      if (form.editId) {
+        const updated = await updateGame(form.editId, gamePayload(form.editRaw || {}, fields));
+        setGames((prev) => prev.map((x) => (x.id === form.editId ? { ...x, ...updated } : x)));
+        toast(`✅ ${fields.name} saved`);
       } else {
-        const created = await createGame(payload);
+        const created = await createGame(gamePayload({}, fields));
         setGames((prev) => [created, ...prev]);
-        toast(`✅ ${created.name} added`);
+        toast(`✅ ${created.name} added to ${drawer}`);
       }
-      setGameModal(null);
+      setForm(BLANK_FORM()); setTab('playlist');
     } catch (e) { toast('⚠ ' + (e.message || 'Save failed')); }
-    finally { setGmBusy(false); }
+    finally { setSaveBusy(false); }
   };
-
-  const kpi = useMemo(() => ({
-    total: providers.length,
-    on: providers.filter((p) => p.on).length,
-    games: games.length,
-    enabledGames: games.filter((g) => g.enabled).length,
-  }), [providers, games]);
-
-  const selP = providers.find((p) => p.name === selProv);
 
   return (
     <>
       <div className="page-head">
         <div>
           <h1 className="hero-h">🕹️ Game Providers</h1>
-          <div className="hero-sub" style={{ marginBottom: 0 }}>Click a provider to manage its games — add, edit, enable/disable individually. Toggling a provider bulk-enables/disables all its games.</div>
+          <div className="hero-sub" style={{ marginBottom: 0 }}>Click a provider to open its game playlist — add, edit and toggle games. Toggling a provider bulk-enables/disables all its games.</div>
         </div>
         <span className="pr" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button className="mini-btn gold" onClick={openAddProvider}>➕ Add Provider</button>
+          <button className="mini-btn gold" onClick={() => setProvModal({ name: '', logo: '', editing: false })}>➕ Add Provider</button>
           <button className="mini-btn" onClick={() => { setLoaded(false); load().then(() => toast('Providers refreshed 🔄')); }}>🔄 Refresh</button>
         </span>
       </div>
@@ -197,16 +210,12 @@ export default function Providers() {
             <thead><tr><th>Provider</th><th>Categories</th><th>Games</th><th>Enabled Games</th><th>Status</th><th>Manage</th><th>Enabled</th></tr></thead>
             <tbody>
               {providers.length === 0 && (
-                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--muted)', padding: 26 }}>
-                  {loaded ? 'No providers yet — click ➕ Add Provider, or import games via Game List.' : 'Loading…'}
-                </td></tr>
+                <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--muted)', padding: 26 }}>{loaded ? 'No providers yet — click ➕ Add Provider.' : 'Loading…'}</td></tr>
               )}
               {providers.map((p) => (
-                <tr key={p.name} style={{ opacity: p.on ? 1 : 0.55, cursor: 'pointer' }} onClick={() => { setSelProv(p.name); setGq(''); }}>
+                <tr key={p.name} style={{ opacity: p.on ? 1 : 0.55, cursor: 'pointer' }} onClick={() => openDrawer(p.name)}>
                   <td>
-                    <span className="prov-logo" style={{ background: '#243049', overflow: 'hidden', padding: 0 }}>
-                      {p.logo ? <img src={p.logo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : p.name.slice(0, 2).toUpperCase()}
-                    </span>
+                    <span className="prov-logo" style={{ background: '#243049', overflow: 'hidden', padding: 0 }}>{p.logo ? <img src={p.logo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : p.name.slice(0, 2).toUpperCase()}</span>
                     <b style={{ marginLeft: 8 }}>{p.name}</b>
                     {p.total === 0 && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: 'var(--gold)' }}>NEW · add games</span>}
                   </td>
@@ -215,15 +224,11 @@ export default function Providers() {
                   <td><span className={p.enabled ? 'on-chip' : 'off-chip'}>{p.enabled} / {p.total}</span></td>
                   <td>{p.on ? <span className="api-on">enabled</span> : <span className="api-off">disabled</span>}</td>
                   <td onClick={(e) => e.stopPropagation()}>
-                    <button className="mini-btn" onClick={() => { setSelProv(p.name); setGq(''); }}>🎮 Games</button>
-                    <button className="mini-btn" style={{ marginLeft: 6 }} onClick={() => openEditProvider(p)}>✏️</button>
+                    <button className="mini-btn" onClick={() => openDrawer(p.name)}>🎮 Games</button>
+                    <button className="mini-btn" style={{ marginLeft: 6 }} onClick={() => setProvModal({ name: p.name, orig: p.name, logo: p.logo || '', editing: true })}>✏️</button>
                   </td>
                   <td onClick={(e) => e.stopPropagation()}>
-                    <label className="switch">
-                      <input type="checkbox" checked={p.on} disabled={busyProv === p.name} onChange={() => toggleProvider(p)} />
-                      <span className="slider"></span>
-                    </label>
-                    {busyProv === p.name && <span style={{ fontSize: 11, color: 'var(--muted)', marginLeft: 8 }}>saving…</span>}
+                    <label className="switch"><input type="checkbox" checked={p.on} disabled={busyProv === p.name} onChange={() => toggleProvider(p)} /><span className="slider"></span></label>
                   </td>
                 </tr>
               ))}
@@ -232,61 +237,114 @@ export default function Providers() {
         </div>
       </div>
 
-      {/* ---- Provider detail drawer: games under the selected provider ---- */}
-      {selProv && (
-        <div className="dep2-ov" onClick={(e) => { if (e.target.classList.contains('dep2-ov')) setSelProv(null); }}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(4,8,18,.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 900, padding: 20 }}>
-          <div className="card" style={{ width: 860, maxWidth: '96vw', maxHeight: '92vh', display: 'flex', flexDirection: 'column' }}>
-            <div className="page-head" style={{ marginBottom: 10 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span className="prov-logo" style={{ background: '#243049', overflow: 'hidden', padding: 0 }}>
-                  {selP?.logo ? <img src={selP.logo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : selProv.slice(0, 2).toUpperCase()}
-                </span>
-                <div>
-                  <div className="card-title" style={{ marginBottom: 0 }}>{selProv}</div>
-                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>{provGames.length} game{provGames.length === 1 ? '' : 's'} shown · {selP?.enabled}/{selP?.total} enabled</div>
+      {/* ---- Provider drawer ---- */}
+      {drawer !== null && (
+        <div className="dep2-ov" onClick={(e) => { if (e.target.classList.contains('dep2-ov')) setDrawer(null); }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(4,8,18,.74)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', zIndex: 900, padding: '30px 16px', overflowY: 'auto' }}>
+          <div className="card" style={{ width: 720, maxWidth: '96vw', display: 'flex', flexDirection: 'column' }}>
+            <div className="page-head" style={{ marginBottom: 8 }}>
+              <div className="card-title" style={{ marginBottom: 0 }}>⚙️ {drawer} <span style={{ color: 'var(--muted)', fontWeight: 600 }}>— {drawerCat}</span></div>
+              <button className="mini-btn" onClick={() => setDrawer(null)}>✕</button>
+            </div>
+
+            {/* Tabs */}
+            <div style={{ display: 'flex', gap: 18, borderBottom: '1px solid var(--border)', marginBottom: 14 }}>
+              <button className="gl-tab" onClick={() => setTab('playlist')} style={tabStyle(tab === 'playlist')}>🎮 Game Playlist</button>
+              <button className="gl-tab" onClick={() => { setForm(BLANK_FORM()); setTab('add'); }} style={tabStyle(tab === 'add')}>＋ {form.editId ? 'Edit Game' : 'Add Game'}</button>
+            </div>
+
+            {tab === 'playlist' ? (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+                  <div style={{ fontWeight: 800 }}>Total: {provGames.length} game{provGames.length === 1 ? '' : 's'}</div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <select value={langFilter} onChange={(e) => setLangFilter(e.target.value)} style={inp}>
+                      <option value="">🌐 All Languages</option>
+                      {LANGS.map(([c, n]) => <option key={c} value={c}>{c} · {n}</option>)}
+                    </select>
+                    <input value={gq} onChange={(e) => setGq(e.target.value)} placeholder="Search game name…" style={inp} />
+                  </div>
+                </div>
+                <div className="table-wrap" style={{ border: '1px solid var(--border)', borderRadius: 10, maxHeight: '58vh', overflowY: 'auto' }}>
+                  <table style={{ minWidth: 620 }}>
+                    <thead><tr><th>SEQ</th><th>Game</th><th>Game ID</th><th>Hot</th><th>Active</th><th>Photo</th></tr></thead>
+                    <tbody>
+                      {provGames.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--muted)', padding: 22 }}>{gq || langFilter ? 'No games match.' : 'No games yet — use the ＋ Add Game tab.'}</td></tr>}
+                      {provGames.map((g) => (
+                        <tr key={g.id} style={{ opacity: g.enabled ? 1 : 0.55 }}>
+                          <td><input className="seq-in" defaultValue={g.order || 0} inputMode="numeric" onBlur={(e) => { const v = parseInt(e.target.value) || 0; if (v !== (g.order || 0)) patchGame(g, { order: v }); }} style={{ width: 54 }} /></td>
+                          <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>{g.image ? <img src={g.image} alt="" style={{ width: 30, height: 30, borderRadius: 6, objectFit: 'cover' }} /> : <span style={{ fontSize: 18 }}>🎰</span>}<b>{g.name}</b></span></td>
+                          <td><span className="gid">{g.code || g.id}</span></td>
+                          <td><input type="checkbox" checked={!!g.hot} disabled={gBusy === g.id} onChange={(e) => patchGame(g, { hot: e.target.checked })} /></td>
+                          <td><span className={g.enabled ? 'on-chip' : 'off-chip'} style={{ cursor: 'pointer' }} onClick={() => toggleActive(g)}>{g.enabled ? '✅ On' : 'Off'}</span></td>
+                          <td>
+                            <button className="mini-btn gold" onClick={() => openEditGame(g)}>✏️ Edit</button>
+                            <button className="mini-btn" style={{ marginLeft: 6, color: 'var(--red,#ff4d5e)' }} disabled={gBusy === g.id} onClick={() => deleteGame(g)}>🗑</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : (
+              <div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>{form.editId ? 'Edit this game.' : `Add a new game to ${drawer}'s playlist.`}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                  <div className="fld"><label>Game Name <span style={{ color: 'var(--red,#ff4d5e)' }}>*</span></label><input value={form.name} onChange={(e) => setF('name', e.target.value)} placeholder="e.g. Wild West Gold" /></div>
+                  <div className="fld"><label>Game ID</label><input value={form.code} onChange={(e) => setF('code', e.target.value)} placeholder="e.g. 37060" /></div>
+                  <div className="fld"><label>Category</label><select value={form.category} onChange={(e) => setF('category', e.target.value)}>{CATS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
+                  <div className="fld"><label>RTP %</label><input value={form.rtp} inputMode="decimal" onChange={(e) => setF('rtp', e.target.value)} placeholder="96.0" /></div>
+                </div>
+
+                <div className="fld" style={{ marginBottom: 12 }}>
+                  <label>Language Support</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(110px,1fr))', gap: 8 }}>
+                    {LANGS.map(([c, n]) => {
+                      const on = form.langs.has(c);
+                      return (
+                        <label key={c} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 9px', borderRadius: 8, border: `1px solid ${on ? 'var(--gold)' : 'var(--border)'}`, background: on ? 'rgba(240,192,64,.08)' : 'var(--bg3,#0b1224)', cursor: 'pointer' }}>
+                          <input type="checkbox" checked={on} onChange={() => toggleLang(c)} style={{ margin: 0 }} />
+                          <span style={{ lineHeight: 1.1 }}><span style={{ fontSize: 10, color: 'var(--muted)', display: 'block' }}>{c}</span><b style={{ fontSize: 11 }}>{n.toUpperCase()}</b></span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="fld" style={{ marginBottom: 10 }}>
+                  <label>Game Photo / Cover Image</label>
+                  <div onClick={() => fileRef.current?.click()}
+                    onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); uploadCover(e.dataTransfer.files?.[0]); }}
+                    style={{ border: '1px dashed var(--border)', borderRadius: 10, padding: form.image ? 10 : '26px 14px', textAlign: 'center', cursor: 'pointer', background: 'var(--bg3,#0b1224)' }}>
+                    {form.image
+                      ? <img src={form.image} alt="" style={{ maxHeight: 90, borderRadius: 8, objectFit: 'contain' }} />
+                      : <><div style={{ fontSize: 26 }}>🖼️</div><div style={{ color: 'var(--muted)', fontSize: 13 }}>Click or drag &amp; drop image here</div><div style={{ color: 'var(--muted)', fontSize: 11 }}>PNG, JPG, WebP — recommended 120×160px</div></>}
+                  </div>
+                  <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { uploadCover(e.target.files?.[0]); e.target.value = ''; }} />
+                </div>
+                <div className="fld" style={{ marginBottom: 12 }}>
+                  <label>Or paste image URL:</label>
+                  <input value={form.image} onChange={(e) => setF('image', e.target.value)} placeholder="https://cdn.example.com/game-cover.jpg" />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+                  <label style={cardToggle(form.hot)} onClick={() => setF('hot', !form.hot)}>
+                    <input type="checkbox" checked={form.hot} onChange={() => setF('hot', !form.hot)} style={{ margin: 0 }} />
+                    <span><b>HOT GAME</b><span style={{ display: 'block', fontSize: 11, color: 'var(--muted)' }}>MARK AS HOT 🔥</span></span>
+                  </label>
+                  <label style={cardToggle(form.enabled)} onClick={() => setF('enabled', !form.enabled)}>
+                    <input type="checkbox" checked={form.enabled} onChange={() => setF('enabled', !form.enabled)} style={{ margin: 0 }} />
+                    <span><b>ACTIVE</b><span style={{ display: 'block', fontSize: 11, color: 'var(--muted)' }}>ENABLE IMMEDIATELY</span></span>
+                  </label>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                  {form.editId && <button className="mini-btn" onClick={() => { setForm(BLANK_FORM()); setTab('playlist'); }}>Cancel</button>}
+                  <button className="mini-btn gold" onClick={submitGame} disabled={saveBusy}>{saveBusy ? 'Saving…' : (form.editId ? 'Save Game' : '＋ Add Game to Playlist')}</button>
                 </div>
               </div>
-              <span className="pr" style={{ display: 'flex', gap: 8 }}>
-                <button className="mini-btn gold" onClick={openAddGame}>➕ Add Game</button>
-                <button className="mini-btn" onClick={() => setSelProv(null)}>✕ Close</button>
-              </span>
-            </div>
-            <input value={gq} onChange={(e) => setGq(e.target.value)} placeholder="🔍 Search games in this provider…"
-              style={{ padding: '9px 12px', borderRadius: 8, background: 'var(--bg3,#0b1224)', color: 'var(--text,#fff)', border: '1px solid var(--border,#243049)', fontSize: 13, marginBottom: 10 }} />
-            <div className="table-wrap" style={{ border: '1px solid var(--border)', borderRadius: 10, overflowY: 'auto', flex: 1 }}>
-              <table style={{ minWidth: 640 }}>
-                <thead><tr><th>Game</th><th>Category</th><th>Enabled</th><th>Actions</th></tr></thead>
-                <tbody>
-                  {provGames.length === 0 && (
-                    <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--muted)', padding: 22 }}>
-                      {gq ? 'No games match your search.' : 'No games yet — click ➕ Add Game.'}
-                    </td></tr>
-                  )}
-                  {provGames.map((g) => (
-                    <tr key={g.id} style={{ opacity: g.enabled ? 1 : 0.55 }}>
-                      <td>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                          {g.image ? <img src={g.image} alt="" style={{ width: 30, height: 30, borderRadius: 6, objectFit: 'cover' }} /> : <span style={{ fontSize: 18 }}>🎰</span>}
-                          <b>{g.name}</b>
-                        </span>
-                      </td>
-                      <td><span className={`catchip ${g.category}`}>{catLabel(g.category)}</span></td>
-                      <td>
-                        <label className="switch">
-                          <input type="checkbox" checked={!!g.enabled} disabled={gameBusy === g.id} onChange={() => toggleOneGame(g)} />
-                          <span className="slider"></span>
-                        </label>
-                      </td>
-                      <td>
-                        <button className="mini-btn" onClick={() => openEditGame(g)}>✏️ Edit</button>
-                        <button className="mini-btn" style={{ marginLeft: 6, color: 'var(--red,#ff4d5e)' }} disabled={gameBusy === g.id} onClick={() => deleteGame(g)}>🗑</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            )}
           </div>
         </div>
       )}
@@ -316,55 +374,7 @@ export default function Providers() {
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <button className="mini-btn" onClick={() => setProvModal(null)}>Cancel</button>
-              <button className="mini-btn gold" onClick={submitProvider} disabled={provBusy}>{provBusy ? 'Saving…' : (provModal.editing ? 'Save' : 'Add Provider')}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ---- Add / edit game modal ---- */}
-      {gameModal && (
-        <div className="dep2-ov" onClick={(e) => { if (e.target.classList.contains('dep2-ov')) setGameModal(null); }}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(4,8,18,.78)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
-          <div className="card" style={{ width: 460, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div className="card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>{gameModal.editing ? '✏️ Edit Game' : '➕ Add Game'}</span>
-              <button className="mini-btn" onClick={() => setGameModal(null)}>✕</button>
-            </div>
-            <div className="fld" style={{ marginBottom: 10 }}>
-              <label>Game Name <span style={{ color: 'var(--red,#ff4d5e)' }}>*</span></label>
-              <input value={gameModal.name} onChange={(e) => setGm('name', e.target.value)} placeholder="e.g. Sweet Bonanza" />
-            </div>
-            <div className="fld" style={{ marginBottom: 10 }}>
-              <label>Provider</label>
-              <input value={gameModal.provider} onChange={(e) => setGm('provider', e.target.value)} placeholder="Provider name" />
-            </div>
-            <div className="fld" style={{ marginBottom: 10 }}>
-              <label>Category</label>
-              <select value={gameModal.category} onChange={(e) => setGm('category', e.target.value)}>
-                {CATS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-              </select>
-            </div>
-            <div className="fld" style={{ marginBottom: 10 }}>
-              <label>Game Icon</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 60, height: 60, borderRadius: 8, border: '1px dashed var(--border)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--panel-3,#1b2541)' }}>
-                  {gameModal.image ? <img src={gameModal.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 22 }}>🎰</span>}
-                </div>
-                <label className="mini-btn" style={{ cursor: 'pointer' }}>⬆ Upload<input type="file" accept="image/*" style={{ display: 'none' }} onChange={uploadGameImg} /></label>
-                {gameModal.image && <button className="mini-btn" onClick={() => setGm('image', '')}>Remove</button>}
-              </div>
-            </div>
-            <div className="fld" style={{ marginBottom: 10 }}>
-              <label>Launch URL <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(optional)</span></label>
-              <input value={gameModal.launchUrl} onChange={(e) => setGm('launchUrl', e.target.value)} placeholder="https://… (leave empty for aggregator launch)" />
-            </div>
-            <label className="pm-check" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <input type="checkbox" checked={gameModal.enabled} onChange={(e) => setGm('enabled', e.target.checked)} /> Enabled (visible to players)
-            </label>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <button className="mini-btn" onClick={() => setGameModal(null)}>Cancel</button>
-              <button className="mini-btn gold" onClick={submitGame} disabled={gmBusy}>{gmBusy ? 'Saving…' : (gameModal.editing ? 'Save Game' : 'Add Game')}</button>
+              <button className="mini-btn gold" onClick={submitProvider} disabled={provBusy}>{provBusy ? 'Saving…' : (provModal.editing ? 'Save' : 'Add & Manage Games')}</button>
             </div>
           </div>
         </div>
@@ -372,3 +382,7 @@ export default function Providers() {
     </>
   );
 }
+
+const inp = { padding: '8px 11px', borderRadius: 8, background: 'var(--bg3,#0b1224)', color: 'var(--text,#fff)', border: '1px solid var(--border,#243049)', fontSize: 13 };
+const tabStyle = (active) => ({ background: 'none', border: 'none', padding: '8px 2px', marginBottom: -1, borderBottom: `2px solid ${active ? 'var(--gold)' : 'transparent'}`, color: active ? 'var(--gold)' : 'var(--muted)', fontWeight: 700, fontSize: 14, cursor: 'pointer' });
+const cardToggle = (on) => ({ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 10, border: `1px solid ${on ? 'var(--gold)' : 'var(--border)'}`, background: on ? 'rgba(240,192,64,.08)' : 'var(--bg3,#0b1224)', cursor: 'pointer' });

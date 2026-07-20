@@ -37,6 +37,8 @@ function clean(body) {
     code: String(body.code || '').trim(),
     // Language support label (free text, e.g. "EN, CN, VN").
     langs: String(body.langs ?? body.languages ?? '').trim(),
+    // Theoretical return-to-player %, shown on the admin game card.
+    rtp: Number.isFinite(+body.rtp) ? +body.rtp : 0,
     enabled: body.enabled === undefined ? true : !!body.enabled,
     popular: !!body.popular,
     hot: !!body.hot,
