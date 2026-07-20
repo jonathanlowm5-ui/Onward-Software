@@ -32,8 +32,14 @@ function clean(body) {
     color: body.color || '',
     launchUrl: body.launchUrl || body.gameUrl || '',
     image: body.image || '',
+    // Editable external game id / code (shown in the admin Game List). Falls
+    // back to the record id on the frontend when empty.
+    code: String(body.code || '').trim(),
+    // Language support label (free text, e.g. "EN, CN, VN").
+    langs: String(body.langs ?? body.languages ?? '').trim(),
     enabled: body.enabled === undefined ? true : !!body.enabled,
     popular: !!body.popular,
+    hot: !!body.hot,
     order: Number.isFinite(+body.order) ? +body.order : 0,
   };
 }
