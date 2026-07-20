@@ -30,10 +30,32 @@ export default function Providers() {
       if (g.enabled) map[p].enabled++;
       if (g.category) map[p].cats.add(g.category);
     }
+    // Manually-added providers (saved in config, no games yet) still appear.
+    for (const name of Object.keys(cfg)) {
+      if (!map[name]) map[name] = { name, total: 0, enabled: 0, cats: new Set(), manual: true };
+    }
     return Object.values(map)
       .map((p) => ({ ...p, on: cfg[p.name]?.enabled !== false }))
       .sort((a, b) => b.total - a.total);
   }, [games, cfg]);
+
+  // Add a new provider (stored in providersConfig; shows with 0 games until you
+  // add games to it under Game List, where it appears in the provider list).
+  const [newProv, setNewProv] = useState('');
+  const [addingProv, setAddingProv] = useState(false);
+  const addProvider = async () => {
+    const name = newProv.trim();
+    if (!name) { toast('⚠ Enter a provider name'); return; }
+    if (providers.some((p) => p.name.toLowerCase() === name.toLowerCase())) { toast('⚠ That provider already exists'); return; }
+    setAddingProv(true);
+    try {
+      const nextCfg = { ...cfg, [name]: { enabled: true, manual: true } };
+      await saveConfig({ providersConfig: nextCfg });
+      setCfg(nextCfg); setNewProv('');
+      toast(`✅ Provider "${name}" added — add games to it under Game List`);
+    } catch (e) { toast('⚠ ' + (e.message || 'Failed to add provider')); }
+    finally { setAddingProv(false); }
+  };
 
   const toggleProvider = async (p) => {
     const target = !p.on;
@@ -65,7 +87,10 @@ export default function Providers() {
           <h1 className="hero-h">🕹️ Game Providers</h1>
           <div className="hero-sub" style={{ marginBottom: 0 }}>Live providers from the games catalog — toggling a provider bulk-enables/disables its games on the frontend</div>
         </div>
-        <span className="pr">
+        <span className="pr" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input value={newProv} onChange={(e) => setNewProv(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') addProvider(); }}
+            placeholder="New provider name…" style={{ padding: '7px 10px', borderRadius: 8, background: 'var(--bg3,#0b1224)', color: 'var(--text,#fff)', border: '1px solid var(--border,#243049)', fontSize: 13, minWidth: 180 }} />
+          <button className="mini-btn gold" onClick={addProvider} disabled={addingProv}>{addingProv ? 'Adding…' : '➕ Add Provider'}</button>
           <button className="mini-btn" onClick={() => { setLoaded(false); load().then(() => toast('Providers refreshed 🔄')); }}>🔄 Refresh</button>
         </span>
       </div>
@@ -89,7 +114,7 @@ export default function Providers() {
               )}
               {providers.map((p) => (
                 <tr key={p.name} style={{ opacity: p.on ? 1 : 0.55 }}>
-                  <td><span className="prov-logo" style={{ background: '#243049' }}>{p.name.slice(0, 2).toUpperCase()}</span> <b style={{ marginLeft: 8 }}>{p.name}</b></td>
+                  <td><span className="prov-logo" style={{ background: '#243049' }}>{p.name.slice(0, 2).toUpperCase()}</span> <b style={{ marginLeft: 8 }}>{p.name}</b>{p.total === 0 && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, color: 'var(--gold)' }}>NEW · add games</span>}</td>
                   <td style={{ fontSize: 12, color: 'var(--muted)' }}>{[...p.cats].join(' · ') || '—'}</td>
                   <td style={{ fontWeight: 800 }}>{p.total}</td>
                   <td><span className={p.enabled ? 'on-chip' : 'off-chip'}>{p.enabled} / {p.total}</span></td>
