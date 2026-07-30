@@ -43,12 +43,8 @@ const app = require('./server');
 // single instance (with high request concurrency) makes that one cache the
 // single source of truth, keeping reads and writes consistent. Fine for this
 // scale; revisit with a shared cache / per-request Firestore reads to scale out.
-// minInstances: 1 keeps exactly one instance always warm. With maxInstances: 1
-// this means a single, always-consistent instance — no scale-to-zero, so the
-// heavy Firestore cold-start (loading the whole catalogue) never happens on a
-// user request, which is what surfaced intermittent 503s after idle periods.
 exports.api = onRequest(
-  { memory: '512MiB', timeoutSeconds: 60, concurrency: 80, minInstances: 1, maxInstances: 1, secrets: [jwtSecret] },
+  { memory: '512MiB', timeoutSeconds: 60, concurrency: 80, maxInstances: 1, secrets: [jwtSecret] },
   async (req, res) => {
     // Hold the first cold-start requests until the catalogue is loaded/seeded.
     try {
