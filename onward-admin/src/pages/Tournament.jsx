@@ -1,76 +1,238 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useUI } from '../context/UIContext';
+import { listTournaments, saveTournaments } from '../services/tournamentService';
+import { listGames } from '../services/gameService';
+import { uploadImage } from '../services/uploadService';
+import { gameImg } from '../services/assets';
 
-const INITIAL_TOURS = [
-  { n: '🎰 May Slots Championship', st: 'active', d: 'Compete for ₱200,000 in prizes across all slot games this May!', pp: '₱200,000', pt: '1,842', from: '2026-05-01 00:00', to: '2026-05-31 23:59', feat: 1 },
-  { n: '🎴 Live Casino Weekend Showdown', st: 'active', d: '3-day live casino tournament — biggest single win takes the crown.', pp: '₱80,000', pt: '420', from: '2026-05-24 00:00', to: '2026-05-26 23:59', feat: 0 },
-  { n: '✈️ June Crash Leaderboard', st: 'upcoming', d: 'Fly highest in Aviator and Crash games throughout June.', pp: '₱150,000', pt: '0', from: '2026-06-01 00:00', to: '2026-06-30 23:59', feat: 1 },
-  { n: '🎰 April Slots Madness', st: 'completed', d: 'April tournament — concluded.', pp: '₱100,000', pt: '2,100', from: '2026-04-01 00:00', to: '2026-04-30 23:59', feat: 0 },
-  { n: '💎 High Roller VIP Tournament', st: 'draft', d: 'Exclusive VIP-only high roller tournament draft.', pp: '₱500,000', pt: '0', from: 'TBD', to: 'TBD', feat: 0 },
-];
+/*
+ * Tournament admin — create/edit the tournaments shown on the player site
+ * (promotions page → TOURNAMENTS). Each tournament has an uploadable banner,
+ * a buy-in / join condition, a prize pool, and a provider + selected games.
+ */
 
-function TourChip({ st }) {
-  if (st === 'active') return <span className="stchip st-active">active</span>;
-  if (st === 'upcoming') return <span className="stchip st-up">upcoming</span>;
-  if (st === 'completed') return <span className="stchip st-comp">completed</span>;
-  return <span className="stchip st-draft">draft</span>;
+let idSeq = 0;
+const newId = () => 't' + Date.now().toString(36) + (idSeq++).toString(36);
+
+const EMPTY = {
+  id: '', enabled: true, title: '', desc: '', banner: '',
+  start: '', end: '', buyIn: '', prize: '', prizeFs: '', provider: '', games: [],
+};
+
+function statusOf(t) {
+  const now = Date.now();
+  if (t.enabled === false) return ['draft', 'st-draft'];
+  const s = t.start ? Date.parse(t.start) : NaN;
+  const e = t.end ? Date.parse(t.end) : NaN;
+  if (!Number.isNaN(e) && now > e) return ['completed', 'st-comp'];
+  if (!Number.isNaN(s) && now < s) return ['upcoming', 'st-up'];
+  return ['active', 'st-active'];
 }
 
 export default function Tournament() {
   const { toast } = useUI();
-  const [tours, setTours] = useState(INITIAL_TOURS);
+  const [tours, setTours] = useState([]);
+  const [loaded, setLoaded] = useState(false);
   const [filter, setFilter] = useState('all');
 
-  const list = filter === 'all' ? tours : tours.filter((t) => t.st === filter);
+  // Game catalogue for the provider/games picker.
+  const [allGames, setAllGames] = useState([]);
+  useEffect(() => {
+    listTournaments().then((d) => setTours(Array.isArray(d) ? d : [])).catch(() => {}).finally(() => setLoaded(true));
+    listGames({ enabled: 1 }).then((d) => {
+      const rows = Array.isArray(d) ? d : (d?.items || []);
+      setAllGames(rows);
+    }).catch(() => {});
+  }, []);
 
-  const delTour = (idx) => {
-    setTours((prev) => prev.filter((_, i) => i !== idx));
-    toast('Tournament deleted');
+  const providers = useMemo(
+    () => [...new Set(allGames.map((g) => g.provider).filter(Boolean))].sort(),
+    [allGames]
+  );
+
+  const persist = async (next, msg) => {
+    setTours(next);
+    try { const saved = await saveTournaments(next); setTours(saved); toast(msg || 'Saved ✔'); }
+    catch (e) { toast('⚠ ' + (e?.response?.data?.error || e.message || 'Save failed')); }
   };
 
+  /* ---------- editor modal ---------- */
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState(EMPTY);
+  const [editId, setEditId] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [gameQ, setGameQ] = useState('');
+  const bannerRef = useRef(null);
+  const setF = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+
+  const openNew = () => { setForm({ ...EMPTY, id: newId() }); setEditId(null); setGameQ(''); setOpen(true); };
+  const openEdit = (t) => { setForm({ ...EMPTY, ...t }); setEditId(t.id); setGameQ(''); setOpen(true); };
+  const close = () => setOpen(false);
+
+  const pickBanner = async (file) => {
+    if (!file) return;
+    setUploading(true);
+    try { const { url } = await uploadImage(file); setF('banner', url); }
+    catch (e) { toast('⚠ Upload failed: ' + (e.message || '')); }
+    finally { setUploading(false); }
+  };
+
+  const toggleGame = (name) => setForm((p) => ({
+    ...p,
+    games: p.games.includes(name) ? p.games.filter((g) => g !== name) : [...p.games, name],
+  }));
+
+  // Games offered in the picker: match the chosen provider (if any) + search.
+  const pickerGames = useMemo(() => {
+    const q = gameQ.trim().toLowerCase();
+    let rows = allGames;
+    if (form.provider) rows = rows.filter((g) => g.provider === form.provider);
+    if (q) rows = rows.filter((g) => String(g.name || '').toLowerCase().includes(q));
+    return rows.slice(0, 30);
+  }, [allGames, form.provider, gameQ]);
+
+  const save = () => {
+    if (!form.title.trim()) { toast('⚠ Title is required'); return; }
+    const exists = tours.some((t) => t.id === form.id);
+    const next = exists ? tours.map((t) => (t.id === form.id ? form : t)) : [form, ...tours];
+    persist(next, editId ? 'Tournament updated 💾' : 'Tournament created ✅');
+    setOpen(false);
+  };
+  const del = (id) => persist(tours.filter((t) => t.id !== id), 'Tournament deleted 🗑');
+  const toggleEnabled = (id) => persist(tours.map((t) => (t.id === id ? { ...t, enabled: t.enabled === false } : t)));
+
+  const list = filter === 'all' ? tours : tours.filter((t) => statusOf(t)[0] === filter);
   const filters = [['all', 'All'], ['active', '🟢 Active'], ['upcoming', '📅 Upcoming'], ['completed', '✅ Completed'], ['draft', '📝 Draft']];
 
   return (
     <>
       <div className="page-head">
-        <div><h1 className="hero-h">🏆 Tournament</h1><div className="hero-sub" style={{ marginBottom: 0 }}>Create and manage competitive tournaments with leaderboards, prizes and player rankings</div></div>
-        <span className="pr"><button className="btn-search" onClick={() => toast('New Tournament — demo')}>＋ New Tournament</button></span>
+        <div><h1 className="hero-h">🏆 Tournament</h1><div className="hero-sub" style={{ marginBottom: 0 }}>Create and manage the tournaments shown to players on the promotions page</div></div>
+        <span className="pr"><button className="btn-search" onClick={openNew}>＋ New Tournament</button></span>
       </div>
+
       <div className="grid kpi-grid">
-        <div className="card kpi"><div className="lbl">Active Tournaments</div><div className="val">{tours.filter((t) => t.st === 'active').length}</div><div className="trend" style={{ color: 'var(--muted)' }}>running now</div></div>
-        <div className="card kpi g"><div className="lbl">Total Participants</div><div className="val">2,262</div><div className="trend" style={{ color: 'var(--muted)' }}>across all active</div></div>
-        <div className="card kpi b"><div className="lbl">Prize Pool (Active)</div><div className="val">₱280K</div><div className="trend" style={{ color: 'var(--muted)' }}>to be distributed</div></div>
-        <div className="card kpi" style={{ borderTopColor: '#9b6dff' }}><div className="lbl">Completed</div><div className="val">{tours.filter((t) => t.st === 'completed').length}</div><div className="trend" style={{ color: 'var(--muted)' }}>all time</div></div>
+        <div className="card kpi"><div className="lbl">Active</div><div className="val">{tours.filter((t) => statusOf(t)[0] === 'active').length}</div><div className="trend" style={{ color: 'var(--muted)' }}>running now</div></div>
+        <div className="card kpi g"><div className="lbl">Upcoming</div><div className="val">{tours.filter((t) => statusOf(t)[0] === 'upcoming').length}</div><div className="trend" style={{ color: 'var(--muted)' }}>scheduled</div></div>
+        <div className="card kpi b"><div className="lbl">Completed</div><div className="val">{tours.filter((t) => statusOf(t)[0] === 'completed').length}</div><div className="trend" style={{ color: 'var(--muted)' }}>past end date</div></div>
+        <div className="card kpi" style={{ borderTopColor: '#9b6dff' }}><div className="lbl">Total</div><div className="val">{tours.length}</div><div className="trend" style={{ color: 'var(--muted)' }}>all tournaments</div></div>
       </div>
+
       <div className="pilltabs">{filters.map((t) => (
         <button key={t[0]} className={`pill ${filter === t[0] ? 'active' : ''}`} onClick={() => setFilter(t[0])}>{t[1]}</button>
       ))}</div>
+
       <div className="tour-grid">
         {list.length === 0
-          ? <div className="card"><div className="hist-empty">No tournaments in this filter.</div></div>
+          ? <div className="card"><div className="hist-empty">{loaded ? 'No tournaments in this filter. Click “＋ New Tournament”.' : 'Loading…'}</div></div>
           : list.map((t) => {
-            const ti = tours.indexOf(t);
+            const [st, cls] = statusOf(t);
             return (
-              <div key={ti} className={`tour-card ${t.feat ? 'featured' : ''}`}>
-                {t.feat ? <div className="feat-band">⭐ FEATURED</div> : null}
+              <div key={t.id} className="tour-card">
+                {t.banner
+                  ? <img src={t.banner} alt="" style={{ width: '100%', height: 120, objectFit: 'cover', display: 'block' }} />
+                  : <div style={{ height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34, background: 'linear-gradient(135deg,#1a0a5e,#0d47a1)' }}>🏆</div>}
                 <div className="tour-body">
-                  <div className="tour-title">{t.n} <TourChip st={t.st} /></div>
-                  <div className="tour-desc">{t.d}</div>
+                  <div className="tour-title">{t.title} <span className={`stchip ${cls}`}>{st}</span></div>
+                  <div className="tour-desc">{t.desc || '—'}</div>
                   <div className="tour-stats">
-                    <div className="lot-box"><div className="l">Prize Pool</div><div className="v gold">{t.pp}</div></div>
-                    <div className="lot-box"><div className="l">Participants</div><div className="v" style={{ color: 'var(--blue)' }}>{t.pt}</div></div>
+                    <div className="lot-box"><div className="l">Prize Pool</div><div className="v gold">{t.prize || '—'}{t.prizeFs ? ` + ${t.prizeFs}` : ''}</div></div>
+                    <div className="lot-box"><div className="l">Buy-in / Join</div><div className="v" style={{ color: 'var(--blue)' }}>{t.buyIn || 'Free'}</div></div>
                   </div>
-                  <div className="tour-dates">📅 {t.from} → {t.to}</div>
+                  <div className="tour-dates">📅 {(t.start || 'now').replace('T', ' ')} → {(t.end || 'no end').replace('T', ' ')}</div>
+                  <div className="tour-dates">🎮 {t.provider || 'All providers'}{t.games?.length ? ` · ${t.games.length} game${t.games.length > 1 ? 's' : ''}` : ' · all games'}</div>
                   <div className="tour-acts">
-                    <button className="mini-btn" onClick={() => toast(`Leaderboard: ${t.n.replace(/'/g, '')} — top: juan_dc88 ₱182K T/O 🥇`)}>📊 Leaderboard</button>
-                    <button className="mini-btn gold" style={{ flex: '0 0 auto' }} onClick={() => toast('Edit tournament — demo')}>✏️ Edit</button>
-                    <button className="del-btn" style={{ flex: '0 0 auto' }} onClick={() => delTour(ti)}>🗑</button>
+                    <label className="switch" title={t.enabled === false ? 'Enable' : 'Disable'}><input type="checkbox" checked={t.enabled !== false} onChange={() => toggleEnabled(t.id)} /><span className="slider"></span></label>
+                    <button className="mini-btn gold" style={{ flex: '0 0 auto' }} onClick={() => openEdit(t)}>✏️ Edit</button>
+                    <button className="del-btn" style={{ flex: '0 0 auto' }} onClick={() => del(t.id)}>🗑</button>
                   </div>
                 </div>
               </div>
             );
           })}
       </div>
+
+      {/* ===== EDITOR ===== */}
+      {open && (
+        <div className="modal-ov show" onClick={(e) => { if (e.target === e.currentTarget) close(); }}>
+          <div className="pm-modal" style={{ maxWidth: 640 }}>
+            <div className="pm-head">
+              <span style={{ fontSize: '1.1rem' }}>🏆</span>
+              <span><div className="nm">{editId ? 'Edit Tournament' : 'New Tournament'}</div></span>
+              <button className="kyc-x" style={{ marginLeft: 'auto' }} onClick={close}>✕</button>
+            </div>
+            <div className="pm-body">
+              <div className="pm-fld" style={{ marginBottom: 12 }}><label>Title <span className="req-star">*</span></label><input value={form.title} onChange={(e) => setF('title', e.target.value)} placeholder="e.g. May Slots Championship" /></div>
+              <div className="pm-fld" style={{ marginBottom: 12 }}><label>Description</label><textarea className="pwa-ta" value={form.desc} onChange={(e) => setF('desc', e.target.value)} placeholder="What players compete for and how to win…" /></div>
+
+              <div className="pm-fld" style={{ marginBottom: 12 }}>
+                <label>Tournament Banner (recommended 1200 × 425)</label>
+                {form.banner && <img src={form.banner} alt="" style={{ width: '100%', aspectRatio: '1200/425', objectFit: 'cover', borderRadius: 8, marginBottom: 6 }} />}
+                <input ref={bannerRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => pickBanner(e.target.files?.[0])} />
+                <button className="mini-btn" onClick={() => bannerRef.current?.click()} disabled={uploading}>{uploading ? 'Uploading…' : (form.banner ? 'Replace banner' : '⬆ Upload banner')}</button>
+                {form.banner && <button className="del-btn" style={{ marginLeft: 6 }} onClick={() => setF('banner', '')}>Remove</button>}
+              </div>
+
+              <div className="pm-grid">
+                <div className="pm-fld"><label>Start</label><input type="datetime-local" value={form.start} onChange={(e) => setF('start', e.target.value)} /></div>
+                <div className="pm-fld"><label>End</label><input type="datetime-local" value={form.end} onChange={(e) => setF('end', e.target.value)} /></div>
+              </div>
+
+              <div className="pm-grid" style={{ marginTop: 12 }}>
+                <div className="pm-fld"><label>Buy-in / Join condition</label><input value={form.buyIn} onChange={(e) => setF('buyIn', e.target.value)} placeholder="e.g. Free — min bet ₱1 · or ₱500 buy-in" /></div>
+                <div className="pm-fld"><label>Prize Pool</label><input value={form.prize} onChange={(e) => setF('prize', e.target.value)} placeholder="e.g. ₱200,000" /></div>
+              </div>
+              <div className="pm-grid" style={{ marginTop: 12 }}>
+                <div className="pm-fld"><label>Extra prize (optional)</label><input value={form.prizeFs} onChange={(e) => setF('prizeFs', e.target.value)} placeholder="e.g. 2000 FS" /></div>
+                <div className="pm-fld"><label>Provider</label>
+                  <select value={form.provider} onChange={(e) => setF('provider', e.target.value)}>
+                    <option value="">🌐 All providers</option>
+                    {providers.map((p) => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Selected games picker */}
+              <div className="pm-fld" style={{ marginTop: 12 }}>
+                <label>Selected games ({form.games.length ? form.games.length + ' selected' : 'none selected = all games count'})</label>
+                {form.games.length > 0 && (
+                  <div className="tgp-chips">
+                    {form.games.map((g) => (
+                      <span key={g} className="tgp-chip">
+                        {g}<button title="Remove" onClick={() => toggleGame(g)}>✕</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <input value={gameQ} onChange={(e) => setGameQ(e.target.value)} placeholder="🔍 Search games to add…" style={{ marginBottom: 6 }} />
+                <div className="tgp-list">
+                  {pickerGames.length === 0
+                    ? <div className="tgp-empty">{allGames.length ? 'No games match this search.' : 'Game list unavailable.'}</div>
+                    : pickerGames.map((g) => {
+                      const on = form.games.includes(g.name);
+                      return (
+                        <button type="button" key={g.id ?? g.name} className={`tgp-row${on ? ' on' : ''}`} onClick={() => toggleGame(g.name)}>
+                          <span className="tgp-check">{on ? '✓' : ''}</span>
+                          {g.image
+                            ? <img className="tgp-thumb" src={gameImg(g.image)} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                            : <span className="tgp-thumb-ph">🎰</span>}
+                          <span className="tgp-name">{g.name}</span>
+                          <span className="tgp-prov">{g.provider}</span>
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+
+              <div className="pm-check" style={{ marginTop: 12 }}><input type="checkbox" checked={form.enabled !== false} onChange={(e) => setF('enabled', e.target.checked)} /><div><div className="t">Live</div><div className="d">Show this tournament to players</div></div></div>
+            </div>
+            <div className="pm-foot">
+              <button className="btn-cancel" onClick={close}>Cancel</button>
+              <button className="btn-pm-save" onClick={save}>{editId ? 'Save Changes' : 'Create Tournament'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

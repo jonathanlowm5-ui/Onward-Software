@@ -15,17 +15,74 @@
 const express = require('express');
 const store = require('../store');
 const { requireAuth } = require('../auth');
+const { requirePerm } = require('../permissions');
 
 const router = express.Router();
 const COLLECTION = 'promotions';
+const CURRENCIES = ['PHP', 'USD', 'EUR', 'INR', 'THB', 'VND', 'IDR', 'MYR', 'CNY', 'JPY'];
+
+// ---- Promotion-rules enums (admin-configurable eligibility logic) ----
+const REQUIREMENTS = ['Deposit (T/O)', 'Deposit (Winover)', 'Product (T/O)', 'Product (Winover)', 'Multi-Product (T/O)', 'Multi-Product (Winover)'];
+const BONUS_TYPES = ['Bonus', 'Free Credit', 'Referral Share', 'Register Bonus'];
+const REFRESH_CYCLES = ['Everytime', 'Once', 'Hourly', 'Daily', 'Weekly', 'Monthly'];
+const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+const SUPPORTED_LANGS = ['en', 'zh', 'id', 'ms', 'th', 'vi', 'hi', 'ko', 'ja', 'es', 'pt'];
+// Per-language overrides: { [lang]: { title, description, customTerms } }.
+function cleanI18n(src) {
+  const out = {};
+  const obj = src && typeof src === 'object' ? src : {};
+  for (const lang of SUPPORTED_LANGS) {
+    const t = obj[lang];
+    if (!t || typeof t !== 'object') continue;
+    const e = {};
+    if (typeof t.title === 'string' && t.title.trim()) e.title = t.title.trim().slice(0, 200);
+    if (typeof t.description === 'string' && t.description.trim()) e.description = t.description.slice(0, 1000);
+    if (typeof t.customTerms === 'string' && t.customTerms.trim()) e.customTerms = t.customTerms.slice(0, 4000);
+    if (Object.keys(e).length) out[lang] = e;
+  }
+  return out;
+}
+const num = (x, d = 0) => { const n = parseFloat(x); return Number.isFinite(n) ? n : d; };
+// A CSS hex colour (#rgb / #rrggbb), else '' (frontend falls back to its theme).
+const hexColor = (v) => (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(String(v || '').trim()) ? String(v).trim() : '');
+// A font size in px, clamped to a sane range; 0 = use the default.
+const fontPx = (v) => { const n = Math.round(num(v, 0)); return n > 0 ? Math.min(120, Math.max(8, n)) : 0; };
+const truthy = (v) => v === true || v === 1 || v === 'yes' || v === 'true' || v === '1' || v === 'on';
+const pickOne = (v, list, d) => (list.includes(v) ? v : d);
+
+// Per-currency banner images: { PHP: url, MYR: url, ... }. A player sees the
+// banner for their own currency; otherwise the default `image` is used.
+function cleanBanners(src) {
+  const out = {};
+  const obj = src && typeof src === 'object' ? src : {};
+  for (const k of CURRENCIES) {
+    const v = obj[k];
+    if (typeof v === 'string' && v.trim()) out[k] = v.trim();
+  }
+  return out;
+}
 
 function clean(body) {
+  const cur = String(body.currency || '').toUpperCase();
   return {
     image: body.image || '',
+    banners: cleanBanners(body.banners),
     title: String(body.title || '').trim(),
     description: String(body.description || '').trim(),
+    // Banner text styling (admin-configurable, wired to the player banner).
+    // Empty colour / 0 size = inherit the site theme's default.
+    titleColor: hexColor(body.titleColor),
+    titleSize: fontPx(body.titleSize),
+    descColor: hexColor(body.descColor),
+    descSize: fontPx(body.descSize),
     // Economic / display fields (shown on the admin table and player cards).
     type: String(body.type || 'welcome').trim(),
+    // Optional currency restriction. Empty = auto (follows the viewing
+    // player's currency in the terms & conditions).
+    currency: CURRENCIES.includes(cur) ? cur : '',
+    // Optional country targeting. Empty = all countries. When set, the promo
+    // only shows to players registered in that country.
+    country: String(body.country || '').trim(),
     bonus: String(body.bonus || '').trim(),
     maxBonus: String(body.maxBonus ?? body.max ?? '').trim(),
     minDeposit: String(body.minDeposit ?? body.md ?? '').trim(),
@@ -33,17 +90,54 @@ function clean(body) {
     turnover: String(body.turnover || '').trim(),
     startDate: body.startDate || '',
     endDate: body.endDate || '',
+    days: Array.isArray(body.days) ? body.days.filter((d) => DAYS.includes(d)) : [],
     status: body.status === 'inactive' ? 'inactive' : 'active',
     buttonText: body.buttonText || '',
     buttonLink: body.buttonLink || '',
+    // Custom T&C override (one line per row). Empty = use auto-generated terms.
+    customTerms: String(body.customTerms || '').slice(0, 4000),
+    // Per-language overrides for title / description / customTerms.
+    i18n: cleanI18n(body.i18n),
+    // ---- Promotion rules / eligibility logic (admin-configured) ----
+    requirement: pickOne(body.requirement, REQUIREMENTS, 'Deposit (T/O)'),
+    bonusType: pickOne(body.bonusType, BONUS_TYPES, 'Bonus'),
+    refreshCycle: pickOne(body.refreshCycle, REFRESH_CYCLES, 'Once'),
+    isExclusive: truthy(body.isExclusive),
+    hidden: truthy(body.hidden),
+    claimLimitDaily: Math.max(0, num(body.claimLimitDaily, 0)),
+    minDepositAmt: Math.max(0, num(body.minDepositAmt, 0)),
+    depositCount: Math.max(0, num(body.depositCount, 0)),
+    maxClaimAmount: Math.max(0, num(body.maxClaimAmount, 0)),
+    maxWinningMultiply: num(body.maxWinningMultiply, 0), // may be negative (fixed) or 0 (no forfeit)
+    isAccumulate: truthy(body.isAccumulate),
+    promoDeductOnWithdraw: truthy(body.promoDeductOnWithdraw),
+    percentage: Math.max(0, num(body.percentage, 0)),
+    multiply: Math.max(0, num(body.multiply, 1)),
+    sequence: Math.max(0, num(body.sequence, 0)),
+    minBalance: Math.max(0, num(body.minBalance, 0)),
+    freeSpins: Math.max(0, num(body.freeSpins, 0)),
+    // ---- Allow lists (step 2): which products/groups/banks the promo covers ----
+    allowProducts: Array.isArray(body.allowProducts) ? body.allowProducts.map(String).slice(0, 300) : [],
+    allowPlayerGroups: Array.isArray(body.allowPlayerGroups) ? body.allowPlayerGroups.map(String).slice(0, 100) : [],
+    allowBanks: Array.isArray(body.allowBanks) ? body.allowBanks.map(String).slice(0, 300) : [],
+    allowRiskGroups: Array.isArray(body.allowRiskGroups) ? body.allowRiskGroups.map(String).slice(0, 100) : [],
   };
 }
 
 function isLive(p, today) {
   if (p.status !== 'active') return false;
+  if (p.hidden) return false; // admin chose to hide it from players
   if (p.startDate && p.startDate > today) return false; // not started yet
   if (p.endDate && p.endDate < today) return false; // expired
   return true;
+}
+
+// Sort by the admin-set display order (then newest first as a tiebreaker).
+function bySort(a, b) {
+  const sa = Number.isFinite(+a.sortOrder) ? +a.sortOrder : 9999;
+  const sb = Number.isFinite(+b.sortOrder) ? +b.sortOrder : 9999;
+  if (sa !== sb) return sa - sb;
+  return (b.createdAt || '').localeCompare(a.createdAt || '');
 }
 
 router.get('/', (req, res) => {
@@ -52,29 +146,40 @@ router.get('/', (req, res) => {
     const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
     promos = promos.filter((p) => isLive(p, today));
   }
+  promos = promos.slice().sort(bySort);
   res.json(promos);
 });
 
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, requirePerm('content.manage'), (req, res) => {
   const data = clean(req.body);
   if (!data.title) return res.status(400).json({ error: 'Promotion title is required' });
+  // New promos append to the end of the order.
+  data.sortOrder = store.list(COLLECTION).length;
   res.status(201).json(store.insert(COLLECTION, data));
 });
 
-router.put('/:id', requireAuth, (req, res) => {
+// Reorder: body { order: [id, id, ...] } -> sets sortOrder = index for each.
+router.post('/reorder', requireAuth, requirePerm('content.manage'), (req, res) => {
+  const order = Array.isArray(req.body && req.body.order) ? req.body.order : [];
+  order.forEach((id, i) => { if (store.get(COLLECTION, id)) store.update(COLLECTION, id, { sortOrder: i }); });
+  res.json(store.list(COLLECTION).slice().sort(bySort));
+});
+
+router.put('/:id', requireAuth, requirePerm('content.manage'), (req, res) => {
+  // clean() omits sortOrder, so store.update preserves the existing order.
   const updated = store.update(COLLECTION, req.params.id, clean(req.body));
   if (!updated) return res.status(404).json({ error: 'Promotion not found' });
   res.json(updated);
 });
 
-router.patch('/:id/toggle', requireAuth, (req, res) => {
+router.patch('/:id/toggle', requireAuth, requirePerm('content.manage'), (req, res) => {
   const promo = store.get(COLLECTION, req.params.id);
   if (!promo) return res.status(404).json({ error: 'Promotion not found' });
   const status = promo.status === 'active' ? 'inactive' : 'active';
   res.json(store.update(COLLECTION, req.params.id, { status }));
 });
 
-router.delete('/:id', requireAuth, (req, res) => {
+router.delete('/:id', requireAuth, requirePerm('content.manage'), (req, res) => {
   if (!store.remove(COLLECTION, req.params.id))
     return res.status(404).json({ error: 'Promotion not found' });
   res.json({ ok: true });

@@ -1,11 +1,86 @@
 import { useEffect, useState } from 'react';
 import { useUI } from '../context/UIContext';
+import { useAuth } from '../context/AuthContext';
 import useSectionNav from '../hooks/useSectionNav';
+import { resolvePromoBanner, localizePromo, promoTitleStyle, promoDescStyle } from '../utils/promoTerms';
+import usePageBanner from '../hooks/usePageBanner';
 import api from '../services/api';
+// Uploaded welcome-tier icons (coin → bag → chest → crown).
+import wStep1 from '../assets/welcome/welcome-step1.avif';
+import wStep2 from '../assets/welcome/welcome-step2.avif';
+import wStep3 from '../assets/welcome/welcome-step3.avif';
+import wStep4 from '../assets/welcome/welcome-step4.avif';
 
-const VALID_PROMO_CODES = ['WELCOME100', 'LEGOX', 'VIP500', 'FREESPIN55'];
+// Built-in showcase promotions (shown when/while the admin hasn't created its
+// own). Each carries full detail so the detail modal can render it properly.
+const SHOWCASE_BONUSES = [
+  { deco: '125%', title: '1ST DEPOSIT BONUS', lines: ['125% UP TO ₱3,970', '+100 FREE SPINS'], status: 'AWAITS DEPOSIT', highlighted: true,
+    bonus: '125%', maxBonus: '₱3,970', minDeposit: '₱500', wager: '30x', turnover: '0x', type: 'deposit',
+    description: 'Kick off your journey with a 125% match on your first deposit plus 100 free spins on selected slots.' },
+  { deco: '100%', title: '2ND DEPOSIT BONUS', lines: ['100% UP TO ₱1,980', '+25 FREE SPINS'],
+    bonus: '100%', maxBonus: '₱1,980', minDeposit: '₱500', wager: '30x', turnover: '0x', type: 'deposit',
+    description: 'Top up again and get a 100% match up to ₱1,980 with 25 bonus spins.' },
+  { deco: '75%', title: '3RD DEPOSIT BONUS', lines: ['75% UP TO ₱5,950', '+50 FREE SPINS'],
+    bonus: '75%', maxBonus: '₱5,950', minDeposit: '₱500', wager: '35x', turnover: '0x', type: 'deposit',
+    description: 'Your third deposit earns a 75% boost up to ₱5,950 and 50 free spins.' },
+  { deco: '200%', title: '4TH DEPOSIT BONUS', lines: ['200% UP TO ₱7,940', '+25 FREE SPINS'],
+    bonus: '200%', maxBonus: '₱7,940', minDeposit: '₱1,000', wager: '40x', turnover: '0x', type: 'deposit',
+    description: 'Finish the welcome series strong with a massive 200% match up to ₱7,940.' },
+  { deco: '50%', title: 'WEEKEND RELOAD', i18nKey: 'promo_weekend', lines: ['50% UP TO ₱5,000', '+55 FREE SPINS'],
+    bonus: '50%', maxBonus: '₱5,000', minDeposit: '₱500', wager: '25x', turnover: '0x', type: 'deposit',
+    description: 'Reload every weekend for a 50% bonus up to ₱5,000 plus 55 free spins.' },
+  { deco: '10%', title: 'WEEKLY CASHBACK', i18nKey: 'promo_cashback', lines: ['10% CASHBACK', 'EVERY WEEK'],
+    bonus: '10%', maxBonus: '₱20,000', minDeposit: '₱0', wager: '5x', turnover: '0x', type: 'cashback',
+    description: 'Get 10% cashback on your net losses every week — credited automatically.' },
+];
+
+const SHOWCASE_RELOAD = [
+  { deco: '50%', title: 'MONDAY RELOAD', i18nKey: 'promo_monday', lines: ['50% UP TO ₱3,000', '+30 FREE SPINS'],
+    bonus: '50%', maxBonus: '₱3,000', minDeposit: '₱300', wager: '30x', turnover: '0x', type: 'deposit',
+    description: 'Beat the Monday blues with a 50% reload up to ₱3,000 and 30 free spins.' },
+  { deco: '30%', title: 'DAILY RELOAD', i18nKey: 'promo_daily', lines: ['30% UP TO ₱2,000', 'EVERY DAY'],
+    bonus: '30%', maxBonus: '₱2,000', minDeposit: '₱200', wager: '25x', turnover: '0x', type: 'deposit',
+    description: 'A 30% reload bonus available every single day, up to ₱2,000.' },
+  { deco: '75%', title: 'WEEKEND SPECIAL', i18nKey: 'promo_weekend_special', lines: ['75% UP TO ₱8,000', 'SAT & SUN ONLY'],
+    bonus: '75%', maxBonus: '₱8,000', minDeposit: '₱500', wager: '35x', turnover: '0x', type: 'deposit',
+    description: 'A special 75% weekend reload up to ₱8,000 — Saturdays and Sundays only.' },
+];
+
+// Tournament showcase — rendered with the same pb-card banner style as the
+// promotions above (gradient stands in for the banner artwork).
+const TOURNAMENTS = [
+  { title: 'PIXEL RUSH', desc: 'During time: 21 days', badge: '6 DAYS LEFT', badgeIcon: '🕐',
+    bg: 'linear-gradient(135deg,#1a0a5e 0%,#2d1280 40%,#0d47a1 100%)',
+    pills: [{ text: '799.57K ₱' }, { text: '2000 FS', cls: 'fs' }] },
+  { title: 'FAST TOURNAMENT #3', desc: 'During time: 2 hours', badge: '01:51:15 LEFT', badgeIcon: '🕐',
+    bg: 'linear-gradient(135deg,#8b0000 0%,#c0152a 50%,#a31c29 100%)',
+    pills: [{ text: '18.45K ₱' }] },
+  { title: 'Lucky Races by 3 Oaks Gaming', desc: 'Play daily tournaments and trigger Lucky Drops to win a share of 151,000 EUR plus extra rewards.',
+    badge: '01.05.2026 – 07.01.2027', provider: '3 OAKS',
+    bg: 'linear-gradient(135deg,#6d0020 0%,#8b0000 50%,#5a0010 100%)',
+    pills: [{ text: '€2,500,000', cls: 'euro' }] },
+  { title: 'Drops & Wins by Pragmatic Play', desc: 'Total Prize Pool: 25,000,000 EUR',
+    badge: '04.03.2026 – 03.03.2027', provider: 'PRAGMATIC PLAY',
+    bg: 'linear-gradient(135deg,#0a1a0a 0%,#1a2a10 50%,#243018 100%)' },
+  { title: 'Spin Express by Gamzix', desc: 'Total yearly prize pool: 1,000,000 EUR',
+    badge: '01.01.2026 – 03.01.2027', provider: 'GAMZIX',
+    bg: 'linear-gradient(135deg,#0a1428 0%,#1a2840 50%,#243050 100%)' },
+  { title: 'Platipus Network Tournament', desc: 'Total Prize Pool: 125,000 EUR',
+    badge: '29.01.2026 – 19.09.2026', provider: 'Platipus',
+    bg: 'linear-gradient(135deg,#2a0a00 0%,#4a1500 50%,#6a2800 100%)' },
+  { title: 'BGaming Millions of Drops', desc: '€1,000,000 — 77k+ prizes',
+    badge: '01.01.2026 – 01.01.2027',
+    bg: 'linear-gradient(135deg,#4a0080 0%,#7c00c0 50%,#9c10d0 100%)' },
+];
 
 // Which section IDs are visible for each filter tab.
+const WELCOME_TIERS = [
+  { icon: '🪙', img: wStep1, pct: '125%', detail: 'UP TO ₱3,970+100FS' },
+  { icon: '💰', img: wStep2, pct: '100%', detail: 'UP TO ₱1,980+25FS' },
+  { icon: '🧰', img: wStep3, pct: '75%', detail: 'UP TO ₱5,950+50FS' },
+  { icon: '👑', img: wStep4, pct: '200%', detail: 'UP TO ₱7,940+25FS' },
+];
+
 const SHOW_MAP = {
   all: ['welcome', 'bonuses', 'reload', 'tournaments'],
   bonuses: ['welcome', 'bonuses'],
@@ -16,7 +91,8 @@ const SHOW_MAP = {
 };
 
 export default function Promotions() {
-  const { openModal, toast } = useUI();
+  const { openModal, toast, lang } = useUI();
+  const { profile, isLoggedIn, refreshProfile } = useAuth();
   const go = useSectionNav();
   const [promoCode, setPromoCode] = useState('');
   const [activeTab, setActiveTab] = useState('all');
@@ -25,38 +101,161 @@ export default function Promotions() {
   // server records are shown here — when none exist the built-in showcase below
   // remains as-is.
   const [apiPromos, setApiPromos] = useState([]);
+  const [apiTourns, setApiTourns] = useState([]);
   useEffect(() => {
     let alive = true;
     api.get('/promotions?active=1')
       .then((r) => { if (alive && Array.isArray(r.data)) setApiPromos(r.data); })
       .catch(() => { /* keep the built-in showcase if the API is unreachable */ });
+    api.get('/tournaments?active=1')
+      .then((r) => { if (alive && Array.isArray(r.data)) setApiTourns(r.data); })
+      .catch(() => { /* showcase fallback */ });
     return () => { alive = false; };
   }, []);
+
+  // Region targeting is now a LABEL, not a filter: every player sees all
+  // promotions (so nothing ever silently disappears), but those matching the
+  // player's currency/country are shown first and region-specific ones carry a
+  // 🌏 badge.
+  const viewerCur = profile?.currency;
+  const viewerCountry = profile?.country;
+  const matchesViewer = (p) =>
+    (!p.currency || !viewerCur || p.currency === viewerCur) &&
+    (!p.country || !viewerCountry || p.country === viewerCountry);
+  const visiblePromos = [...apiPromos].sort((a, b) => (matchesViewer(b) ? 1 : 0) - (matchesViewer(a) ? 1 : 0));
 
   const visible = SHOW_MAP[activeTab] || SHOW_MAP.all;
   const show = (id) => (visible.includes(id) ? {} : { display: 'none' });
 
-  function activatePromoCode() {
+  // Welcome card: an admin-uploaded background (Website Design) sits behind the
+  // 4 tiers; each player claims the tiers and once all 4 are claimed the whole
+  // card is hidden for that player.
+  const promoBarBg = usePageBanner('promoCodeBar');
+  const promoBarStyle = promoBarBg
+    ? {
+      backgroundImage: `linear-gradient(rgba(10,20,42,.72), rgba(10,20,42,.72)), url(${promoBarBg})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+    }
+    : undefined;
+  const welcomeBg = usePageBanner('welcomeCard');
+  const welcomeCardStyle = welcomeBg
+    ? {
+      backgroundImage: `linear-gradient(90deg, rgba(10,20,42,.88) 0%, rgba(10,20,42,.5) 42%, rgba(10,20,42,.12) 72%, rgba(10,20,42,0) 100%), url(${welcomeBg})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+    }
+    : undefined;
+  const welcomeClaimed = Math.max(0, Number(profile?.welcomeClaimed || 0));
+  const welcomeDone = isLoggedIn && welcomeClaimed >= WELCOME_TIERS.length;
+  const claimWelcome = async (i) => {
+    if (i !== welcomeClaimed) return;                 // only the active tier
+    if (!isLoggedIn) { openModal('login'); return; }   // guests log in first
+    try {
+      await api.post('/player/welcome/claim');
+      await refreshProfile?.();
+    } catch (e) {
+      toast('❌ Could not claim: ' + (e?.response?.data?.error || e?.message || 'try again'), 'error');
+      return; // don't advance to deposit on a failed claim
+    }
+    openModal('deposit');
+  };
+
+  async function activatePromoCode() {
     const val = promoCode.trim();
     if (!val) {
       toast('Please enter a promocode', 'error');
       return;
     }
-    if (VALID_PROMO_CODES.includes(val.toUpperCase())) {
-      toast('🎉 Promocode activated! Your bonus has been added.', 'success');
+    if (!isLoggedIn) { openModal('login'); return; }
+    try {
+      const { data } = await api.post('/vouchers/redeem', { code: val });
+      toast(data.credited > 0
+        ? `🎉 ${data.value} credited to your balance!`
+        : `🎉 Code ${data.code} activated! ${data.value || ''} will be added to your account.`, 'success');
+      refreshProfile?.();
       setPromoCode('');
-    } else {
-      toast('❌ Invalid promocode. Please try again.', 'error');
+    } catch (e) {
+      toast('❌ ' + (e?.response?.data?.error || 'Invalid promocode. Please try again.'), 'error');
     }
   }
 
-  const openPromoDetail = () => openModal('promo');
+  const openPromoDetail = (promo) => openModal('promo', promo || null);
+
+  // Tournaments: admin-created ones (banner upload, buy-in, provider/games)
+  // replace the built-in showcase when any exist. Clicking opens the promo
+  // detail modal with the join condition and covered games.
+  const fmtTd = (s) => (s ? String(s).replace('T', ' ').slice(0, 16) : '');
+  const tournGames = (t) => (t.games?.length
+    ? `🎮 ${t.games.slice(0, 5).join(', ')}${t.games.length > 5 ? ` +${t.games.length - 5} more` : ''}`
+    : (t.provider ? `🎮 All ${t.provider} games` : '🎮 All games count'));
+  const tournCards = apiTourns.length
+    ? apiTourns.map((t, i) => ({
+      title: t.title,
+      desc: t.desc,
+      badge: (t.start || t.end) ? `${fmtTd(t.start) || 'NOW'} – ${fmtTd(t.end) || 'ONGOING'}` : 'LIVE',
+      provider: t.provider,
+      bgImage: t.banner,
+      bg: TOURNAMENTS[i % TOURNAMENTS.length].bg,
+      pills: [
+        t.prize && { text: t.prize },
+        t.prizeFs && { text: t.prizeFs, cls: 'fs' },
+        { text: `🎟 ${t.buyIn || 'Free to join'}`, cls: 'buyin' },
+      ].filter(Boolean),
+      onClick: () => openPromoDetail({
+        title: t.title,
+        description: t.desc,
+        image: t.banner,
+        startDate: t.start,
+        endDate: t.end,
+        buttonText: 'Join Now',
+        buttonLink: '/tournaments', // go to the tournaments page, not deposit
+        lines: [`🎟 ${t.buyIn || 'Free to join'}`, tournGames(t)],
+      }),
+    }))
+    : TOURNAMENTS.map((t) => ({ ...t, onClick: () => go('tournaments') }));
+
+  // Backend promos split into the right sections by type.
+  const reloadPromos = visiblePromos.filter((p) => String(p.type || '').toLowerCase() === 'reload');
+  const bonusesPromos = visiblePromos.filter((p) => !['reload', 'tournament'].includes(String(p.type || '').toLowerCase()));
+
+  // One renderer for a backend promo card (banner image with the title +
+  // description overlaid, or plain text when there's no banner).
+  const renderApiCard = (raw, i, highlighted) => {
+    const p = localizePromo(raw, lang);
+    const banner = resolvePromoBanner(p, viewerCur);
+    const lines = p.description
+      ? String(p.description).split('\n').map((l, j) => <span key={j}>{l}<br /></span>)
+      : null;
+    return (
+      <div className={'pb-card' + (highlighted ? ' highlighted' : '')} key={p.id ?? 'api-' + i} onClick={() => openPromoDetail(p)}>
+        {(p.country || p.currency) && (
+          <span className="pb-region">🌏 {[p.country, p.currency].filter(Boolean).join(' · ')}</span>
+        )}
+        {banner ? (
+          <div className="pb-banner-box" style={{ backgroundImage: `url(${banner})` }}>
+            <div className="pb-banner-text">
+              <div className="pb-title" style={promoTitleStyle(p)}>{p.title}</div>
+              {lines && <div className="pb-detail" style={promoDescStyle(p)}>{lines}</div>}
+            </div>
+          </div>
+        ) : (
+          <>
+            {p.bonus && <div className="pb-deco">{p.bonus}</div>}
+            <div className="pb-title" style={promoTitleStyle(p)}>{p.title}</div>
+            {lines && <div className="pb-detail" style={promoDescStyle(p)}>{lines}</div>}
+          </>
+        )}
+        <button className="wh-tier-btn primary" style={{ marginTop: 12, width: '100%' }}>{p.buttonText || 'Claim now'}</button>
+      </div>
+    );
+  };
 
   return (
     <div id="view-promos">
 
       {/* PROMO CODE BAR */}
-      <div className="promo-code-bar">
+      <div className="promo-code-bar" style={promoBarStyle}>
         <div className="promo-code-img">🎟️</div>
         <div className="promo-code-text">
           <div className="promo-code-title" data-i18n="promo_have_code">Have a Special Promocode?</div>
@@ -80,8 +279,13 @@ export default function Promotions() {
       {/* FILTER TABS */}
       <div className="promo-page-wrap">
         <div className="promo-filter-row">
-          <div className="promo-filter-title">Promotions</div>
-          <div className="promo-filter-tabs">
+          <div className="promo-filter-title">
+            Promotions
+            {profile && (viewerCountry || viewerCur) && (
+              <span className="promo-region-chip">🌏 {[viewerCountry, viewerCur].filter(Boolean).join(' · ')}</span>
+            )}
+          </div>
+          <div className="promo-filter-tabs seg-tabs">
             <button
               className={`promo-ftab${activeTab === 'all' ? ' active' : ''}`}
               onClick={() => setActiveTab('all')}
@@ -110,120 +314,61 @@ export default function Promotions() {
           </div>
         </div>
 
-        {/* WELCOME BONUS HERO CARD */}
+        {/* WELCOME BONUS HERO CARD — hidden once the player claims all 4 tiers */}
+        {!welcomeDone && (
         <div id="promo-section-welcome" style={show('welcome')}>
-          <div className="welcome-hero-card">
+          <div className="welcome-hero-card" style={welcomeCardStyle}>
             <div className="welcome-hero-left">
               <span className="welcome-hero-activated" data-i18n="promo_activated">ACTIVATED</span>
               <div className="welcome-hero-title" data-i18n="promo_welcome">WELCOME BONUS</div>
               <div className="welcome-hero-amounts">500% UP TO ₱19,850<br />+200 FREE SPINS</div>
             </div>
             <div className="welcome-hero-tiers">
-              {/* Tier 1 */}
-              <div className="wh-tier active">
-                <div className="wh-tier-top">
-                  <span className="wh-tier-status green">ACTIVATED</span>
-                  <span className="wh-tier-num">#1</span>
-                </div>
-                <div className="wh-tier-icon">🪙</div>
-                <div className="wh-tier-pct">125%</div>
-                <div className="wh-tier-detail">UP TO ₱3,970+100FS</div>
-                <button className="wh-tier-btn primary" onClick={() => openModal('deposit')}>DEPOSIT</button>
-                <button className="wh-tier-info">ℹ</button>
-              </div>
-              {/* Tier 2 */}
-              <div className="wh-tier">
-                <div className="wh-tier-top">
-                  <span className="wh-tier-status gray">⏳ NOT STARTED</span>
-                  <span className="wh-tier-num">#2</span>
-                </div>
-                <div className="wh-tier-icon">💰</div>
-                <div className="wh-tier-pct">100%</div>
-                <div className="wh-tier-detail">UP TO ₱1,980+25FS</div>
-                <button className="wh-tier-btn" onClick={() => openModal('deposit')} data-i18n="promo_discover">DISCOVER</button>
-              </div>
-              {/* Tier 3 */}
-              <div className="wh-tier">
-                <div className="wh-tier-top">
-                  <span className="wh-tier-status gray">⏳ NOT STARTED</span>
-                  <span className="wh-tier-num">#3</span>
-                </div>
-                <div className="wh-tier-icon">🧰</div>
-                <div className="wh-tier-pct">75%</div>
-                <div className="wh-tier-detail">UP TO ₱5,950+50FS</div>
-                <button className="wh-tier-btn" onClick={() => openModal('deposit')}>DISCOVER</button>
-              </div>
-              {/* Tier 4 */}
-              <div className="wh-tier">
-                <div className="wh-tier-top">
-                  <span className="wh-tier-status gray">⏳ NOT STARTED</span>
-                  <span className="wh-tier-num">#4</span>
-                </div>
-                <div className="wh-tier-icon">👑</div>
-                <div className="wh-tier-pct">200%</div>
-                <div className="wh-tier-detail">UP TO ₱7,940+25FS</div>
-                <button className="wh-tier-btn" onClick={() => openModal('deposit')}>DISCOVER</button>
-              </div>
+              {WELCOME_TIERS.map((t, i) => {
+                const claimed = isLoggedIn && i < welcomeClaimed;
+                const active = !isLoggedIn ? i === 0 : i === welcomeClaimed;
+                return (
+                  <div className={'wh-tier' + (active ? ' active' : '')} key={i}>
+                    <div className="wh-tier-top">
+                      <span className={'wh-tier-status ' + (claimed || active ? 'green' : 'gray')}>
+                        {claimed ? '✔ CLAIMED' : active ? 'ACTIVATED' : '⏳ NOT STARTED'}
+                      </span>
+                      <span className="wh-tier-num">#{i + 1}</span>
+                    </div>
+                    <div className="wh-tier-icon">{t.img ? <img src={t.img} alt="" className="wh-tier-img" /> : t.icon}</div>
+                    <div className="wh-tier-pct">{t.pct}</div>
+                    <div className="wh-tier-detail">{t.detail}</div>
+                    {claimed
+                      ? <button className="wh-tier-btn" disabled style={{ opacity: 0.6, cursor: 'default' }}>CLAIMED</button>
+                      : active
+                        ? <button className="wh-tier-btn primary" onClick={() => claimWelcome(i)}>{isLoggedIn ? 'DEPOSIT' : 'CLAIM'}</button>
+                        : <button className="wh-tier-btn" onClick={() => openPromoDetail(SHOWCASE_BONUSES[i])}>DISCOVER</button>}
+                    {active && SHOWCASE_BONUSES[i] && <button className="wh-tier-info" onClick={() => openPromoDetail(SHOWCASE_BONUSES[i])}>ℹ</button>}
+                  </div>
+                );
+              })}
             </div>
           </div>
-        </div>{/* /promo-section-welcome */}
+        </div>
+        )}{/* /promo-section-welcome */}
 
         {/* BONUSES SECTION */}
         <div id="promo-section-bonuses" style={show('bonuses')}>
           <div className="promo-sub-title" data-i18n="promo_bonuses">BONUSES</div>
           <div className="promo-bonus-grid" id="promo-bonus-grid">
 
-            {/* Live promotions configured in the admin panel */}
-            {apiPromos.map((p, i) => (
-              <div
-                className={'pb-card' + (i === 0 ? ' highlighted' : '')}
-                key={p.id ?? 'api-' + i}
-                onClick={openPromoDetail}
-              >
-                {p.image && <img src={p.image} alt="" style={{ width: '100%', borderRadius: 10, marginBottom: 10, display: 'block' }} />}
-                {p.bonus && <div className="pb-deco">{p.bonus}</div>}
-                <div className="pb-title">{p.title}</div>
-                {p.description && <div className="pb-detail">{String(p.description).split('\n').map((l, j) => <span key={j}>{l}<br /></span>)}</div>}
-                {p.buttonText && <button className="wh-tier-btn primary" style={{ marginTop: 10 }}>{p.buttonText}</button>}
-              </div>
-            ))}
-
-            <div className="pb-card highlighted" onClick={openPromoDetail}>
-              <span className="pb-status awaits">AWAITS DEPOSIT</span>
-              <div className="pb-deco">125%</div>
-              <div className="pb-title">1ST DEPOSIT BONUS</div>
-              <div className="pb-detail">125% UP TO ₱3,970<br />+100 FREE SPINS</div>
-            </div>
-
-            <div className="pb-card" onClick={openPromoDetail}>
-              <div className="pb-deco">100%</div>
-              <div className="pb-title">2ND DEPOSIT BONUS</div>
-              <div className="pb-detail">100% UP TO ₱1,980<br />+25 FREE SPINS</div>
-            </div>
-
-            <div className="pb-card" onClick={openPromoDetail}>
-              <div className="pb-deco">75%</div>
-              <div className="pb-title">3RD DEPOSIT BONUS</div>
-              <div className="pb-detail">75% UP TO ₱5,950<br />+50 FREE SPINS</div>
-            </div>
-
-            <div className="pb-card" onClick={openPromoDetail}>
-              <div className="pb-deco">200%</div>
-              <div className="pb-title">4TH DEPOSIT BONUS</div>
-              <div className="pb-detail">200% UP TO ₱7,940<br />+25 FREE SPINS</div>
-            </div>
-
-            <div className="pb-card" onClick={openPromoDetail}>
-              <div className="pb-deco">50%</div>
-              <div className="pb-title" data-i18n="promo_weekend">WEEKEND RELOAD</div>
-              <div className="pb-detail">50% UP TO ₱5,000<br />+55 FREE SPINS</div>
-            </div>
-
-            <div className="pb-card" onClick={openPromoDetail}>
-              <div className="pb-deco">10%</div>
-              <div className="pb-title" data-i18n="promo_cashback">WEEKLY CASHBACK</div>
-              <div className="pb-detail">10% CASHBACK<br />EVERY WEEK</div>
-            </div>
+            {/* Live promotions configured in the admin panel (region-targeted) */}
+            {bonusesPromos.length
+              ? bonusesPromos.map((p, i) => renderApiCard(p, i, i === 0))
+              : SHOWCASE_BONUSES.map((p, i) => (
+                <div className={'pb-card' + (p.highlighted ? ' highlighted' : '')} key={'bonus-' + i} onClick={() => openPromoDetail(p)}>
+                  {p.status && <span className="pb-status awaits">{p.status}</span>}
+                  <div className="pb-deco">{p.deco}</div>
+                  <div className="pb-title" {...(p.i18nKey ? { 'data-i18n': p.i18nKey } : {})}>{p.title}</div>
+                  <div className="pb-detail">{p.lines.map((l, j) => <span key={j}>{l}<br /></span>)}</div>
+                  <button className="wh-tier-btn primary" style={{ marginTop: 12, width: '100%' }}>Claim now</button>
+                </div>
+              ))}
 
           </div>
         </div>{/* /promo-section-bonuses */}
@@ -232,120 +377,41 @@ export default function Promotions() {
         <div id="promo-section-reload" style={show('reload')}>
           <div className="promo-sub-title" data-i18n="promo_reload">RELOAD BONUSES</div>
           <div className="promo-bonus-grid">
-            <div className="pb-card" onClick={openPromoDetail}>
-              <div className="pb-deco">50%</div>
-              <div className="pb-title" data-i18n="promo_monday">MONDAY RELOAD</div>
-              <div className="pb-detail">50% UP TO ₱3,000<br />+30 FREE SPINS</div>
-            </div>
-            <div className="pb-card" onClick={openPromoDetail}>
-              <div className="pb-deco">30%</div>
-              <div className="pb-title" data-i18n="promo_daily">DAILY RELOAD</div>
-              <div className="pb-detail">30% UP TO ₱2,000<br />EVERY DAY</div>
-            </div>
-            <div className="pb-card" onClick={openPromoDetail}>
-              <div className="pb-deco">75%</div>
-              <div className="pb-title" data-i18n="promo_weekend_special">WEEKEND SPECIAL</div>
-              <div className="pb-detail">75% UP TO ₱8,000<br />SAT &amp; SUN ONLY</div>
-            </div>
+            {reloadPromos.length
+              ? reloadPromos.map((p, i) => renderApiCard(p, i, false))
+              : SHOWCASE_RELOAD.map((p, i) => (
+                <div className="pb-card" key={'reload-' + i} onClick={() => openPromoDetail(p)}>
+                  <div className="pb-deco">{p.deco}</div>
+                  <div className="pb-title" {...(p.i18nKey ? { 'data-i18n': p.i18nKey } : {})}>{p.title}</div>
+                  <div className="pb-detail">{p.lines.map((l, j) => <span key={j}>{l}<br /></span>)}</div>
+                  <button className="wh-tier-btn primary" style={{ marginTop: 12, width: '100%' }}>Claim now</button>
+                </div>
+              ))}
           </div>
         </div>{/* /promo-section-reload */}
 
-        {/* TOURNAMENTS */}
+        {/* TOURNAMENTS — cards share the promotion (pb-card) banner style */}
         <div id="promo-section-tournaments" style={show('tournaments')}>
           <div className="promo-sub-title">TOURNAMENTS</div>
-          <div className="tourn-grid">
-
-            {/* Pixel Rush */}
-            <div className="tourn-card" onClick={() => go('tournaments')} style={{ minHeight: '200px' }}>
-              <div className="tourn-card-bg" style={{ background: 'linear-gradient(135deg,#1a0a5e 0%,#2d1280 40%,#0d47a1 100%)' }}></div>
-              <div className="tourn-card-overlay"></div>
-              <div className="tourn-badge"><span className="tourn-badge-icon">🕐</span> 6 DAYS LEFT</div>
-              <div className="tourn-content">
-                <div className="tourn-title">PIXEL RUSH</div>
-                <div className="tourn-duration">During time: 21 days</div>
-                <div className="tourn-prizes" style={{ marginTop: '8px' }}>
-                  <div className="tourn-prize-pill">799.57K ₱</div>
-                  <div className="tourn-prize-pill fs">2000 FS</div>
+          <div className="promo-bonus-grid">
+            {tournCards.map((t, i) => (
+              <div className="pb-card tournament" key={'tourn-' + i} onClick={t.onClick}>
+                <div className="pb-banner-box" style={{ backgroundImage: t.bgImage ? `url(${t.bgImage})` : t.bg }}>
+                  <div className="tourn-badge">{t.badgeIcon && <span className="tourn-badge-icon">{t.badgeIcon}</span>}{t.badge}</div>
+                  {t.provider && <div className="tourn-provider">{t.provider}</div>}
+                  <div className="pb-banner-text">
+                    <div className="pb-title">{t.title}</div>
+                    <div className="pb-detail">{t.desc}</div>
+                  </div>
                 </div>
+                {t.pills && (
+                  <div className="tourn-prizes" style={{ marginBottom: 12 }}>
+                    {t.pills.map((pl, j) => <div key={j} className={'tourn-prize-pill' + (pl.cls ? ' ' + pl.cls : '')}>{pl.text}</div>)}
+                  </div>
+                )}
+                <button className="wh-tier-btn primary" style={{ width: '100%' }}>Join now</button>
               </div>
-            </div>
-
-            {/* Fast Tournament #3 */}
-            <div className="tourn-card" onClick={() => go('tournaments')} style={{ minHeight: '200px' }}>
-              <div className="tourn-card-bg" style={{ background: 'linear-gradient(135deg,#8b0000 0%,#c0152a 50%,#a31c29 100%)' }}></div>
-              <div className="tourn-card-overlay"></div>
-              <div className="tourn-badge"><span className="tourn-badge-icon">🕐</span> 01:51:15 LEFT</div>
-              <div className="tourn-content">
-                <div className="tourn-title">FAST TOURNAMENT #3</div>
-                <div className="tourn-duration">During time: 2 hours</div>
-                <div className="tourn-prizes" style={{ marginTop: '8px' }}>
-                  <div className="tourn-prize-pill">18.45K ₱</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Lucky Races */}
-            <div className="tourn-card" onClick={() => go('tournaments')} style={{ minHeight: '200px' }}>
-              <div className="tourn-card-bg" style={{ background: 'linear-gradient(135deg,#6d0020 0%,#8b0000 50%,#5a0010 100%)' }}></div>
-              <div className="tourn-card-overlay"></div>
-              <div className="tourn-badge">01.05.2026 – 07.01.2027</div>
-              <div className="tourn-provider">3 OAKS</div>
-              <div className="tourn-content">
-                <div className="tourn-title">Lucky Races by 3 Oaks Gaming</div>
-                <div className="tourn-desc">Play daily tournaments and trigger Lucky Drops to win a share of 151,000 EUR plus extra rewards.</div>
-                <div className="tourn-prizes">
-                  <div className="tourn-prize-pill euro">€2,500,000</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Drops & Wins */}
-            <div className="tourn-card" onClick={() => go('tournaments')} style={{ minHeight: '200px' }}>
-              <div className="tourn-card-bg" style={{ background: 'linear-gradient(135deg,#0a1a0a 0%,#1a2a10 50%,#243018 100%)' }}></div>
-              <div className="tourn-card-overlay"></div>
-              <div className="tourn-badge">04.03.2026 – 03.03.2027</div>
-              <div className="tourn-provider">PRAGMATIC PLAY</div>
-              <div className="tourn-content">
-                <div className="tourn-title">Drops &amp; Wins by Pragmatic Play</div>
-                <div className="tourn-desc">Total Prize Pool: 25,000,000 EUR</div>
-              </div>
-            </div>
-
-            {/* Spin Express */}
-            <div className="tourn-card" onClick={() => go('tournaments')} style={{ minHeight: '200px' }}>
-              <div className="tourn-card-bg" style={{ background: 'linear-gradient(135deg,#0a1428 0%,#1a2840 50%,#243050 100%)' }}></div>
-              <div className="tourn-card-overlay"></div>
-              <div className="tourn-badge">01.01.2026 – 03.01.2027</div>
-              <div className="tourn-provider">GAMZIX</div>
-              <div className="tourn-content">
-                <div className="tourn-title">Spin Express by Gamzix</div>
-                <div className="tourn-desc">Total yearly prize pool: 1,000,000 EUR</div>
-              </div>
-            </div>
-
-            {/* Platipus Network */}
-            <div className="tourn-card" onClick={() => go('tournaments')} style={{ minHeight: '200px' }}>
-              <div className="tourn-card-bg" style={{ background: 'linear-gradient(135deg,#2a0a00 0%,#4a1500 50%,#6a2800 100%)' }}></div>
-              <div className="tourn-card-overlay"></div>
-              <div className="tourn-badge">29.01.2026 – 19.09.2026</div>
-              <div className="tourn-provider">Platipus</div>
-              <div className="tourn-content">
-                <div className="tourn-title">Platipus Network Tournament</div>
-                <div className="tourn-desc">Total Prize Pool: 125,000 EUR</div>
-              </div>
-            </div>
-
-            {/* BGaming Millions */}
-            <div className="tourn-card" onClick={() => go('tournaments')} style={{ minHeight: '200px' }}>
-              <div className="tourn-card-bg" style={{ background: 'linear-gradient(135deg,#4a0080 0%,#7c00c0 50%,#9c10d0 100%)' }}></div>
-              <div className="tourn-card-overlay"></div>
-              <div className="tourn-badge">01.01.2026 – 01.01.2027</div>
-              <div className="tourn-content">
-                <div className="tourn-title">BGaming Millions of Drops</div>
-                <div className="tourn-desc">€1,000,000 — 77k+ prizes</div>
-              </div>
-            </div>
-
+            ))}
           </div>
         </div>{/* /promo-section-tournaments */}
 

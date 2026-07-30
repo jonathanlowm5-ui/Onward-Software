@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useUI } from '../context/UIContext';
 import { Table } from '../components/ui.jsx';
-import { listPromotions, togglePromotion, removePromotion, createPromotion, updatePromotion } from '../services/promotionService';
+import { listPromotions, togglePromotion, removePromotion, createPromotion, updatePromotion, reorderPromotions } from '../services/promotionService';
 import { uploadImage } from '../services/uploadService';
 import { getMiniGames, saveMiniGames } from '../services/minigameService';
+import { listBankChannels } from '../services/bankService';
+import { buildPromoTerms } from '../utils/promoTerms';
 
 /* ---------- demo data (fallbacks) ---------- */
 const DEMO_PROMOS = [
@@ -16,18 +18,21 @@ const DEMO_PROMOS = [
 
 const PROMO_TABS = [['promos', '🎁 Promotions'], ['mini', '🎰 Mini Games'], ['bigwins', '⚡ Big Wins'], ['settings', '⚙️ Settings'], ['tier', '👑 Tier Control'], ['kyc', '✅ KYC Bonus']];
 
+const SLICE_TYPES = ['Cash', 'Bonus', 'Free Spin', 'Token', 'Physical', 'None'];
+const SLICE_REQS = ['T/O', 'Deposit', 'None'];
 const INITIAL_SLICES = [
-  { l: '₱50 Cash', p: 50, w: 30, c: '#e8253a', on: 1 },
-  { l: '₱100 Cash', p: 100, w: 20, c: '#f4b223', on: 1 },
-  { l: '₱200 Cash', p: 200, w: 15, c: '#2ecc71', on: 1 },
-  { l: 'Free Spin x3', p: 3, w: 12, c: '#3ab7ff', on: 1 },
-  { l: '₱500 Cash', p: 500, w: 8, c: '#a86dff', on: 1 },
-  { l: '₱1,000 Cash', p: 1000, w: 5, c: '#ff7a1a', on: 1 },
-  { l: 'Try Again', p: 0, w: 7, c: '#14182a', on: 1 },
-  { l: '₱5,000 JACKPOT', p: 5000, w: 3, c: '#f7e08b', on: 1 },
+  { l: '₱50 Cash', type: 'Cash', p: 50, seq: 1, w: 30, qty: 0, claimed: 0, req: 'T/O', mult: 3, c: '#e8253a', on: 1 },
+  { l: '₱100 Cash', type: 'Cash', p: 100, seq: 2, w: 20, qty: 0, claimed: 0, req: 'T/O', mult: 3, c: '#f4b223', on: 1 },
+  { l: '₱200 Cash', type: 'Cash', p: 200, seq: 3, w: 15, qty: 0, claimed: 0, req: 'T/O', mult: 3, c: '#2ecc71', on: 1 },
+  { l: 'Free Spin x3', type: 'Free Spin', p: 3, seq: 4, w: 12, qty: 0, claimed: 0, req: 'None', mult: 0, c: '#3ab7ff', on: 1 },
+  { l: '₱500 Cash', type: 'Cash', p: 500, seq: 5, w: 8, qty: 0, claimed: 0, req: 'T/O', mult: 3, c: '#a86dff', on: 1 },
+  { l: '₱1,000 Cash', type: 'Cash', p: 1000, seq: 6, w: 5, qty: 0, claimed: 0, req: 'T/O', mult: 3, c: '#ff7a1a', on: 1 },
+  { l: 'Try Again', type: 'None', p: 0, seq: 7, w: 7, qty: 0, claimed: 0, req: 'None', mult: 0, c: '#14182a', on: 1 },
+  { l: '₱5,000 JACKPOT', type: 'Cash', p: 5000, seq: 8, w: 3, qty: 0, claimed: 0, req: 'T/O', mult: 3, c: '#f7e08b', on: 1 },
 ];
 
-const INITIAL_WHEEL_CFG = { enabled: true, freeSpinsPerDay: 1, spinCost: 50, maxPerDay: 5 };
+const INITIAL_WHEEL_THEME = { bgImage: '', titleImage: '', frameImage: '', pinImage: '', tokenImage: '', buttonImage: '', title: 'WHEEL OF FORTUNE', rimColor: '#f4b223', hubColor: '#f4b223', pointerColor: '#f4b223', bulbs: true, discScale: 0.74 };
+const INITIAL_WHEEL_CFG = { enabled: true, image: '', theme: { ...INITIAL_WHEEL_THEME }, freeSpinsPerDay: 1, spinCost: 50, maxPerDay: 5 };
 const INITIAL_TICKET_CFG = { enabled: true, drawDate: '', totalTickets: 10000, winnersCount: 50, earnBy: 'Every ₱100 deposited', minDeposit: 100, maxPerPlayer: 50 };
 
 const INITIAL_BIGWINS = [
@@ -94,9 +99,88 @@ function normalizePromo(p) {
 
 /* a blank promotion form */
 const EMPTY_PROMO = {
-  title: '', type: 'welcome', bonus: '', maxBonus: '', minDeposit: '', wager: '', turnover: '',
-  description: '', image: '', startDate: '', endDate: '', status: 'active', buttonText: '', buttonLink: '',
+  title: '', type: 'welcome', currency: '', country: '', bonus: '', maxBonus: '', minDeposit: '', wager: '', turnover: '',
+  description: '', image: '', banners: {}, startDate: '', endDate: '', status: 'active', buttonText: '', buttonLink: '',
+  // Banner text styling (empty colour / 0 size = site default).
+  titleColor: '', titleSize: 0, descColor: '', descSize: 0,
+  customTerms: '',
+  i18n: {},
+  // promotion rules / eligibility logic
+  requirement: 'Deposit (T/O)', bonusType: 'Bonus', refreshCycle: 'Once',
+  isExclusive: 'no', hidden: 'no', isAccumulate: 'no', promoDeductOnWithdraw: 'no',
+  claimLimitDaily: 0, minDepositAmt: 0, depositCount: 0, maxClaimAmount: 0,
+  maxWinningMultiply: 0, percentage: 0, multiply: 1, sequence: 0, minBalance: 0, freeSpins: 0,
+  days: [],
+  // step 2 — allow lists
+  allowProducts: [], allowPlayerGroups: [], allowBanks: [], allowRiskGroups: [],
 };
+const PROMO_DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+
+const PROMO_PRODUCTS = ['JDB', 'JILI', 'JOKER', 'KINGMIDAS', 'VICTORY POKER', 'YESBINGO', 'DS88', 'PG SOFT', 'PRAGMATIC', 'EVOLUTION', 'SPRIBE', 'CQ9', 'FA CHAI', 'PLAYTECH', 'HABANERO'];
+const PROMO_PLAYER_GROUPS = ['Normal', 'VIP', 'VVIP', 'High Roller', 'New Player', 'Affiliate'];
+const PROMO_RISK_GROUPS = ['Low Risk', 'Medium Risk', 'High Risk', 'Watch List'];
+
+// A "Select All" + checklist allow-list. Checkbox width and label casing are
+// forced inline because the global .pm-fld rules stretch inputs to 100% and
+// uppercase labels.
+const AL_CB = { width: 16, height: 16, flexShrink: 0, margin: 0, cursor: 'pointer' };
+const AL_ROW = { display: 'inline-flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 13, fontWeight: 600, color: 'var(--text)', textTransform: 'none', letterSpacing: 'normal', cursor: 'pointer', marginBottom: 0, minWidth: 128 };
+// Font colour + size (px) controls for the banner title / description. Empty
+// colour or 0 size means "use the site theme default".
+function TextStyleRow({ label, color, size, onColor, onSize }) {
+  const val = String(color || '').trim();
+  const swatch = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(val) ? val : '#ffffff';
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>
+      <span style={{ textTransform: 'uppercase', letterSpacing: '.04em' }}>{label}</span>
+      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, textTransform: 'none' }}>
+        Colour
+        <input type="color" value={swatch} onChange={onColor} style={{ width: 34, height: 26, padding: 0, border: '1px solid var(--border)', borderRadius: 6, background: 'transparent', cursor: 'pointer' }} />
+        <input type="text" value={val} onChange={onColor} placeholder="#RRGGBB" maxLength={7} style={{ width: 92, padding: '5px 8px', borderRadius: 6, background: 'var(--bg3,#0b1224)', color: 'var(--text,#fff)', border: '1px solid var(--border,#243049)', fontSize: 12 }} />
+        {val && <button type="button" onClick={() => onColor({ target: { value: '' } })} title="Reset to default" style={{ border: 'none', background: 'transparent', color: 'var(--muted)', cursor: 'pointer', fontSize: 14 }}>✕</button>}
+      </label>
+      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, textTransform: 'none' }}>
+        Size
+        <input type="number" min={0} max={120} value={size || ''} onChange={onSize} placeholder="auto" style={{ width: 66, padding: '5px 8px', borderRadius: 6, background: 'var(--bg3,#0b1224)', color: 'var(--text,#fff)', border: '1px solid var(--border,#243049)', fontSize: 12 }} /> px
+      </label>
+    </div>
+  );
+}
+
+function AllowList({ title, hint, options, selected, onChange }) {
+  const sel = Array.isArray(selected) ? selected : [];
+  const allSel = options.length > 0 && options.every((o) => sel.includes(o));
+  const toggle = (o) => onChange(sel.includes(o) ? sel.filter((x) => x !== o) : [...sel, o]);
+  const toggleAll = () => onChange(allSel ? [] : [...options]);
+  return (
+    <div className="pm-fld" style={{ gridColumn: '1 / -1' }}>
+      <label>{title} {hint && <span style={{ color: 'var(--muted)', fontWeight: 600, textTransform: 'none', letterSpacing: 'normal' }}>{hint}</span>}</label>
+      <div style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '8px 12px', maxHeight: 200, overflowY: 'auto', background: 'var(--bg3,#0b1224)' }}>
+        <label style={{ ...AL_ROW, display: 'flex', borderBottom: '1px solid var(--border)', paddingBottom: 7, marginBottom: 5 }}>
+          <input type="checkbox" style={AL_CB} checked={allSel} onChange={toggleAll} /> Select All
+        </label>
+        {options.length === 0 && <div style={{ fontSize: 12, color: 'var(--muted)', padding: '4px 0' }}>No options.</div>}
+        <div style={{ display: 'flex', flexWrap: 'wrap', columnGap: 18, rowGap: 2 }}>
+          {options.map((o) => (
+            <label key={o} style={AL_ROW}><input type="checkbox" style={AL_CB} checked={sel.includes(o)} onChange={() => toggle(o)} /> {o}</label>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const PROMO_REQUIREMENTS = ['Deposit (T/O)', 'Deposit (Winover)', 'Product (T/O)', 'Product (Winover)', 'Multi-Product (T/O)', 'Multi-Product (Winover)'];
+const PROMO_BONUS_TYPES = ['Bonus', 'Free Credit', 'Referral Share', 'Register Bonus'];
+const PROMO_REFRESH = ['Everytime', 'Once', 'Hourly', 'Daily', 'Weekly', 'Monthly'];
+const yn = (v) => (v === true || v === 'yes' || v === 1 || v === '1') ? 'yes' : 'no';
+// Languages for per-language Title / Description / Terms ('' = default/base).
+const PROMO_LANGS = [['', '🌐 Default'], ['zh', '中文'], ['ms', 'MS'], ['id', 'ID'], ['th', 'ไทย'], ['vi', 'VI'], ['hi', 'HI'], ['ko', '한국어'], ['ja', '日本語'], ['es', 'ES'], ['pt', 'PT']];
+
+const PROMO_CURRENCIES = ['PHP', 'USD', 'EUR', 'INR', 'THB', 'VND', 'IDR', 'MYR', 'CNY', 'JPY'];
+const PROMO_COUNTRIES = ['Philippines', 'Malaysia', 'Singapore', 'Thailand', 'Indonesia', 'Vietnam'];
+// Suggested currency per country (the editor offers it when a country is picked).
+const COUNTRY_CURRENCY = { Philippines: 'PHP', Malaysia: 'MYR', Singapore: 'USD', Thailand: 'THB', Indonesia: 'IDR', Vietnam: 'VND' };
 
 /* ===================== create / edit modal ===================== */
 function PromoEditModal({ initial, onClose, onSaved }) {
@@ -104,7 +188,34 @@ function PromoEditModal({ initial, onClose, onSaved }) {
   const [f, setF] = useState(() => ({ ...EMPTY_PROMO, ...(initial || {}) }));
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [bannerCur, setBannerCur] = useState('PHP');
+  const [bannerUploading, setBannerUploading] = useState(false);
+  const [step, setStep] = useState(1); // 1 = details/rules, 2 = allow lists
+  const [bankOptions, setBankOptions] = useState([]);
+  useEffect(() => {
+    let alive = true;
+    listBankChannels()
+      .then((rows) => { if (alive) setBankOptions([...new Set((Array.isArray(rows) ? rows : []).map((b) => b.bankName || b.name || b.label).filter(Boolean))]); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
+  const setMulti = (k) => (arr) => setF((p) => ({ ...p, [k]: arr }));
+  // Translatable fields (title/description/customTerms): '' tab edits the base,
+  // a language tab edits f.i18n[lang][field].
+  const [langTab, setLangTab] = useState('');
+  const tval = (field) => (langTab ? ((f.i18n && f.i18n[langTab] && f.i18n[langTab][field]) || '') : (f[field] || ''));
+  const tset = (field) => (val) => {
+    const v = typeof val === 'object' ? val.target.value : val;
+    if (!langTab) { setF((p) => ({ ...p, [field]: v })); return; }
+    setF((p) => ({ ...p, i18n: { ...(p.i18n || {}), [langTab]: { ...((p.i18n || {})[langTab] || {}), [field]: v } } }));
+  };
+  // Picking a country auto-fills the matching currency (only when currency is
+  // still on Auto) so country + currency promos stay consistent.
+  const onCountry = (e) => {
+    const country = e.target.value;
+    setF((p) => ({ ...p, country, currency: (!p.currency && COUNTRY_CURRENCY[country]) ? COUNTRY_CURRENCY[country] : p.currency }));
+  };
   const isEdit = !!(initial && initial.id);
 
   const pickImage = async (e) => {
@@ -124,15 +235,36 @@ function PromoEditModal({ initial, onClose, onSaved }) {
     }
   };
 
+  // Upload a banner for one currency and store it under f.banners[currency].
+  const pickCurrencyBanner = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) { toast('⚠ Image too large — keep it under 4 MB'); return; }
+    setBannerUploading(true);
+    try {
+      const { url } = await uploadImage(file);
+      setF((p) => ({ ...p, banners: { ...(p.banners || {}), [bannerCur]: url } }));
+      toast(`${bannerCur} banner uploaded ✔`);
+    } catch (err) {
+      toast('⚠ Upload failed: ' + (err.message || 'error'));
+    } finally {
+      setBannerUploading(false);
+    }
+  };
+  const removeCurrencyBanner = (cur) => setF((p) => {
+    const b = { ...(p.banners || {}) };
+    delete b[cur];
+    return { ...p, banners: b };
+  });
+
   const submit = async () => {
     if (!f.title.trim()) { toast('Promotion title is required', 'error'); return; }
     setBusy(true);
-    const payload = {
-      title: f.title.trim(), type: f.type, bonus: f.bonus, maxBonus: f.maxBonus,
-      minDeposit: f.minDeposit, wager: f.wager, turnover: f.turnover,
-      description: f.description, image: f.image, startDate: f.startDate, endDate: f.endDate,
-      status: f.status, buttonText: f.buttonText, buttonLink: f.buttonLink,
-    };
+    // Send the whole form — the backend clean() keeps only the fields it knows
+    // (basic info, rules, and the step-2 allow lists). Spreading avoids dropping
+    // newly-added fields.
+    const payload = { ...f, title: f.title.trim(), banners: f.banners || {} };
     try {
       const saved = isEdit ? await updatePromotion(initial.id, payload) : await createPromotion(payload);
       toast(isEdit ? 'Promotion updated ✔ live on player site' : 'Promotion created ✔ live on player site');
@@ -153,33 +285,195 @@ function PromoEditModal({ initial, onClose, onSaved }) {
           <button className="kyc-x" style={{ marginLeft: 'auto' }} onClick={onClose}>✕</button>
         </div>
         <div className="pm-body">
+          <div style={{ display: step === 1 ? 'block' : 'none' }}>
           <div className="pm-grid">
-            <div className="pm-fld" style={{ gridColumn: '1 / -1' }}><label>Title <span style={{ color: 'var(--red)' }}>*</span></label><input value={f.title} onChange={set('title')} placeholder="200% Welcome Bonus" /></div>
-            <div className="pm-fld"><label>Type</label><select value={f.type} onChange={set('type')}><option value="welcome">welcome</option><option value="deposit">deposit</option><option value="referral">referral</option><option value="cashback">cashback</option><option value="freespin">freespin</option></select></div>
-            <div className="pm-fld"><label>Bonus</label><input value={f.bonus} onChange={set('bonus')} placeholder="200% / ₱500 / 100 spins" /></div>
-            <div className="pm-fld"><label>Max Bonus</label><input value={f.maxBonus} onChange={set('maxBonus')} placeholder="₱10,000" /></div>
-            <div className="pm-fld"><label>Min Deposit</label><input value={f.minDeposit} onChange={set('minDeposit')} placeholder="₱500" /></div>
-            <div className="pm-fld"><label>Wager</label><input value={f.wager} onChange={set('wager')} placeholder="30x" /></div>
-            <div className="pm-fld"><label>Turnover</label><input value={f.turnover} onChange={set('turnover')} placeholder="0x" /></div>
+            <div className="pm-fld" style={{ gridColumn: '1 / -1' }}>
+              <label>Language <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(translate Title / Description / Terms · Default is the fallback)</span></label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {PROMO_LANGS.map(([code, label]) => {
+                  const has = code && f.i18n && f.i18n[code] && (f.i18n[code].title || f.i18n[code].description || f.i18n[code].customTerms);
+                  return (
+                    <button key={code || 'def'} type="button" onClick={() => setLangTab(code)}
+                      style={{ padding: '5px 10px', borderRadius: 8, border: '1px solid var(--border)', cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                        background: langTab === code ? 'var(--gold)' : 'var(--bg3,#0b1224)', color: langTab === code ? '#06091a' : 'var(--text)' }}>
+                      {label}{has ? ' ✓' : ''}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="pm-fld" style={{ gridColumn: '1 / -1' }}><label>Title {!langTab && <span style={{ color: 'var(--red)' }}>*</span>} {langTab && <span style={{ color: 'var(--gold)', fontWeight: 700 }}>· {langTab.toUpperCase()}</span>}</label><input value={tval('title')} onChange={tset('title')} placeholder={langTab ? `Title in ${langTab.toUpperCase()} (empty = use Default)` : '200% Welcome Bonus'} /></div>
+            <div className="pm-fld" style={{ gridColumn: '1 / -1' }}>
+              <TextStyleRow label="Title style" color={f.titleColor} size={f.titleSize} onColor={set('titleColor')} onSize={set('titleSize')} />
+            </div>
+            <div className="pm-fld"><label>Section</label><select value={f.type} onChange={set('type')}><option value="welcome">Welcome</option><option value="deposit">Deposit</option><option value="reload">Reload</option><option value="cashback">Cashback</option><option value="freespin">Freespin</option><option value="referral">Referral</option><option value="tournament">Tournament</option><option value="custom">Custom (Special)</option></select><div className="pm-hint">Which page section it appears in. (Bonus type, %, amounts & limits are set in Promotion Rules below.)</div></div>
+            <div className="pm-fld"><label>Country</label><select value={f.country} onChange={onCountry}><option value="">All countries</option>{PROMO_COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
+            <div className="pm-fld"><label>Currency</label><select value={f.currency} onChange={set('currency')}><option value="">Auto (player's currency)</option>{PROMO_CURRENCIES.map((c) => <option key={c} value={c}>{c} only</option>)}</select></div>
+            <div className="pm-fld"><label>Status</label><select value={f.status} onChange={set('status')}><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
             <div className="pm-fld"><label>Start Date</label><input type="date" value={f.startDate} onChange={set('startDate')} /></div>
             <div className="pm-fld"><label>End Date (expiry)</label><input type="date" value={f.endDate} onChange={set('endDate')} /></div>
-            <div className="pm-fld"><label>Status</label><select value={f.status} onChange={set('status')}><option value="active">active</option><option value="inactive">inactive</option></select></div>
-            <div className="pm-fld" style={{ gridColumn: '1 / -1' }}><label>Description</label><input value={f.description} onChange={set('description')} placeholder="Get 200% on your first deposit up to ₱10,000" /></div>
+            <AllowList title="Day (List)" hint="(days the promo is active — empty = every day)" options={PROMO_DAYS} selected={f.days} onChange={setMulti('days')} />
+            <div className="pm-fld" style={{ gridColumn: '1 / -1' }}>
+              <label>Description {langTab && <span style={{ color: 'var(--gold)', fontWeight: 700 }}>· {langTab.toUpperCase()}</span>} <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(one line per row — shows under the title)</span></label>
+              <textarea value={tval('description')} onChange={tset('description')} rows={2}
+                placeholder={langTab ? `Description in ${langTab.toUpperCase()} (empty = use Default)` : '100% UP TO ₱2,060\n+25 FREE SPINS'}
+                style={{ width: '100%', resize: 'vertical', padding: '9px 12px', borderRadius: 8, background: 'var(--bg3,#0b1224)', color: 'var(--text,#fff)', border: '1px solid var(--border,#243049)', fontFamily: 'inherit', fontSize: 14, lineHeight: 1.5 }} />
+              <div style={{ marginTop: 8 }}>
+                <TextStyleRow label="Description style" color={f.descColor} size={f.descSize} onColor={set('descColor')} onSize={set('descSize')} />
+              </div>
+            </div>
             <div className="pm-fld"><label>Button Text</label><input value={f.buttonText} onChange={set('buttonText')} placeholder="Deposit Now" /></div>
             <div className="pm-fld"><label>Button Link</label><input value={f.buttonLink} onChange={set('buttonLink')} placeholder="/deposit" /></div>
+
+            {/* ===== Promotion Rules / eligibility logic ===== */}
+            <div className="pm-fld" style={{ gridColumn: '1 / -1', borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 4 }}>
+              <div style={{ fontWeight: 800, color: 'var(--gold)', fontSize: 14 }}>⚙️ Promotion Rules</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>Eligibility &amp; claim logic. For a multi-step <b>Welcome Bonus</b> (1st/2nd/3rd/4th deposit), create one promo per deposit and set <b>Sequence</b> 1, 2, 3, 4 — the backend uses Sequence to know the deposit step.</div>
+            </div>
+            <div className="pm-fld" style={{ gridColumn: '1 / -1' }}><label>1 · Requirement</label>
+              <select value={f.requirement} onChange={set('requirement')}>{PROMO_REQUIREMENTS.map((r) => <option key={r} value={r}>{r}</option>)}</select>
+              <div className="pm-hint">Eligibility criteria — T/O = turnover, Winover = winover requirement before withdrawal.</div>
+            </div>
+            <div className="pm-fld"><label>2 · Type (bonus)</label>
+              <select value={f.bonusType} onChange={set('bonusType')}>{PROMO_BONUS_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select>
+            </div>
+            <div className="pm-fld"><label>3 · Refresh Cycle</label>
+              <select value={f.refreshCycle} onChange={set('refreshCycle')}>{PROMO_REFRESH.map((c) => <option key={c} value={c}>{c}</option>)}</select>
+              <div className="pm-hint">How often it's claimable (Everytime / Once / Hourly / Daily / Weekly / Monthly).</div>
+            </div>
+            <div className="pm-fld"><label>4 · Is Exclusive</label>
+              <select value={yn(f.isExclusive)} onChange={set('isExclusive')}><option value="no">No</option><option value="yes">Yes</option></select>
+              <div className="pm-hint">Yes = a player can claim only once, ever.</div>
+            </div>
+            <div className="pm-fld"><label>5 · Hidden</label>
+              <select value={yn(f.hidden)} onChange={set('hidden')}><option value="no">No</option><option value="yes">Yes</option></select>
+              <div className="pm-hint">Yes = hidden from players (not shown on the site).</div>
+            </div>
+            <div className="pm-fld"><label>6 · Claim Limit (Daily)</label><input value={f.claimLimitDaily} inputMode="numeric" onChange={set('claimLimitDaily')} placeholder="0" /><div className="pm-hint">Total daily claims for all players. 0 = unlimited.</div></div>
+            <div className="pm-fld"><label>7 · Min Deposit</label><input value={f.minDepositAmt} inputMode="decimal" onChange={set('minDepositAmt')} placeholder="0" /><div className="pm-hint">Minimum deposit to qualify.</div></div>
+            <div className="pm-fld"><label>8 · No. of Deposit</label><input value={f.depositCount} inputMode="numeric" onChange={set('depositCount')} placeholder="0" /><div className="pm-hint">Deposits required to claim. 0 = anytime.</div></div>
+            <div className="pm-fld"><label>9 · Max Claim Amount</label><input value={f.maxClaimAmount} inputMode="decimal" onChange={set('maxClaimAmount')} placeholder="0" /><div className="pm-hint">Max bonus payout.</div></div>
+            <div className="pm-fld"><label>10 · Max Winning Multiply</label><input value={f.maxWinningMultiply} inputMode="decimal" onChange={set('maxWinningMultiply')} placeholder="0" /><div className="pm-hint">+5 = (depo+promo)×5; -50 = fixed max 50; 0 = no forfeit.</div></div>
+            <div className="pm-fld"><label>11 · Is Accumulate</label>
+              <select value={yn(f.isAccumulate)} onChange={set('isAccumulate')}><option value="no">No</option><option value="yes">Yes</option></select>
+              <div className="pm-hint">Deposit bonus → always No.</div>
+            </div>
+            <div className="pm-fld"><label>12 · Promo Deduct on Withdrawal</label>
+              <select value={yn(f.promoDeductOnWithdraw)} onChange={set('promoDeductOnWithdraw')}><option value="no">No</option><option value="yes">Yes</option></select>
+              <div className="pm-hint">Yes = bonus amount deducted from the withdrawal.</div>
+            </div>
+            <div className="pm-fld"><label>13 · Percentage (%)</label><input value={f.percentage} inputMode="decimal" onChange={set('percentage')} placeholder="0" /><div className="pm-hint">Bonus percentage.</div></div>
+            <div className="pm-fld"><label>14 · Multiply (T/O or Winover)</label><input value={f.multiply} inputMode="decimal" onChange={set('multiply')} placeholder="1" /><div className="pm-hint">Turnover/winover multiple. Default 1.</div></div>
+            <div className="pm-fld"><label>15 · Sequence</label><input value={f.sequence} inputMode="numeric" onChange={set('sequence')} placeholder="0" /><div className="pm-hint">Step order (1st=1, 2nd=2, …) for multi-step welcome bonuses.</div></div>
+            <div className="pm-fld"><label>16 · Min Balance</label><input value={f.minBalance} inputMode="decimal" onChange={set('minBalance')} placeholder="0" /><div className="pm-hint">Claim only if wallet ≤ this. 0 = no check.</div></div>
+            <div className="pm-fld"><label>17 · Free Spins (FS)</label><input value={f.freeSpins} inputMode="numeric" onChange={set('freeSpins')} placeholder="0" /><div className="pm-hint">Number of free spins granted. 0 = none.</div></div>
+
+            {/* Live auto-card preview — title on top, description below (no image needed) */}
+            <div className="pm-fld" style={{ gridColumn: '1 / -1', borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 4 }}>
+              <label>Auto Card Preview <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(title + description build the card automatically)</span></label>
+              <div style={{ maxWidth: 300, background: 'linear-gradient(135deg,#0e1e32 0%,#162038 60%,#1c2842 100%)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 18px 16px', display: 'flex', flexDirection: 'column', minHeight: 172 }}>
+                {f.image ? (
+                  <div style={{ width: '100%', aspectRatio: '1200 / 425', backgroundImage: `url(${f.image})`, backgroundSize: 'cover', backgroundPosition: 'center', borderRadius: 10, marginBottom: 12, position: 'relative', display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
+                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg,rgba(8,13,26,.88) 0%,rgba(8,13,26,.6) 38%,rgba(8,13,26,.08) 62%,transparent 100%)' }} />
+                    <div style={{ position: 'relative', zIndex: 1, padding: '0 14px', maxWidth: '64%' }}>
+                      <div style={{ fontWeight: 800, fontSize: 14, color: '#fff', textTransform: 'uppercase', lineHeight: 1.2, marginBottom: 5, ...(f.titleColor ? { color: f.titleColor } : {}), ...(f.titleSize ? { fontSize: Number(f.titleSize) } : {}) }}>{f.title || '2ND DEPOSIT BONUS'}</div>
+                      <div style={{ fontSize: 10, color: 'rgba(255,255,255,.7)', lineHeight: 1.45, whiteSpace: 'pre-line', ...(f.descColor ? { color: f.descColor } : {}), ...(f.descSize ? { fontSize: Number(f.descSize) } : {}) }}>{f.description || '100% UP TO ₱2,060\n+25 FREE SPINS'}</div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ fontWeight: 800, fontSize: 17, color: '#fff', textTransform: 'uppercase', lineHeight: 1.2, ...(f.titleColor ? { color: f.titleColor } : {}), ...(f.titleSize ? { fontSize: Number(f.titleSize) } : {}) }}>{f.title || '2ND DEPOSIT BONUS'}</div>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,.55)', marginTop: 8, lineHeight: 1.5, whiteSpace: 'pre-line', ...(f.descColor ? { color: f.descColor } : {}), ...(f.descSize ? { fontSize: Number(f.descSize) } : {}) }}>{f.description || '100% UP TO ₱2,060\n+25 FREE SPINS'}</div>
+                  </>
+                )}
+                <button style={{ marginTop: 12, width: '100%', padding: '9px 0', borderRadius: 8, border: 'none', fontWeight: 800, fontSize: 12, letterSpacing: '.06em', textTransform: 'uppercase', color: '#06091a', background: 'linear-gradient(135deg,#f0c040,#d99a00)', cursor: 'default' }}>{f.buttonText || 'Claim now'}</button>
+              </div>
+            </div>
             <div className="pm-fld" style={{ gridColumn: '1 / -1' }}>
-              <label>Image</label>
+              <label>Default Banner <span style={{ color: 'var(--gold)', fontWeight: 700 }}>· recommended 1200 × 425 px</span></label>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <input type="file" accept="image/*" onChange={pickImage} />
                 {uploading && <span style={{ color: 'var(--gold)' }}>uploading…</span>}
                 {f.image && <img src={f.image} alt="" style={{ height: 40, borderRadius: 6 }} />}
               </div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5 }}>Size: <b style={{ color: 'var(--text)' }}>1200 × 425 px</b> · PNG or JPG · keep under 4 MB. Used on the lobby banner and promo cards.</div>
+            </div>
+            <div className="pm-fld" style={{ gridColumn: '1 / -1' }}>
+              <label>Currency Banners <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(optional — players see the banner for their own currency, e.g. an MYR banner with RM amounts)</span></label>
+              <div style={{ fontSize: 11, color: 'var(--gold)', fontWeight: 700, marginBottom: 6 }}>Same size: 1200 × 425 px</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                <select value={bannerCur} onChange={(e) => setBannerCur(e.target.value)} style={{ padding: '8px 10px', borderRadius: 8, background: 'var(--panel-3,#1b2541)', color: 'var(--text,#fff)', border: '1px solid var(--border,#243049)' }}>
+                  {PROMO_CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <input type="file" accept="image/*" onChange={pickCurrencyBanner} />
+                {bannerUploading && <span style={{ color: 'var(--gold)' }}>uploading…</span>}
+              </div>
+              {f.banners && Object.keys(f.banners).length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
+                  {Object.entries(f.banners).map(([cur, url]) => (
+                    <div key={cur} style={{ position: 'relative', border: '1px solid var(--border,#243049)', borderRadius: 8, padding: 6, textAlign: 'center' }}>
+                      <img src={url} alt={cur} style={{ height: 44, borderRadius: 4, display: 'block' }} />
+                      <div style={{ fontSize: 11, fontWeight: 800, marginTop: 3 }}>{cur}</div>
+                      <button type="button" onClick={() => removeCurrencyBanner(cur)} title="Remove" style={{ position: 'absolute', top: -8, right: -8, width: 20, height: 20, borderRadius: '50%', border: 'none', background: 'var(--red,#ff4d5e)', color: '#fff', cursor: 'pointer', fontSize: 12, lineHeight: '20px' }}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Auto-generated Terms & Conditions preview. Lines 1–6 update live
+              from the fields above; 7–12 are fixed. Shown to members on the
+              player Promo Detail modal — no manual typing needed. */}
+          <div style={{ marginTop: 16, borderTop: '1px dashed var(--border)', paddingTop: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text)' }}>✏️ CUSTOM TERMS &amp; CONDITIONS {langTab && <span style={{ color: 'var(--gold)' }}>· {langTab.toUpperCase()}</span>} <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(override — one line per row)</span></div>
+              <button type="button" className="mini-btn" style={{ marginLeft: 'auto' }} onClick={() => tset('customTerms')(buildPromoTerms({ ...f, customTerms: '' }).join('\n'))}>⬇ Load auto terms to edit</button>
+              {tval('customTerms') && tval('customTerms').trim() && <button type="button" className="mini-btn" onClick={() => tset('customTerms')('')}>↺ Reset to auto</button>}
+            </div>
+            <textarea value={tval('customTerms')} onChange={tset('customTerms')} rows={4}
+              placeholder={langTab ? `Custom terms in ${langTab.toUpperCase()} — empty = auto-translated terms` : 'Leave empty to use the auto-generated terms shown below. Or type your own (one line per row) for a special promotion.'}
+              style={{ width: '100%', resize: 'vertical', padding: '9px 12px', borderRadius: 8, background: 'var(--bg3,#0b1224)', color: 'var(--text,#fff)', border: '1px solid var(--border,#243049)', fontFamily: 'inherit', fontSize: 13, lineHeight: 1.5 }} />
+            <div style={{ fontSize: 11, color: tval('customTerms') && tval('customTerms').trim() ? 'var(--gold)' : 'var(--muted)', margin: '8px 0 6px', fontWeight: 700 }}>
+              {tval('customTerms') && tval('customTerms').trim() ? 'Preview — using your CUSTOM terms (shown to members):' : `Preview — auto terms${langTab ? ` (members see them auto-translated to ${langTab.toUpperCase()})` : ''}. Lines 1–6 fill from the package; 7–12 are fixed:`}
+            </div>
+            <ol style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 5, maxHeight: 180, overflowY: 'auto' }}>
+              {(tval('customTerms') && tval('customTerms').trim()
+                ? tval('customTerms').split('\n').map((s) => s.trim()).filter(Boolean)
+                : buildPromoTerms({ ...f, customTerms: '' })
+              ).map((t, i) => (
+                <li key={i} style={{ fontSize: 11.5, lineHeight: 1.45, color: (tval('customTerms') && tval('customTerms').trim()) || i < 6 ? 'var(--text)' : 'var(--muted)' }}>{t}</li>
+              ))}
+            </ol>
+          </div>
+          </div>{/* /step 1 */}
+
+          {/* ===== STEP 2 — Allow lists (Multi-Product, player group, bank, risk) ===== */}
+          <div style={{ display: step === 2 ? 'block' : 'none' }}>
+            <div className="pm-grid">
+              <div className="pm-fld" style={{ gridColumn: '1 / -1' }}>
+                <div style={{ fontWeight: 800, color: 'var(--gold)', fontSize: 14 }}>✅ Allow Lists</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>Restrict who/what this promotion covers. Leave a list empty = allow everything.</div>
+              </div>
+              <AllowList title="Allow Products" hint="(Multi-Product — games/providers this promo applies to)" options={PROMO_PRODUCTS} selected={f.allowProducts} onChange={setMulti('allowProducts')} />
+              <AllowList title="Allow Player Groups" options={PROMO_PLAYER_GROUPS} selected={f.allowPlayerGroups} onChange={setMulti('allowPlayerGroups')} />
+              <AllowList title="Allow Banks" hint="(from your configured bank channels)" options={bankOptions} selected={f.allowBanks} onChange={setMulti('allowBanks')} />
+              <AllowList title="Allow Risk Groups" options={PROMO_RISK_GROUPS} selected={f.allowRiskGroups} onChange={setMulti('allowRiskGroups')} />
             </div>
           </div>
         </div>
         <div className="pm-foot">
-          <button className="btn-cancel" onClick={onClose}>Cancel</button>
-          <button className="btn-pm-save" onClick={submit} disabled={busy || uploading}>{busy ? 'Saving…' : (isEdit ? '💾 Update' : '＋ Create')}</button>
+          {step === 1 ? (
+            <>
+              <button className="btn-cancel" onClick={onClose}>Cancel</button>
+              <button className="btn-pm-save" onClick={() => setStep(2)}>Next →</button>
+            </>
+          ) : (
+            <>
+              <button className="btn-cancel" onClick={() => setStep(1)}>← Back</button>
+              <button className="btn-pm-save" onClick={submit} disabled={busy || uploading}>{busy ? 'Saving…' : (isEdit ? '💾 Update' : '＋ Create')}</button>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -211,6 +505,20 @@ function PromosTab({ promos, setPromos, loading, onEdit }) {
     }
     toast(`Promotion deleted: ${x.n}`);
   };
+  // Adjust the banner/display sequence — move a promo up or down and persist.
+  const move = async (idx, dir) => {
+    const j = idx + dir;
+    if (j < 0 || j >= promos.length) return;
+    const next = [...promos];
+    [next[idx], next[j]] = [next[j], next[idx]];
+    setPromos(next);
+    const ids = next.map((p) => p.id).filter(Boolean);
+    if (ids.length) {
+      try { await reorderPromotions(ids); toast('Order updated ✔'); }
+      catch (e) { toast('⚠ ' + (e.message || 'Reorder failed')); }
+    }
+  };
+  const reordering = !!typeF || !!query.trim(); // disable arrows while filtered
 
   return (
     <>
@@ -223,15 +531,42 @@ function PromosTab({ promos, setPromos, loading, onEdit }) {
       <div className="card" style={{ marginTop: 'var(--pad)' }}>
         <div className="page-head" style={{ marginBottom: 12 }}><div className="card-title" style={{ marginBottom: 0 }}>Promotion Packages</div>
           <span className="pr" style={{ display: 'flex', gap: 8 }}>
-            <select className="qsearch" style={{ width: 'auto' }} value={typeF} onChange={(e) => setTypeF(e.target.value)}><option value="">All Types</option><option>welcome</option><option>deposit</option><option>referral</option><option>cashback</option><option>freespin</option></select>
+            <select className="qsearch" style={{ width: 'auto' }} value={typeF} onChange={(e) => setTypeF(e.target.value)}><option value="">All Types</option><option value="welcome">Welcome</option><option value="deposit">Deposit</option><option value="reload">Reload</option><option value="cashback">Cashback</option><option value="freespin">Freespin</option><option value="referral">Referral</option><option value="tournament">Tournament</option><option value="custom">Custom</option></select>
             <input className="qsearch" placeholder="Search promo…" value={query} onChange={(e) => setQuery(e.target.value)} />
           </span>
         </div>
         <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}><table style={{ minWidth: 1100 }}>
-          <thead><tr><th>Promotion</th><th>Type</th><th>Bonus</th><th>Min Dep</th><th>Wager</th><th>Turnover</th><th>Claims</th><th>Expiry</th><th>Active</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Order</th><th>Promotion</th><th>Type</th><th>Bonus</th><th>Min Dep</th><th>Wager</th><th>Turnover</th><th>Claims</th><th>Expiry</th><th>Active</th><th>Actions</th></tr></thead>
           <tbody>{promos.map((x, i) => (
             <tr key={x.id ?? i} style={{ display: visible(x) ? '' : 'none' }}>
-              <td className="promo-cell"><div className="pn">{x.n}</div><div className="pd">{x.d}</div></td>
+              <td style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
+                <div style={{ display: 'inline-flex', flexDirection: 'column', gap: 2 }}>
+                  <button className="mini-btn" disabled={reordering || i === 0 || !x.id} title="Move up" style={{ padding: '0 7px', lineHeight: '18px' }} onClick={() => move(i, -1)}>▲</button>
+                  <button className="mini-btn" disabled={reordering || i === promos.length - 1 || !x.id} title="Move down" style={{ padding: '0 7px', lineHeight: '18px' }} onClick={() => move(i, 1)}>▼</button>
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>#{i + 1}</div>
+              </td>
+              <td className="promo-cell">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {(() => {
+                    const r = x.raw || {};
+                    const thumb = r.image || (r.banners && Object.values(r.banners)[0]) || '';
+                    return thumb
+                      ? <img src={thumb} alt="" style={{ width: 54, height: 30, objectFit: 'cover', borderRadius: 5, flexShrink: 0, border: '1px solid var(--border)' }} />
+                      : <span style={{ width: 54, height: 30, borderRadius: 5, flexShrink: 0, border: '1px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: 'var(--muted)' }}>🖼</span>;
+                  })()}
+                  <div style={{ minWidth: 0 }}>
+                    <div className="pn">{x.n}
+                      {(x.raw?.country || x.raw?.currency) && (
+                        <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 800, color: '#8fc0ff', background: 'rgba(59,130,246,.16)', border: '1px solid rgba(59,130,246,.35)', borderRadius: 999, padding: '1px 7px' }}>
+                          🌏 {[x.raw?.country, x.raw?.currency].filter(Boolean).join(' · ')}
+                        </span>
+                      )}
+                    </div>
+                    <div className="pd">{x.d}</div>
+                  </div>
+                </div>
+              </td>
               <td><span className={`vtype ${x.tc}`}>{x.t}</span></td>
               <td className="bonus-cell">{x.b}<span className="mx">{x.mx}</span></td>
               <td>{x.md}</td><td className="wager-b">{x.w}</td><td className="turn-o">{x.to}</td>
@@ -247,24 +582,90 @@ function PromosTab({ promos, setPromos, loading, onEdit }) {
   );
 }
 
+// Equal-sized segments visually; weight only controls win chance.
 function wheelGrad(slices) {
   const act = slices.filter((x) => x.on);
-  const tot = act.reduce((a, x) => a + x.w, 0) || 1;
-  let acc = 0;
-  return 'conic-gradient(' + act.map((x) => {
-    const f = (acc / tot) * 360; acc += x.w; const t2 = (acc / tot) * 360;
-    return `${x.c} ${f.toFixed(1)}deg ${t2.toFixed(1)}deg`;
-  }).join(',') + ')';
+  const n = act.length || 1;
+  const seg = 360 / n;
+  return 'conic-gradient(' + act.map((x, i) => `${x.c} ${(i * seg).toFixed(1)}deg ${((i + 1) * seg).toFixed(1)}deg`).join(',') + ')';
 }
 
-function MgWheel({ slices, setSlices, onSave, saving }) {
+// Theme image-slot tile styles (the upload grid in the Theme card).
+const slotWrap = { display: 'flex', flexDirection: 'column', gap: 6 };
+const slotLabel = { fontSize: 12, fontWeight: 700, color: 'var(--muted,#8898b8)', textAlign: 'center' };
+const slotHint = { fontSize: 10, fontWeight: 600, color: 'var(--gold,#f0c040)', textAlign: 'center', opacity: 0.85, marginTop: -2 };
+const slotBox = {
+  display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+  height: 96, padding: 8, borderRadius: 10, border: '1px dashed var(--border,#243049)',
+  overflow: 'hidden', position: 'relative',
+};
+const slotEmpty = { color: 'var(--muted,#8898b8)', fontSize: 13, fontWeight: 700 };
+const slotDel = {
+  background: 'none', border: 'none', color: 'var(--red,#e8293a)', cursor: 'pointer',
+  fontSize: 12, fontWeight: 700, padding: '2px 0', alignSelf: 'center',
+};
+
+function MgWheel({ slices, setSlices, wheelCfg = {}, setWheelCfg, onSave, saving }) {
   const { toast } = useUI();
   const [rot, setRot] = useState(0);
+  const [imgUploading, setImgUploading] = useState(false);
   const tot = slices.filter((x) => x.on).reduce((a, x) => a + x.w, 0);
 
   const update = (idx, key, val) => setSlices((prev) => prev.map((s, i) => (i === idx ? { ...s, [key]: val } : s)));
-  const addSlice = () => { setSlices((prev) => [...prev, { l: 'New Prize', p: 0, w: 5, c: '#3aa0ff', on: 1 }]); toast('Slice added ＋'); };
+  const addSlice = () => { setSlices((prev) => [...prev, { l: 'New Prize', type: 'Cash', p: 0, seq: prev.length + 1, w: 5, qty: 0, claimed: 0, req: 'T/O', mult: 3, c: '#3aa0ff', on: 1 }]); toast('Slice added ＋'); };
   const removeSlice = (idx) => { setSlices((prev) => prev.filter((_, i) => i !== idx)); toast('Slice removed'); };
+
+  // Upload a custom wheel PNG. When set, the player wheel shows this image
+  // instead of the generated colour wheel.
+  const pickWheelImage = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) { toast('⚠ Image too large — keep it under 4 MB'); return; }
+    setImgUploading(true);
+    try {
+      const { url } = await uploadImage(file);
+      setWheelCfg?.((s) => ({ ...s, image: url }));
+      toast('Wheel image uploaded ✔');
+    } catch (err) {
+      toast('⚠ Upload failed: ' + (err.message || 'error'));
+    } finally { setImgUploading(false); }
+  };
+  const removeWheelImage = () => setWheelCfg?.((s) => ({ ...s, image: '' }));
+
+  // Theme design controls (background, title banner, colours).
+  const theme = wheelCfg.theme || {};
+  const setTheme = (k, v) => setWheelCfg?.((s) => ({ ...s, theme: { ...(s.theme || {}), [k]: v } }));
+  const [themeUploading, setThemeUploading] = useState('');
+  // Generic image-slot uploader: upload, then apply the URL via `apply(url)`.
+  const pickSlotImage = (slotKey, apply) => async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) { toast('⚠ Image too large — keep it under 4 MB'); return; }
+    setThemeUploading(slotKey);
+    try {
+      const { url } = await uploadImage(file);
+      apply(url);
+      toast('Image uploaded ✔');
+    } catch (err) {
+      toast('⚠ Upload failed: ' + (err.message || 'error'));
+    } finally { setThemeUploading(''); }
+  };
+  // One upload tile (label, preview, upload, remove) — mirrors the reference grid.
+  const renderSlot = ({ key, label, url, apply, bg, hint }) => (
+    <div style={slotWrap}>
+      <div style={slotLabel}>{label}</div>
+      {hint && <div style={slotHint}>{hint}</div>}
+      <label style={{ ...slotBox, background: bg || 'var(--bg3,#0b1224)' }} title={`Upload ${label} — recommended ${hint || 'square image'}`}>
+        {url
+          ? <img src={url} alt={label} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+          : <span style={slotEmpty}>{themeUploading === key ? 'Uploading…' : '＋ Upload'}</span>}
+        <input type="file" accept="image/*" style={{ display: 'none' }} onChange={pickSlotImage(key, apply)} />
+      </label>
+      {url && <button style={slotDel} onClick={(ev) => { ev.preventDefault(); apply(''); }}>🗑 Remove</button>}
+    </div>
+  );
   const spinTest = () => {
     const next = rot + 1080 + Math.floor(Math.random() * 360);
     setRot(next);
@@ -284,27 +685,151 @@ function MgWheel({ slices, setSlices, onSave, saving }) {
             <button className="btn-search" onClick={onSave} disabled={saving}>{saving ? 'Saving…' : '💾 Save Wheel'}</button>
           </span>
         </div>
-        <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}><table style={{ minWidth: 520 }}>
-          <thead><tr><th>Label</th><th>Prize</th><th>Weight %</th><th>Colour</th><th>Active</th><th>Del</th></tr></thead>
+        <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}><table style={{ minWidth: 900 }}>
+          <thead><tr>
+            <th>#</th><th>Name</th><th>Type</th><th>Prize</th><th>Sequence</th>
+            <th>Percentage</th><th>Quantity</th><th>Claimed Qty</th><th>Requirement</th>
+            <th>Multiply</th><th>Colour</th><th>Active</th><th>Del</th>
+          </tr></thead>
           <tbody>{slices.map((x, i) => (
             <tr key={i}>
+              <td style={{ color: 'var(--muted)', textAlign: 'center' }}>{i + 1}</td>
               <td><input className="slice-in" value={x.l} onChange={(e) => update(i, 'l', e.target.value)} /></td>
+              <td>
+                <select className="slice-in" value={x.type || 'Cash'} onChange={(e) => update(i, 'type', e.target.value)}>
+                  {SLICE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </td>
               <td><input className="slice-in num" style={{ color: 'var(--gold)' }} value={x.p} onChange={(e) => update(i, 'p', parseInt(e.target.value) || 0)} /></td>
-              <td><input className="slice-in num" value={x.w} onChange={(e) => update(i, 'w', parseInt(e.target.value) || 0)} /></td>
-              <td><span className="swatch" style={{ background: x.c }}></span></td>
+              <td><input className="slice-in num" value={x.seq ?? i + 1} onChange={(e) => update(i, 'seq', parseInt(e.target.value) || 0)} /></td>
+              <td><input className="slice-in num" value={x.w} onChange={(e) => update(i, 'w', parseFloat(e.target.value) || 0)} /></td>
+              <td><input className="slice-in num" value={x.qty ?? 0} onChange={(e) => update(i, 'qty', parseInt(e.target.value) || 0)} title="0 = unlimited" /></td>
+              <td style={{ color: 'var(--muted)', textAlign: 'center' }}>{(x.claimed ?? 0).toLocaleString()}</td>
+              <td>
+                <select className="slice-in" value={x.req || 'T/O'} onChange={(e) => update(i, 'req', e.target.value)}>
+                  {SLICE_REQS.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </td>
+              <td><input className="slice-in num" value={x.mult ?? 0} onChange={(e) => update(i, 'mult', parseInt(e.target.value) || 0)} /></td>
+              <td><input type="color" value={x.c || '#3aa0ff'} onChange={(e) => update(i, 'c', e.target.value)} style={{ width: 34, height: 26, padding: 0, border: '1px solid var(--border)', borderRadius: 6, background: 'none', cursor: 'pointer' }} /></td>
               <td><label className="switch"><input type="checkbox" checked={!!x.on} onChange={(e) => update(i, 'on', e.target.checked ? 1 : 0)} /><span className="slider"></span></label></td>
               <td><button className="del-x" onClick={() => removeSlice(i)}>✕</button></td>
             </tr>
           ))}</tbody>
+          <tfoot><tr style={{ borderTop: '2px solid var(--border)' }}>
+            <td colSpan={5} style={{ textAlign: 'right', color: 'var(--muted)', fontWeight: 700, padding: '8px 6px' }}>Totals</td>
+            <td style={{ fontWeight: 800, color: tot === 100 ? 'var(--green)' : 'var(--red)' }}>{tot.toFixed(4)}</td>
+            <td style={{ fontWeight: 800, color: 'var(--green)' }}>{slices.reduce((a, s) => a + (Number(s.qty) || 0), 0).toLocaleString()}</td>
+            <td style={{ fontWeight: 800, color: 'var(--red)' }}>{slices.reduce((a, s) => a + (Number(s.claimed) || 0), 0).toLocaleString()}</td>
+            <td colSpan={4}></td>
+          </tr></tfoot>
         </table></div>
-        <div className="tw-row"><span style={{ color: 'var(--muted)' }}>Total Weight:</span><span className={tot === 100 ? 'tw-ok' : 'tw-bad'}>{tot}%</span></div>
+        <div className="tw-row"><span style={{ color: 'var(--muted)' }}>Total Win Chance:</span><span className={tot === 100 ? 'tw-ok' : 'tw-bad'}>{tot}%</span></div>
       </div>
       <div>
         <div className="card"><div className="card-title" style={{ textAlign: 'center' }}>Live Preview</div>
           <div className="wheel-wrap">
-            <div className="wheel-disc" style={{ background: wheelGrad(slices), transform: `rotate(${rot}deg)` }}><span className="wheel-hub">🎡</span></div>
+            {(() => {
+              const act = slices.filter((s) => s.on);
+              const n = act.length || 1;
+              const seg = 360 / n;
+              const D = 250;          // disc diameter
+              const R = D / 2;
+              const pt = (deg, rad) => { const a = (deg - 90) * (Math.PI / 180); return { x: R + rad * Math.cos(a), y: R + rad * Math.sin(a) }; };
+              return (
+                <div style={{ position: 'relative', width: D, height: D, margin: '0 auto 8px' }}>
+                  {/* disc */}
+                  <div style={{
+                    position: 'absolute', inset: 0, borderRadius: '50%',
+                    ...(wheelCfg.image
+                      ? { backgroundImage: `url(${wheelCfg.image})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                      : { background: wheelGrad(slices) }),
+                    // Offset by half a segment so slice #1's CENTRE sits under
+                    // badge 1 at the top (12 o'clock) — i.e. the first slice is
+                    // always at position 1 — instead of straddling the boundary.
+                    transform: `rotate(${rot - seg / 2}deg)`, transition: 'transform 2.2s cubic-bezier(.17,.67,.27,1)',
+                    border: '6px solid #f4b223', boxShadow: '0 0 0 3px rgba(0,0,0,.45), inset 0 0 26px rgba(0,0,0,.45)',
+                  }}>
+                    {!wheelCfg.image && act.map((s, i) => {
+                      const c = (i + 0.5) * seg;
+                      const p = pt(c, R * 0.6);
+                      return <span key={i} style={{ position: 'absolute', left: p.x, top: p.y, transform: `translate(-50%,-50%) rotate(${c}deg)`, fontSize: 11, fontWeight: 800, color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,.85)', whiteSpace: 'nowrap', pointerEvents: 'none' }}>{s.l}</span>;
+                    })}
+                  </div>
+                  {/* hub */}
+                  <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 30, height: 30, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, #fff2c0, #f4b223)', border: '2px solid rgba(0,0,0,.35)', zIndex: 2 }} />
+                  {/* sequence badges 1..n around the clock (1 at top, clockwise) */}
+                  {act.map((s, i) => {
+                    const p = pt(i * seg, R + 4);
+                    return <span key={`b${i}`} style={{ position: 'absolute', left: p.x, top: p.y, transform: 'translate(-50%,-50%)', width: 22, height: 22, borderRadius: '50%', background: '#0b1224', color: '#fff', border: '2px solid #f4b223', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 3, boxShadow: '0 2px 5px rgba(0,0,0,.5)' }}>{i + 1}</span>;
+                  })}
+                </div>
+              );
+            })()}
             <button className="spin-btn" onClick={spinTest}>▶ Spin Test</button>
           </div>
+          {/* Custom wheel image (PNG) — overrides the generated colour wheel */}
+          <div style={{ borderTop: '1px solid var(--border)', marginTop: 12, paddingTop: 12 }}>
+            <div className="fld-lbl" style={{ marginBottom: 6 }}>Wheel Image <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(optional PNG — square, transparent background)</span></div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <input type="file" accept="image/png,image/*" onChange={pickWheelImage} />
+              {imgUploading && <span style={{ color: 'var(--gold)' }}>uploading…</span>}
+              {wheelCfg.image && (
+                <>
+                  <img src={wheelCfg.image} alt="wheel" style={{ height: 40, width: 40, borderRadius: '50%', objectFit: 'cover', border: '1px solid var(--border)' }} />
+                  <button className="del-btn" onClick={removeWheelImage}>🗑 Remove</button>
+                </>
+              )}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>For a custom image the prizes use equal segments in the slice order above. Save to publish.</div>
+          </div>
+        </div>
+        <div className="card" style={{ marginTop: 'var(--pad)' }}>
+          <div className="card-title">🎨 Theme <span style={{ color: 'var(--muted)', fontSize: 12, fontWeight: 600 }}>(upload each element — change anytime)</span></div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 10, lineHeight: 1.5 }}>
+            ℹ The wheel displays at up to <b style={{ color: 'var(--gold)' }}>340 px</b> and scales down on mobile. Upload at <b style={{ color: 'var(--text)' }}>2×</b> for sharp art. Use <b style={{ color: 'var(--text)' }}>square 1:1</b> images for the Prize disc &amp; Frame (the disc shows as a circle). PNG/WebP/AVIF, max 10 MB each.
+          </div>
+          <div className="fld" style={{ marginBottom: 14 }}>
+            <label>Title Text <span style={{ color: 'var(--muted)', fontWeight: 600, fontSize: 11 }}>(used when no Title image)</span></label>
+            <input value={theme.title || ''} onChange={(e) => setTheme('title', e.target.value)} placeholder="WHEEL OF FORTUNE" />
+          </div>
+          {/* Image-slot grid — Background & Title behind, Frame is the rim,
+              Prize is the disc, Pin sits in the CENTRE, Token at the BOTTOM, Button below. */}
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>Layout: <b style={{ color: 'var(--text)' }}>Background · Title · Frame (rim) → Prize (disc) · Pin (centre) · Token (bottom) · Button</b></div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 12 }}>
+            {renderSlot({ key: 'bgImage', label: 'Background', hint: '≈ 840 × 900 px', url: theme.bgImage, apply: (u) => setTheme('bgImage', u) })}
+            {renderSlot({ key: 'titleImage', label: 'Title', hint: '920 × 256 px (transparent)', url: theme.titleImage, apply: (u) => setTheme('titleImage', u) })}
+            {renderSlot({ key: 'frameImage', label: 'Frame (rim)', hint: '880 × 880 px · hollow centre', url: theme.frameImage, apply: (u) => setTheme('frameImage', u) })}
+            {renderSlot({ key: 'prizeImage', label: 'Prize Wheel (disc)', hint: '800 × 800 px square (circle)', url: wheelCfg.image, apply: (u) => setWheelCfg?.((s) => ({ ...s, image: u })) })}
+            {renderSlot({ key: 'pinImage', label: 'Pin (centre)', hint: '200 × 200 px (transparent)', url: theme.pinImage, apply: (u) => setTheme('pinImage', u) })}
+            {renderSlot({ key: 'tokenImage', label: 'Token (bottom)', hint: '200 × 200 px (transparent)', url: theme.tokenImage, apply: (u) => setTheme('tokenImage', u) })}
+            {renderSlot({ key: 'buttonImage', label: 'Button', hint: '520 × 160 px (transparent)', url: theme.buttonImage, apply: (u) => setTheme('buttonImage', u) })}
+          </div>
+          {/* Prize fit — how big the prize disc sits inside the frame ring */}
+          {theme.frameImage && (
+            <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 10, background: 'var(--bg3,#0b1224)', border: '1px solid var(--border)' }}>
+              <label className="fld-lbl" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span>Prize size inside frame</span>
+                <b style={{ color: 'var(--gold)' }}>{Math.round((theme.discScale ?? 0.74) * 100)}%</b>
+              </label>
+              <input type="range" min="50" max="100" step="1" value={Math.round((theme.discScale ?? 0.74) * 100)}
+                onChange={(e) => setTheme('discScale', (parseInt(e.target.value, 10) || 74) / 100)} style={{ width: '100%' }} />
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>Shrink the prize wheel so it sits neatly inside your frame ring — increase until the gold rim hugs the prize edge.</div>
+            </div>
+          )}
+          {/* Fallback colours — used for any element that has no uploaded image */}
+          <div style={{ borderTop: '1px solid var(--border)', marginTop: 14, paddingTop: 12 }}>
+            <div className="fld-lbl" style={{ marginBottom: 8 }}>Fallback Colours <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(used where no image is uploaded)</span></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+              <div><label className="fld-lbl">Rim / Frame</label><input type="color" value={theme.rimColor || '#f4b223'} onChange={(e) => setTheme('rimColor', e.target.value)} style={{ width: '100%', height: 38, borderRadius: 8, background: 'none', border: '1px solid var(--border)' }} /></div>
+              <div><label className="fld-lbl">Hub</label><input type="color" value={theme.hubColor || '#f4b223'} onChange={(e) => setTheme('hubColor', e.target.value)} style={{ width: '100%', height: 38, borderRadius: 8, background: 'none', border: '1px solid var(--border)' }} /></div>
+              <div><label className="fld-lbl">Pointer / Pin</label><input type="color" value={theme.pointerColor || '#f4b223'} onChange={(e) => setTheme('pointerColor', e.target.value)} style={{ width: '100%', height: 38, borderRadius: 8, background: 'none', border: '1px solid var(--border)' }} /></div>
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text)', fontSize: 14, marginTop: 12 }}>
+              <input type="checkbox" checked={theme.bulbs !== false} onChange={(e) => setTheme('bulbs', e.target.checked)} /> Show light-bulb rim
+            </label>
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 10 }}>Upload PNGs with transparent backgrounds for Title, Frame, Pin, Token &amp; Button. Changes go live on the player wheel after <b>Save Wheel</b>.</div>
         </div>
         <div className="card" style={{ marginTop: 'var(--pad)' }}><div className="card-title">📊 Wheel Stats</div>
           <div className="wstat-row"><span className="k">Total Spins Today</span><span className="v">911</span></div>
@@ -398,7 +923,7 @@ function MiniTab({ slices, setSlices, wheelCfg, setWheelCfg, ticketCfg, setTicke
         <button className={`mg-pill ${mgTab === 'ticket' ? 'active' : ''}`} onClick={() => setMgTab('ticket')}>🎟️ Lucky Ticket</button>
         <button className={`mg-pill ${mgTab === 'set' ? 'active' : ''}`} onClick={() => setMgTab('set')}>⚙️ Settings</button>
       </div>
-      {mgTab === 'wheel' ? <MgWheel slices={slices} setSlices={setSlices} onSave={onSave} saving={saving} />
+      {mgTab === 'wheel' ? <MgWheel slices={slices} setSlices={setSlices} wheelCfg={wheelCfg} setWheelCfg={setWheelCfg} onSave={onSave} saving={saving} />
         : mgTab === 'ticket' ? <MgTicket />
           : <MgSettings wheelCfg={wheelCfg} setWheelCfg={setWheelCfg} ticketCfg={ticketCfg} setTicketCfg={setTicketCfg} onSave={onSave} saving={saving} />}
     </>
@@ -590,7 +1115,7 @@ export default function Promotions() {
     getMiniGames().then((cfg) => {
       if (!alive || !cfg) return;
       if (Array.isArray(cfg.wheel?.slices) && cfg.wheel.slices.length) setSlices(cfg.wheel.slices);
-      if (cfg.wheel) setWheelCfg((s) => ({ ...s, enabled: cfg.wheel.enabled, freeSpinsPerDay: cfg.wheel.freeSpinsPerDay, spinCost: cfg.wheel.spinCost, maxPerDay: cfg.wheel.maxPerDay }));
+      if (cfg.wheel) setWheelCfg((s) => ({ ...s, enabled: cfg.wheel.enabled, image: cfg.wheel.image || '', theme: { ...INITIAL_WHEEL_THEME, ...(cfg.wheel.theme || {}) }, freeSpinsPerDay: cfg.wheel.freeSpinsPerDay, spinCost: cfg.wheel.spinCost, maxPerDay: cfg.wheel.maxPerDay }));
       if (cfg.ticket) setTicketCfg((s) => ({ ...s, ...cfg.ticket }));
     }).catch(() => {});
     return () => { alive = false; };

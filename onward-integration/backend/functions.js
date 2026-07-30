@@ -24,6 +24,12 @@ process.env.FIRESTORE_DB = process.env.FIRESTORE_DB || 'onward';
 
 const { onRequest } = require('firebase-functions/v2/https');
 const { setGlobalOptions } = require('firebase-functions/v2');
+const { defineSecret } = require('firebase-functions/params');
+
+// JWT signing secret, stored in Google Secret Manager (set once with
+// `firebase functions:secrets:set JWT_SECRET`). Binding it here injects it as
+// process.env.JWT_SECRET into the function instance at startup.
+const jwtSecret = defineSecret('JWT_SECRET');
 
 setGlobalOptions({ region: process.env.FUNCTIONS_REGION || 'us-central1' });
 
@@ -38,7 +44,7 @@ const app = require('./server');
 // single source of truth, keeping reads and writes consistent. Fine for this
 // scale; revisit with a shared cache / per-request Firestore reads to scale out.
 exports.api = onRequest(
-  { memory: '512MiB', timeoutSeconds: 60, concurrency: 80, maxInstances: 1 },
+  { memory: '512MiB', timeoutSeconds: 60, concurrency: 80, maxInstances: 1, secrets: [jwtSecret] },
   async (req, res) => {
     // Hold the first cold-start requests until the catalogue is loaded/seeded.
     try {

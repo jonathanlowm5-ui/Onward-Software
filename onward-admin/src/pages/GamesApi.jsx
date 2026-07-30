@@ -1,115 +1,124 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useUI } from '../context/UIContext';
+import { getSettings, updateSettings } from '../services/cmsService';
+import { pingUrl } from '../services/configService';
+import api from '../services/api';
 
-const INITIAL_GAPIQ = [
-  { n: 'Pragmatic Play', ep: 'https://api.pragmaticplay.net/v1', st: 'connected', ping: 18, games: 312, auth: 'API Key', sync: '2026-06-02 14:30' },
-  { n: 'Evolution Gaming', ep: 'https://api.evolutiongaming.com/v2', st: 'connected', ping: 24, games: 98, auth: 'OAuth 2.0', sync: '2026-06-02 14:28' },
-  { n: 'Hacksaw Gaming', ep: 'https://api.hacksawgaming.com/v1', st: 'connected', ping: 31, games: 145, auth: 'JWT', sync: '2026-06-02 13:55' },
-  { n: '3 Oaks Gaming', ep: 'https://api.3oaksgaming.com/v1', st: 'connected', ping: 22, games: 189, auth: 'API Key', sync: '2026-06-02 13:40' },
-  { n: 'BGaming', ep: 'https://api.bgaming.com/v1', st: 'connected', ping: 15, games: 220, auth: 'HMAC', sync: '2026-06-02 12:10' },
-  { n: 'Gamzix', ep: 'https://api.gamzix.com/v2', st: 'maintenance', ping: null, games: 88, auth: 'API Key', sync: '2026-06-01 22:00' },
-  { n: 'Platipus', ep: 'https://api.platipus.com/v1', st: 'connected', ping: 44, games: 102, auth: 'JWT', sync: '2026-06-02 11:20' },
-  { n: 'Spribe', ep: 'https://api.spribe.co/v1', st: 'disconnected', ping: null, games: 12, auth: 'API Key', sync: '2026-05-30 09:15' },
-  { n: 'Relax Gaming', ep: 'https://api.relaxgaming.com/v2', st: 'connected', ping: 28, games: 176, auth: 'OAuth 2.0', sync: '2026-06-02 14:00' },
-  { n: 'Evoplay', ep: 'https://api.evoplay.games/v1', st: 'connected', ping: 35, games: 133, auth: 'API Key', sync: '2026-06-02 10:45' },
-];
-
-const GapiPing = ({ p }) => (p == null ? <span className="rep-mut">—</span> : <span className={`api-ping-${p < 30 ? 'fast' : 'slow'}`}>{p}ms</span>);
-const GapiStChip = ({ s }) => <span className={`api-st st-${s}`}>{s}</span>;
-
+// Real game-aggregator API config — credentials saved to backend settings,
+// catalog import pulls the upstream provider into the local games collection.
 export default function GamesApi() {
   const { toast } = useUI();
-  const [providers, setProviders] = useState(INITIAL_GAPIQ);
-  const [query, setQuery] = useState('');
-  const [stat, setStat] = useState('all');
-  const [out, setOut] = useState(null);
-  const [prov, setProv] = useState('');
-  const [action, setAction] = useState('Ping / Health Check');
-  const [param, setParam] = useState('');
+  const [form, setForm] = useState({ baseUrl: '', apiKey: '', apiSecret: '', environment: 'development' });
+  const [secretSet, setSecretSet] = useState(false);
+  const [status, setStatus] = useState(null); // {provider, configured, environment}
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [testOut, setTestOut] = useState(null);
 
-  const conn = providers.filter((p) => p.st === 'connected').length;
-  const disc = providers.filter((p) => p.st === 'disconnected').length;
-  const totalGames = providers.reduce((s, p) => s + p.games, 0);
-  const pings = providers.filter((p) => p.ping != null);
-  const avgPing = Math.round(pings.reduce((s, p) => s + p.ping, 0) / pings.length);
+  const load = () => Promise.all([
+    getSettings(),
+    api.get('/aggregator/status').then((r) => r.data).catch(() => null),
+  ]).then(([s, st]) => {
+    setForm({ baseUrl: s?.baseUrl || '', apiKey: s?.apiKey || '', apiSecret: '', environment: s?.environment || 'development' });
+    setSecretSet(!!s?.apiSecretSet);
+    setStatus(st);
+    setLoaded(true);
+  }).catch((e) => { setLoaded(true); toast('⚠ ' + (e.message || 'Failed to load API settings')); });
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const q = query.toLowerCase();
-  const matches = useMemo(
-    () => providers.map((p, i) => ({ p, i })).filter(({ p }) =>
-      (stat === 'all' || p.st === stat) && (!q || p.n.toLowerCase().includes(q))),
-    [providers, stat, q]
-  );
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-  const refreshAll = () => {
-    setProviders((prev) => prev.map((p) => p.st === 'connected'
-      ? { ...p, ping: Math.round(Math.random() * 40 + 12), sync: '2026-06-02 ' + String(14 + Math.floor(Math.random() * 2)).padStart(2, '0') + ':' + String(Math.floor(Math.random() * 60)).padStart(2, '0') }
-      : p));
-    toast('All providers refreshed ↻ ' + providers.filter((p) => p.st === 'connected').length + ' connected');
+  const save = async () => {
+    setSaving(true);
+    try {
+      const patch = { baseUrl: form.baseUrl, apiKey: form.apiKey, environment: form.environment };
+      if (form.apiSecret) patch.apiSecret = form.apiSecret; // only overwrite when a new secret is typed
+      await updateSettings(patch);
+      toast('Aggregator API settings saved 💾');
+      load();
+    } catch (e) { toast('⚠ ' + (e.message || 'Save failed')); }
+    finally { setSaving(false); }
   };
-  const resync = (i) => {
-    const p = providers[i];
-    if (p.st === 'disconnected') { toast('Cannot sync — ' + p.n + ' is disconnected ❌'); return; }
-    setProviders((prev) => prev.map((x, idx) => idx === i
-      ? { ...x, sync: '2026-06-02 14:' + String(Math.floor(Math.random() * 60)).padStart(2, '0'), ping: x.st === 'connected' ? Math.round(Math.random() * 40 + 12) : x.ping }
-      : x));
-    toast('Re-synced ↻ ' + p.n + ' · ' + p.games + ' games');
-  };
-  const edit = (i) => toast('Edit provider ✏ ' + providers[i].n + ' · ' + providers[i].auth + ' · ' + providers[i].ep);
-  const quickTest = (i) => {
-    const p = providers[i]; const ok = p.st === 'connected';
-    toast((ok ? '⚡ Test OK — ' : '⚡ Test failed — ') + p.n + (ok ? ' · ' + (p.ping || 20) + 'ms' : ' · ' + p.st));
-  };
-  const add = () => toast('Add Provider — demo');
 
-  const runTest = () => {
-    if (!prov) { setOut(<span style={{ color: '#ff7b72' }}>{'// Please select a provider first'}</span>); return; }
-    const p = providers.find((x) => x.n === prov); const ms = (Math.random() * 40 + 12).toFixed(0);
-    if (p && p.st === 'disconnected') {
-      setOut(`✗ ${action} — ${prov}\nERROR: provider disconnected (HTTP 503)\nLast synced: ${p.sync}`);
-      toast('Test failed ✗ ' + prov + ' disconnected'); return;
-    }
-    setOut(`✓ ${action} — ${prov}\nHTTP 200 OK · ${ms}ms${param ? '\nparam: ' + param : ''}\n{\n  "provider": "${prov}",\n  "auth": "${p ? p.auth : 'API Key'}",\n  "games": ${p ? p.games : 0},\n  "status": "healthy"\n}`);
-    toast('Test passed ✓ ' + prov + ' · ' + ms + 'ms');
+  const test = async () => {
+    if (!form.baseUrl) { toast('⚠ Enter a Base URL first'); return; }
+    setTesting(true);
+    setTestOut(null);
+    try {
+      const r = await pingUrl(form.baseUrl);
+      if (r.ok) { setTestOut(`✓ ${form.baseUrl}\nHTTP ${r.status} · ${r.ms}ms — reachable`); toast(`Connection OK ✓ ${r.status} · ${r.ms}ms`); }
+      else { setTestOut(`✗ ${form.baseUrl}\n${r.error ? 'ERROR: ' + r.error : 'HTTP ' + r.status}${r.ms ? ' · ' + r.ms + 'ms' : ''}`); toast('⚠ Connection failed — ' + (r.error || 'HTTP ' + r.status)); }
+    } catch (e) { setTestOut('✗ ' + (e.message || 'Ping failed')); toast('⚠ ' + (e.message || 'Ping failed')); }
+    finally { setTesting(false); }
+  };
+
+  const importCatalog = async () => {
+    setImporting(true);
+    try {
+      const r = await api.post('/aggregator/import').then((x) => x.data);
+      toast(`Catalog imported 📥 ${r.provider}: ${r.imported} new · ${r.updated} updated · ${r.total} total`);
+      setTestOut(`✓ Import — ${r.provider}\nimported: ${r.imported}\nupdated: ${r.updated}\ncatalog total: ${r.total}`);
+    } catch (e) { toast('⚠ Import failed — ' + (e.message || 'error')); setTestOut('✗ Import failed\n' + (e.message || '')); }
+    finally { setImporting(false); }
   };
 
   return (
     <>
-      <div className="di-head"><div className="grow"><h1 className="hero-h">🎮 Games API</h1><div className="hero-sub" style={{ marginBottom: 0 }}>Manage game provider API integrations, credentials and connection health</div></div>
-        <div className="acts"><button className="di-btn dark" onClick={refreshAll}>↻ Refresh All</button><button className="di-btn gold" onClick={add}>＋ Add Provider</button></div></div>
+      <div className="page-head">
+        <div>
+          <h1 className="hero-h">🎮 Games API</h1>
+          <div className="hero-sub" style={{ marginBottom: 0 }}>Game aggregator integration — credentials, environment, connection test and catalog import</div>
+        </div>
+        <span className="pr" style={{ display: 'flex', gap: 8 }}>
+          <button className="mini-btn" disabled={testing} onClick={test}>{testing ? 'Testing…' : '⚡ Test Connection'}</button>
+          <button className="btn-search" disabled={importing} onClick={importCatalog}>{importing ? 'Importing…' : '📥 Import Catalog'}</button>
+        </span>
+      </div>
+
       <div className="grid kpi-grid">
-        <div className="card kpi b"><div className="lbl">Connected Providers</div><div className="val">{conn}</div><div className="trend" style={{ color: 'var(--muted)' }}>active integrations</div></div>
-        <div className="card kpi r"><div className="lbl">Disconnected</div><div className="val">{disc}</div><div className="trend" style={{ color: 'var(--muted)' }}>needs attention</div></div>
-        <div className="card kpi b"><div className="lbl">Total Games</div><div className="val">{totalGames.toLocaleString()}</div><div className="trend" style={{ color: 'var(--muted)' }}>across all providers</div></div>
-        <div className="card kpi" style={{ borderTopColor: '#9b30d9' }}><div className="lbl">Avg Response</div><div className="val">{avgPing}ms</div><div className="trend" style={{ color: 'var(--muted)' }}>API latency</div></div>
+        <div className="card kpi b"><div className="lbl">Provider</div><div className="val" style={{ fontSize: '1.3rem' }}>{status?.provider || '—'}</div><div className="trend" style={{ color: 'var(--muted)' }}>aggregator driver</div></div>
+        <div className="card kpi g"><div className="lbl">Configured</div><div className="val">{status ? (status.configured ? '✅' : '—') : '…'}</div><div className="trend" style={{ color: 'var(--muted)' }}>{status?.configured ? 'base URL set' : 'set base URL below'}</div></div>
+        <div className="card kpi"><div className="lbl">Environment</div><div className="val" style={{ fontSize: '1.3rem' }}>{status?.environment || form.environment}</div><div className="trend" style={{ color: 'var(--muted)' }}>active mode</div></div>
+        <div className="card kpi" style={{ borderTopColor: '#9b30d9' }}><div className="lbl">API Secret</div><div className="val">{secretSet ? '🔒' : '—'}</div><div className="trend" style={{ color: 'var(--muted)' }}>{secretSet ? 'stored (write-only)' : 'not set'}</div></div>
       </div>
-      <div className="di-card" style={{ marginTop: 'var(--pad)' }}>
-        <div className="api-tbar"><span className="t">🔌 Provider Connections</span><span className="sp"><input placeholder="Search provider…" value={query} onChange={(e) => setQuery(e.target.value)} /><select value={stat} onChange={(e) => setStat(e.target.value)}><option value="all">All Status</option><option value="connected">Connected</option><option value="maintenance">Maintenance</option><option value="disconnected">Disconnected</option></select></span></div>
-        <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}><table className="api-tbl" style={{ minWidth: '1100px' }}>
-          <thead><tr><th>Provider</th><th>API Endpoint</th><th>Status</th><th>Ping</th><th>Games</th><th>Auth Type</th><th>Last Synced</th><th>Actions</th></tr></thead>
-          <tbody>{matches.length ? matches.map(({ p, i }) => (
-            <tr key={i}>
-              <td className="api-name">🎮 {p.n}</td>
-              <td className="api-ep">{p.ep}</td>
-              <td><GapiStChip s={p.st} /></td>
-              <td><GapiPing p={p.ping} /></td>
-              <td style={{ fontWeight: 800 }}>{p.games}</td>
-              <td className="rep-mut">{p.auth}</td>
-              <td className="rep-mut" style={{ fontFamily: "'Roboto Mono','Courier New',ui-monospace,monospace", fontSize: '.72rem' }}>{p.sync}</td>
-              <td><span className="api-act" title="Test connection" onClick={() => quickTest(i)}>⚡</span><span className="api-act" title="Re-sync" onClick={() => resync(i)}>↻</span><span className="api-act edit" title="Edit" onClick={() => edit(i)}>✏</span></td>
-            </tr>
-          )) : <tr><td colSpan="8" style={{ textAlign: 'center', color: 'var(--muted)', padding: '22px' }}>No providers match this filter</td></tr>}</tbody>
-        </table></div>
+
+      <div className="card" style={{ marginTop: 'var(--pad)' }}>
+        <div className="card-title">🔌 Aggregator Credentials</div>
+        {!loaded ? <div style={{ textAlign: 'center', color: 'var(--muted)', padding: 26 }}>Loading…</div> : (
+          <>
+            <div className="pm-grid" style={{ gridTemplateColumns: '2fr 1fr' }}>
+              <div className="pm-fld"><label>Base URL</label>
+                <input value={form.baseUrl} onChange={(e) => set('baseUrl', e.target.value)} placeholder="https://api.aggregator.example/v1" /></div>
+              <div className="pm-fld"><label>Environment</label>
+                <select value={form.environment} onChange={(e) => set('environment', e.target.value)}>
+                  <option value="development">Development</option>
+                  <option value="production">Production</option>
+                </select>
+              </div>
+            </div>
+            <div className="pm-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: 10 }}>
+              <div className="pm-fld"><label>API Key</label>
+                <input value={form.apiKey} onChange={(e) => set('apiKey', e.target.value)} placeholder="pk_…" /></div>
+              <div className="pm-fld"><label>API Secret {secretSet && <span style={{ color: 'var(--muted)' }}>(stored — leave blank to keep)</span>}</label>
+                <input type="password" value={form.apiSecret} onChange={(e) => set('apiSecret', e.target.value)} placeholder={secretSet ? '••••••••' : 'sk_…'} /></div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+              <button className="btn-pm-save" disabled={saving} onClick={save}>{saving ? 'Saving…' : '💾 Save Settings'}</button>
+            </div>
+          </>
+        )}
       </div>
-      <div className="api-console">
-        <div className="ach">🧪 API Test Console</div>
+
+      <div className="api-console" style={{ marginTop: 'var(--pad)' }}>
+        <div className="ach">🧪 Connection / Import Output</div>
         <div className="abody">
-          <div className="left">
-            <select value={prov} onChange={(e) => setProv(e.target.value)}><option value="">Select Provider…</option>{providers.map((p, i) => <option key={i}>{p.n}</option>)}</select>
-            <select value={action} onChange={(e) => setAction(e.target.value)}><option>Ping / Health Check</option><option>Fetch Game List</option><option>Validate Credentials</option><option>Launch Session (test)</option></select>
-            <input placeholder="Optional param (e.g. game_id, user_id)…" value={param} onChange={(e) => setParam(e.target.value)} />
-            <button className="runbtn" onClick={runTest}>▶ Run Test</button>
+          <div className="api-out" style={{ width: '100%' }}>
+            {testOut == null
+              ? <span className="muted">{'// Run ⚡ Test Connection or 📥 Import Catalog to see results here'}</span>
+              : testOut}
           </div>
-          <div className="api-out">{out == null ? <span className="muted">{'// Select a provider and action, then click Run Test'}</span> : out}</div>
         </div>
       </div>
     </>

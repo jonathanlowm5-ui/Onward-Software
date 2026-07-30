@@ -32,75 +32,82 @@ if (!fs.existsSync(DB_PATH)) {
   writeRaw({ games: [], banners: [], promotions: [], settings: {}, users: [] });
 }
 
+// The whole DB lives in memory; disk writes are debounced so bulk operations
+// (like importing thousands of games) don't rewrite the file per record.
+const DB = readRaw();
+let flushTimer = null;
+function flush() {
+  if (flushTimer) return;
+  flushTimer = setTimeout(() => { flushTimer = null; try { writeRaw(DB); } catch (e) { console.error('[store] flush', e.message); } }, 200);
+}
+process.on('exit', () => { try { if (flushTimer) writeRaw(DB); } catch { /* ignore */ } });
+process.on('SIGINT', () => process.exit(0));
+process.on('SIGTERM', () => process.exit(0));
+
 const now = () => new Date().toISOString();
 const newId = () => crypto.randomUUID();
 
 const store = {
   // ---- collections (games / banners / promotions) ----
   list(collection) {
-    return readRaw()[collection] || [];
+    return DB[collection] || [];
   },
 
   get(collection, id) {
-    return (readRaw()[collection] || []).find((r) => r.id === id) || null;
+    return (DB[collection] || []).find((r) => r.id === id) || null;
   },
 
   insert(collection, data) {
-    const db = readRaw();
     const record = { id: newId(), ...data, createdAt: now(), updatedAt: now() };
-    db[collection] = db[collection] || [];
-    db[collection].push(record);
-    writeRaw(db);
+    DB[collection] = DB[collection] || [];
+    DB[collection].push(record);
+    flush();
     return record;
   },
 
   update(collection, id, patch) {
-    const db = readRaw();
-    const list = db[collection] || [];
+    const list = DB[collection] || [];
     const i = list.findIndex((r) => r.id === id);
     if (i === -1) return null;
     list[i] = { ...list[i], ...patch, id, updatedAt: now() };
-    writeRaw(db);
+    flush();
     return list[i];
   },
 
   remove(collection, id) {
-    const db = readRaw();
-    const list = db[collection] || [];
+    const list = DB[collection] || [];
     const i = list.findIndex((r) => r.id === id);
     if (i === -1) return false;
     list.splice(i, 1);
-    writeRaw(db);
+    flush();
     return true;
   },
 
   // ---- settings (single object: API configuration) ----
   getSettings() {
-    return readRaw().settings || {};
+    return DB.settings || {};
   },
 
   saveSettings(patch) {
-    const db = readRaw();
-    db.settings = { ...db.settings, ...patch, updatedAt: now() };
-    writeRaw(db);
-    return db.settings;
+    DB.settings = { ...DB.settings, ...patch, updatedAt: now() };
+    flush();
+    return DB.settings;
   },
 
   // ---- users (admin auth) ----
   findUser(username) {
-    return (readRaw().users || []).find((u) => u.username === username) || null;
+    return (DB.users || []).find((u) => u.username === username) || null;
   },
 
   insertUser(user) {
-    const db = readRaw();
-    db.users = db.users || [];
-    db.users.push(user);
-    writeRaw(db);
+    DB.users = DB.users || [];
+    DB.users.push(user);
+    flush();
     return user;
   },
 
-  raw: readRaw,
-  save: writeRaw,
+  raw: () => DB,
+  save: () => writeRaw(DB),
 };
 
 module.exports = store;

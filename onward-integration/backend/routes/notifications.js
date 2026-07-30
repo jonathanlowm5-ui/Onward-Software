@@ -15,6 +15,7 @@
 const express = require('express');
 const store = require('../store');
 const { requireAuth } = require('../auth');
+const { requirePerm } = require('../permissions');
 
 const router = express.Router();
 const COLLECTION = 'notifications';
@@ -35,7 +36,7 @@ router.get('/', (req, res, next) => {
   });
 });
 
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, requirePerm('content.manage'), (req, res) => {
   const b = req.body || {};
   res.status(201).json(store.insert(COLLECTION, {
     title: String(b.title || '').trim(),
@@ -45,12 +46,12 @@ router.post('/', requireAuth, (req, res) => {
   }));
 });
 
-router.delete('/:id', requireAuth, (req, res) => {
+router.delete('/:id', requireAuth, requirePerm('content.manage'), (req, res) => {
   if (!store.remove(COLLECTION, req.params.id)) return res.status(404).json({ error: 'Not found' });
   res.json({ ok: true });
 });
 
-router.post('/:id/send', requireAuth, (req, res) => {
+router.post('/:id/send', requireAuth, requirePerm('content.manage'), (req, res) => {
   const n = store.get(COLLECTION, req.params.id);
   if (!n) return res.status(404).json({ error: 'Not found' });
   res.json(store.update(COLLECTION, req.params.id, { status: 'sent', sentAt: new Date().toISOString() }));

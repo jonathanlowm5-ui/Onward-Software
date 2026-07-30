@@ -90,6 +90,41 @@ module.exports = function seed() {
     console.log(`Seeded ${promos.length} demo promotions (1 intentionally expired)`);
   }
 
+  // ---- one-time: add the built-in showcase bonuses/reloads as REAL, editable
+  // promotions so admins can manage them and upload banners. Guarded by a flag
+  // so deleting one in the admin won't make it come back; also skips any title
+  // that already exists to avoid duplicates. ----
+  const _ps = store.getSettings();
+  if (!_ps.showcasePromosSeededV1) {
+    const SHOWCASE = [
+      { title: '1st Deposit Bonus', type: 'deposit', description: '125% UP TO ₱3,970\n+100 FREE SPINS', bonus: '125%', maxBonus: '₱3,970', minDeposit: '₱500', wager: '30x', turnover: '0x' },
+      { title: '2nd Deposit Bonus', type: 'deposit', description: '100% UP TO ₱1,980\n+25 FREE SPINS', bonus: '100%', maxBonus: '₱1,980', minDeposit: '₱500', wager: '30x', turnover: '0x' },
+      { title: '3rd Deposit Bonus', type: 'deposit', description: '75% UP TO ₱5,950\n+50 FREE SPINS', bonus: '75%', maxBonus: '₱5,950', minDeposit: '₱500', wager: '35x', turnover: '0x' },
+      { title: '4th Deposit Bonus', type: 'deposit', description: '200% UP TO ₱7,940\n+25 FREE SPINS', bonus: '200%', maxBonus: '₱7,940', minDeposit: '₱1,000', wager: '40x', turnover: '0x' },
+      { title: 'Weekend Reload', type: 'deposit', description: '50% UP TO ₱5,000\n+55 FREE SPINS', bonus: '50%', maxBonus: '₱5,000', minDeposit: '₱500', wager: '25x', turnover: '0x' },
+      { title: 'Weekly Cashback', type: 'cashback', description: '10% CASHBACK\nEVERY WEEK', bonus: '10%', maxBonus: '₱20,000', minDeposit: '₱0', wager: '5x', turnover: '0x' },
+      { title: 'Monday Reload', type: 'reload', description: '50% UP TO ₱3,000\n+30 FREE SPINS', bonus: '50%', maxBonus: '₱3,000', minDeposit: '₱300', wager: '30x', turnover: '0x' },
+      { title: 'Daily Reload', type: 'reload', description: '30% UP TO ₱2,000\nEVERY DAY', bonus: '30%', maxBonus: '₱2,000', minDeposit: '₱200', wager: '25x', turnover: '0x' },
+      { title: 'Weekend Special', type: 'reload', description: '75% UP TO ₱8,000\nSAT & SUN ONLY', bonus: '75%', maxBonus: '₱8,000', minDeposit: '₱500', wager: '35x', turnover: '0x' },
+    ];
+    const have = store.list('promotions');
+    let order = have.length;
+    let added = 0;
+    SHOWCASE.forEach((p) => {
+      const dup = have.some((x) => String(x.title || '').trim().toLowerCase() === p.title.toLowerCase());
+      if (dup) return;
+      store.insert('promotions', {
+        image: '', banners: {}, currency: '', country: '',
+        startDate: '', endDate: '', status: 'active',
+        buttonText: 'Claim Now', buttonLink: '/deposit',
+        sortOrder: order++, ...p,
+      });
+      added += 1;
+    });
+    store.saveSettings({ showcasePromosSeededV1: true });
+    console.log(`Seeded ${added} showcase promotions into backend`);
+  }
+
   // ---- one-time wipe of all demo/test players ----
   // Requested clean slate before real test players are created. Deletes every
   // player and their related records, once (guarded by a flag), then future
@@ -107,6 +142,118 @@ module.exports = function seed() {
     });
     if (all.length) console.log(`Wiped ${all.length} demo/test player(s) and related data`);
     store.saveSettings({ playersWipedV1: true, demoPlayerRemoved: true });
+  }
+
+  // ---- sample missions (once, and only while none exist) ----
+  {
+    const st = store.getSettings();
+    if (!st.missionSamplesSeededV1 && !(Array.isArray(st.missions) && st.missions.length)) {
+      const fs2 = (n) => ({ target: String(n.t), reward: n.r });
+      store.saveSettings({
+        missions: [
+          { id: 'm-login7', enabled: true, icon: '🔥', title: 'Daily Login Streak', desc: 'Log in every day to climb the ladder', type: 'login', target: '', reward: '', duration: '7 days',
+            tiers: [{ t: 1, r: '2 FS' }, { t: 2, r: '2 FS' }, { t: 3, r: '5 FS' }, { t: 4, r: '5 FS' }, { t: 5, r: '10 FS' }, { t: 6, r: '10 FS' }, { t: 7, r: '₱50' }].map(fs2) },
+          { id: 'm-deposit-ladder', enabled: true, icon: '💰', title: 'Deposit Ladder', desc: 'Deposit more, earn more', type: 'deposit', target: '', reward: '', duration: 'Ongoing',
+            tiers: [{ t: '₱1,000', r: 'Free 10' }, { t: '₱2,000', r: 'Free 20' }, { t: '₱5,000', r: 'Free 50' }, { t: '₱10,000', r: '₱100' }].map((x) => ({ target: String(x.t), reward: x.r })) },
+          { id: 'm-first-deposit', enabled: true, icon: '💳', title: 'First Deposit', desc: 'Make your first deposit', type: 'deposit', target: '1', reward: '50 FS', duration: 'Once', tiers: [] },
+          { id: 'm-wager-ladder', enabled: true, icon: '🎲', title: 'Weekly Wager', desc: 'Wager to unlock rewards', type: 'wager', target: '', reward: '', duration: '7 days',
+            tiers: [{ t: '₱1,000', r: 'Free 10' }, { t: '₱2,000', r: 'Free 20' }, { t: '₱5,000', r: 'Free 50' }].map((x) => ({ target: String(x.t), reward: x.r })) },
+          { id: 'm-referral', enabled: true, icon: '🤝', title: 'Refer a Friend', desc: 'Invite 1 friend who registers', type: 'referral', target: '1', reward: '₱150', duration: 'Ongoing', tiers: [] },
+        ],
+        missionSamplesSeededV1: true,
+      });
+      console.log('Seeded 5 sample missions');
+    }
+  }
+
+  // ---- one-time: restore the default top-banner buttons ----
+  // A partial save left a single bare button in settings.topButtons; clearing
+  // the override makes /api/top-buttons serve its built-in defaults again
+  // (Promotions + Giveaway on; Casino/Sport/Rewards off, ready to enable).
+  {
+    const st = store.getSettings();
+    if (!st.topButtonsDefaultV1) {
+      if (Array.isArray(st.topButtons) && st.topButtons.length < 2) {
+        store.saveSettings({ topButtons: [], topButtonsDefaultV1: true });
+        console.log('Reset top-banner buttons to defaults');
+      } else {
+        store.saveSettings({ topButtonsDefaultV1: true });
+      }
+    }
+  }
+
+  // ---- demo player for testing the agent application flow ----
+  // Fully verified (email + mobile + approved KYC) so the Agent page shows the
+  // application form immediately. Login: demoagent / Demo1234
+  {
+    const st = store.getSettings();
+    const exists = store.list('players').some((p) => (p.username || '').toLowerCase() === 'demoagent');
+    if (!st.demoAgentSeededV1 && !exists) {
+      const { generatePlayerCode } = require('./playerUtils');
+      const demo = store.insert('players', {
+        playerCode: generatePlayerCode(store, 'PHP'),
+        username: 'demoagent',
+        email: 'demoagent@onward.test',
+        fullName: 'Demo Agent',
+        phone: '+639170000001',
+        currency: 'PHP',
+        dob: '1990-01-01',
+        country: 'PH',
+        referralCode: '',
+        passwordHash: bcrypt.hashSync('Demo1234', 10),
+        role: 'player',
+        status: 'active',
+        balance: 0,
+        bonus: 0,
+        kyc_status: 'approved',
+        kycBonusGiven: true, // don't hand the demo account the KYC bonus
+        emailVerified: true,
+        mobileVerified: true,
+        twoFactorEnabled: false,
+        vipLevel: 0,
+      });
+      // Bound bank account so the withdrawal-setup modal doesn't block the demo.
+      store.insert('bank_accounts', {
+        playerId: demo.id, bankName: 'GCash', holder: 'Demo Agent',
+        accountNumber: '09170000001', status: 'active',
+      });
+      store.saveSettings({ demoAgentSeededV1: true });
+      console.log('Seeded demo agent-flow player (demoagent / Demo1234)');
+    }
+  }
+
+  // ---- heibao game catalogue (4,995 games with hosted webp icons) ----
+  // Imported in chunks per boot so a single cold start never fires thousands
+  // of Firestore writes; matched by externalId so it self-heals until done.
+  {
+    const st = store.getSettings();
+    if (!st.heibaoImportDoneV2) {
+      const { importMissing } = require('./heibaoImport');
+      const chunk = Number(process.env.HEIBAO_IMPORT_CHUNK || 1500);
+      const r = importMissing(chunk);
+      if (r.imported || r.updated) console.log(`heibao: +${r.imported} new, ${r.updated} updated (${r.remaining} remaining of ${r.total})`);
+      if (r.total > 0 && r.remaining === 0) store.saveSettings({ heibaoImportDoneV2: true });
+    }
+  }
+
+  // ---- one-time: retire the legacy showcase games ----
+  // The original-site seed games carry low-res / mismatched artwork and sort
+  // first on the Slots page. Disable every game that isn't from the heibao
+  // catalogue (admins can re-enable any of them in Game List).
+  {
+    const st = store.getSettings();
+    if (!st.legacyGamesDisabledV1) {
+      let disabled = 0;
+      for (const g of store.list('games')) {
+        const isHb = typeof g.externalId === 'string' && g.externalId.startsWith('hb:');
+        if (!isHb && g.enabled !== false) {
+          store.update('games', g.id, { enabled: false, note: 'legacy showcase art — retired' });
+          disabled += 1;
+        }
+      }
+      if (disabled) console.log(`Disabled ${disabled} legacy showcase games`);
+      store.saveSettings({ legacyGamesDisabledV1: true });
+    }
   }
 
   // ---- default API configuration ----

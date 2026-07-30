@@ -4,46 +4,13 @@ import { useLocation } from 'react-router-dom';
 import { useUI } from '../context/UIContext';
 import { useAuth } from '../context/AuthContext';
 import useSectionNav from '../hooks/useSectionNav';
+import useWelcomePromo from '../hooks/useWelcomePromo';
+import { resolvePromoBanner } from '../utils/promoTerms';
 import * as playersService from '../services/playersService';
+import api from '../services/api';
 
 /* ── Sample data mirroring the original inline JS ── */
-const GH_DEMO = [
-  { id: 'TXN-8841923', game: 'Gates of Olympus', provider: 'Pragmatic Play', cat: 'slots', wager: 200, win: 480, date: '2025-06-10 14:12' },
-  { id: 'TXN-8841755', game: 'Lightning Roulette', provider: 'Evolution', cat: 'live', wager: 150, win: 0, date: '2025-06-10 13:48' },
-  { id: 'TXN-8841612', game: 'Sweet Bonanza', provider: 'Pragmatic Play', cat: 'slots', wager: 100, win: 220, date: '2025-06-10 12:30' },
-  { id: 'TXN-8840988', game: 'Premier League', provider: '1xBet Sports', cat: 'sports', wager: 500, win: 950, date: '2025-06-10 10:05' },
-  { id: 'TXN-8840722', game: 'Aviator', provider: 'Spribe', cat: 'crash', wager: 300, win: 0, date: '2025-06-09 22:17' },
-  { id: 'TXN-8840511', game: 'Dragon Tiger', provider: 'Evolution', cat: 'live', wager: 200, win: 380, date: '2025-06-09 21:44' },
-  { id: 'TXN-8840303', game: 'Buffalo King', provider: 'Pragmatic Play', cat: 'slots', wager: 100, win: 0, date: '2025-06-09 20:30' },
-  { id: 'TXN-8840120', game: 'Ocean King 3', provider: 'IGS', cat: 'fish', wager: 250, win: 410, date: '2025-06-09 19:55' },
-  { id: 'TXN-8839804', game: 'Baccarat Live', provider: 'Evolution', cat: 'live', wager: 500, win: 490, date: '2025-06-09 18:22' },
-  { id: 'TXN-8839601', game: 'Mines', provider: 'Spribe', cat: 'crash', wager: 150, win: 315, date: '2025-06-09 17:10' },
-  { id: 'TXN-8839344', game: 'Big Bass Bonanza', provider: 'Pragmatic Play', cat: 'slots', wager: 200, win: 0, date: '2025-06-09 16:05' },
-  { id: 'TXN-8839102', game: "Caishen's Gold Fish", provider: 'CQ9', cat: 'fish', wager: 300, win: 540, date: '2025-06-09 15:20' },
-  { id: 'TXN-8838890', game: 'Book of Dead', provider: "Play'n GO", cat: 'slots', wager: 100, win: 180, date: '2025-06-09 14:44' },
-  { id: 'TXN-8838611', game: 'Crazy Time', provider: 'Evolution', cat: 'live', wager: 200, win: 0, date: '2025-06-09 13:30' },
-  { id: 'TXN-8838402', game: 'Limbo', provider: 'Spribe', cat: 'crash', wager: 100, win: 0, date: '2025-06-09 12:15' },
-  { id: 'TXN-8838200', game: 'Wolf Gold', provider: 'Pragmatic Play', cat: 'slots', wager: 150, win: 200, date: '2025-06-09 11:00' },
-  { id: 'TXN-8837991', game: 'NBA Finals Bet', provider: '1xBet Sports', cat: 'sports', wager: 600, win: 0, date: '2025-06-09 10:30' },
-  { id: 'TXN-8837744', game: 'Gonzos Quest', provider: 'NetEnt', cat: 'slots', wager: 200, win: 440, date: '2025-06-09 09:12' },
-  { id: 'TXN-8837522', game: 'Dragon Fishing', provider: 'KA Gaming', cat: 'fish', wager: 400, win: 0, date: '2025-06-08 23:45' },
-  { id: 'TXN-8837301', game: 'Blackjack Pro', provider: 'Evolution', cat: 'live', wager: 300, win: 580, date: '2025-06-08 22:10' },
-  { id: 'TXN-8837100', game: 'Plinko', provider: 'Spribe', cat: 'crash', wager: 100, win: 190, date: '2025-06-08 21:30' },
-  { id: 'TXN-8836880', game: 'The Dog House', provider: 'Pragmatic Play', cat: 'slots', wager: 150, win: 0, date: '2025-06-08 20:15' },
-  { id: 'TXN-8836611', game: 'Fishing War', provider: 'CGQ', cat: 'fish', wager: 200, win: 350, date: '2025-06-08 19:00' },
-  { id: 'TXN-8836400', game: 'Speed Baccarat', provider: 'Evolution', cat: 'live', wager: 500, win: 460, date: '2025-06-08 18:20' },
-];
 
-const WAGER_DATA = {
-  bonusAmount: 4000,
-  multiplier: 20,
-  wagered: 7360,
-  promos: [
-    { name: '200% Welcome Bonus', amount: 4000, type: 'welcome', date: '2025-06-09', multiplier: 20, wagered: 7360, required: 20000, status: 'active' },
-    { name: 'Weekly Cashback 5%', amount: 185, type: 'cashback', date: '2025-06-08', multiplier: 1, wagered: 185, required: 185, status: 'completed' },
-    { name: 'Monday Reload 50%', amount: 500, type: 'reload', date: '2025-06-02', multiplier: 10, wagered: 5000, required: 5000, status: 'completed' },
-  ],
-};
 const PTYPE = {
   welcome: { icon: '🎁', color: '#4ade80' },
   cashback: { icon: '💰', color: '#a78bfa' },
@@ -51,26 +18,6 @@ const PTYPE = {
   referral: { icon: '👥', color: '#34d399' },
 };
 
-const TX_DEMO = [
-  { date: '2025-06-10 14:32', type: 'deposit', desc: 'GCash Deposit', amount: +2000, status: 'completed' },
-  { date: '2025-06-10 09:15', type: 'referral', desc: 'Referral Commission — juan***', amount: +250, status: 'completed' },
-  { date: '2025-06-09 21:48', type: 'cashback', desc: 'Weekly Cashback 5%', amount: +185, status: 'completed' },
-  { date: '2025-06-09 18:03', type: 'withdrawal', desc: 'Bank Withdrawal', amount: -1500, status: 'completed' },
-  { date: '2025-06-09 12:22', type: 'promotion', desc: '200% Welcome Bonus', amount: +4000, status: 'completed' },
-  { date: '2025-06-08 20:11', type: 'rebate', desc: 'Slots Rebate 0.8%', amount: +96, status: 'completed' },
-  { date: '2025-06-08 15:44', type: 'deposit', desc: 'Maya Deposit', amount: +1000, status: 'completed' },
-  { date: '2025-06-08 11:30', type: 'referral', desc: 'Referral Commission — maria***', amount: +150, status: 'completed' },
-  { date: '2025-06-07 22:05', type: 'cashback', desc: 'Daily Cashback 3%', amount: +60, status: 'completed' },
-  { date: '2025-06-07 17:19', type: 'withdrawal', desc: 'GCash Withdrawal', amount: -700, status: 'completed' },
-  { date: '2025-06-07 10:08', type: 'promotion', desc: 'Reload Bonus Monday 50%', amount: +500, status: 'completed' },
-  { date: '2025-06-06 23:55', type: 'rebate', desc: 'Live Casino Rebate 0.5%', amount: +43, status: 'completed' },
-  { date: '2025-06-06 16:30', type: 'deposit', desc: 'USDT Deposit', amount: +3000, status: 'completed' },
-  { date: '2025-06-06 09:00', type: 'referral', desc: 'Referral Commission — pedro***', amount: +320, status: 'completed' },
-  { date: '2025-06-05 20:45', type: 'cashback', desc: 'Weekend Cashback 8%', amount: +416, status: 'completed' },
-  { date: '2025-06-05 14:10', type: 'deposit', desc: 'Bank Transfer', amount: +1500, status: 'pending' },
-  { date: '2025-06-04 19:20', type: 'withdrawal', desc: 'Bank Withdrawal', amount: -1000, status: 'processing' },
-  { date: '2025-06-04 11:05', type: 'promotion', desc: 'Free Spin Winnings', amount: +280, status: 'completed' },
-];
 const TX_TYPE_STYLE = {
   deposit: { icon: '💳', color: '#4ade80', label: 'Deposit' },
   withdrawal: { icon: '💸', color: '#f87171', label: 'Withdrawal' },
@@ -85,25 +32,6 @@ const TX_STATUS_STYLE = {
   processing: { color: '#38bdf8', label: 'Processing' },
 };
 
-const AG_MEMBERS_DATA = [
-  { name: 'juan***', deposit: 85000, winloss: -22400, status: 'active' },
-  { name: 'maria***', deposit: 32000, winloss: -8400, status: 'active' },
-  { name: 'pedro***', deposit: 420000, winloss: -98000, status: 'active' },
-  { name: 'lea***', deposit: 8500, winloss: 12000, status: 'active' },
-  { name: 'carlos***', deposit: 3000, winloss: -800, status: 'pending' },
-];
-const AG_REPORT_ROWS = [
-  { label: 'Total Player Losses', thisMonth: 180000, lastMonth: 152000 },
-  { label: 'Total Player Wins', thisMonth: 156000, lastMonth: 133000 },
-  { label: 'Gross Win/Loss', thisMonth: 24000, lastMonth: 19000 },
-  { label: '(-) Promo Deduction 5%', thisMonth: -1200, lastMonth: -950 },
-  { label: '(-) Platform Fee 3%', thisMonth: -720, lastMonth: -570 },
-  { label: '(-) Game Provider 2%', thisMonth: -480, lastMonth: -380 },
-  { label: '(-) Payment Fee 1%', thisMonth: -240, lastMonth: -190 },
-  { label: 'Net Profit', thisMonth: 21360, lastMonth: 16910 },
-  { label: 'Your Share (30%)', thisMonth: 6408, lastMonth: 5073 },
-];
-
 const peso = (v, frac = 0) => '₱' + v.toLocaleString('en', { minimumFractionDigits: frac });
 
 /* ════════════════════════════════════════════ */
@@ -115,6 +43,10 @@ const curSym = (c) => CUR_SYM[c] || c || '₱';
 export default function Profile() {
   const { openModal, toast } = useUI();
   const { profile, isLoggedIn, loading, logout, updateProfile } = useAuth();
+  // Same promotion artwork as the deposit modal / Promotions page sits behind
+  // the "activated bonus" card.
+  const welcomePromo = useWelcomePromo();
+  const welcomeBonusBanner = resolvePromoBanner(welcomePromo || {}, profile?.currency);
   const avatarRef = useRef(null);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const onAvatarPick = async (e) => {
@@ -151,6 +83,18 @@ export default function Profile() {
   // the page switches to that panel full-width (CSS keys off `.drilled`).
   const [drilled, setDrilled] = useState(false);
   const openSection = (section) => { setNav(section); setDrilled(true); };
+
+  // Real referral code for the "share promocode" card (the player's own code).
+  const [refCode, setRefCode] = useState('');
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    api.get('/player/referral').then((r) => setRefCode(r.data?.code || '')).catch(() => {});
+  }, [isLoggedIn]);
+  const copyRefCode = async () => {
+    if (!refCode) return;
+    try { await navigator.clipboard.writeText(refCode); toast('Promocode copied!', 'success'); }
+    catch { toast(refCode, 'info'); }
+  };
 
   // Open a specific section when arriving from the avatar dropdown
   // (e.g. "Game History" -> history panel).
@@ -239,25 +183,38 @@ export default function Profile() {
                 <div className="prof-referral-title" data-i18n="ref_tagline">They join, they win – all thanks to you</div>
                 <div className="prof-referral-sub" data-i18n="ref_friend_gift">Give your friend a gift! A special welcome bonus to start with.</div>
               </div>
-              <button className="prof-referral-btn" data-i18n="ref_invite_btn">🎁 Invite a Friend</button>
+              <button className="prof-referral-btn" onClick={() => go('referral')} data-i18n="ref_invite_btn">🎁 Invite a Friend</button>
             </div>
             <div className="prof-promo-create">
-              <div className="prof-promo-label" data-i18n="ref_create_code">Create and share promocode</div>
-              <div className="prof-promo-desc" data-i18n="ref_promo_rules">You can use letters of the Latin alphabet and numbers from 0 to 9. The length of the promocode must be from 6 to 20 characters.</div>
+              <div className="prof-promo-label" data-i18n="ref_create_code">Share your promocode</div>
+              <div className="prof-promo-desc" data-i18n="ref_promo_rules">Share this code with friends — when they register with it, they join your referral network and you both earn rewards.</div>
               <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }} data-i18n="ref_your_code">Your promocode</div>
               <div className="prof-promo-input-row">
-                <input type="text" placeholder="Create promocode" className="prof-promo-input" maxLength="20" data-i18n-placeholder="ref_create_code_ph" />
-                <button className="prof-promo-save" onClick={() => toast('Promocode saved!', 'success')} data-i18n="ui_save">SAVE</button>
+                <input type="text" className="prof-promo-input" value={refCode || '—'} readOnly />
+                <button className="prof-promo-save" onClick={copyRefCode} data-i18n="ui_copy">COPY</button>
               </div>
             </div>
           </div>
 
-          {/* Active bonus card */}
+          {/* Active bonus card — banner region matches the promotions banner
+              proportion (1200/425); the MORE INFO button stays below it. */}
           <div className="prof-bonus-card">
-            <div className="prof-bonus-activated" data-i18n="promo_activated">ACTIVATED</div>
-            <div className="prof-bonus-title" data-i18n="prof_bonus_1st">1ST DEPOSIT BONUS</div>
-            <div className="prof-bonus-sub">125% UP TO 61.51K ₱<br />+100 FREE SPINS</div>
-            <div className="prof-bonus-deco">125%</div>
+            {welcomeBonusBanner ? (
+              <div className="prof-bonus-banner" style={{ backgroundImage: `url(${welcomeBonusBanner})` }}>
+                <div className="prof-bonus-banner-text">
+                  <div className="prof-bonus-activated" data-i18n="promo_activated">ACTIVATED</div>
+                  <div className="prof-bonus-title" data-i18n="prof_bonus_1st">1ST DEPOSIT BONUS</div>
+                  <div className="prof-bonus-sub">125% UP TO 61.51K ₱<br />+100 FREE SPINS</div>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="prof-bonus-activated" data-i18n="promo_activated">ACTIVATED</div>
+                <div className="prof-bonus-title" data-i18n="prof_bonus_1st">1ST DEPOSIT BONUS</div>
+                <div className="prof-bonus-sub">125% UP TO 61.51K ₱<br />+100 FREE SPINS</div>
+                <div className="prof-bonus-deco">125%</div>
+              </>
+            )}
             <button className="prof-bonus-more" onClick={() => go('promos')} data-i18n="ui_more_info">MORE INFO</button>
           </div>
 
@@ -311,9 +268,11 @@ function ProfTab({ id, label, icon, i18n, tab, setTab }) {
 }
 
 /* Reusable toggle preserving the original `.prof-toggle`/`.on` behaviour. */
-function Toggle({ initialOn = false }) {
+function Toggle({ initialOn = false, checked, onChange }) {
   const [on, setOn] = useState(initialOn);
-  return <div className={'prof-toggle' + (on ? ' on' : '')} onClick={() => setOn((v) => !v)}></div>;
+  const value = checked !== undefined ? checked : on;
+  const flip = () => { const next = !value; if (checked === undefined) setOn(next); onChange?.(next); };
+  return <div className={'prof-toggle' + (value ? ' on' : '')} onClick={flip}></div>;
 }
 
 /* ── SECURITY TAB (live: verify email/mobile, change password, 2FA) ── */
@@ -780,14 +739,38 @@ function BankTab({ show, toast }) {
 
 /* ── PROVABLY FAIR TAB ── */
 function ProvablyTab({ show, toast }) {
+  const [seeds, setSeeds] = useState(null); // { clientSeed, serverSeedHash, previousServerSeed, rotatedAt }
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!show) return;
+    let alive = true;
+    api.get('/player/me/fair').then((r) => { if (alive) setSeeds(r.data); }).catch(() => {});
+    return () => { alive = false; };
+  }, [show]);
+
+  const rotate = async () => {
+    setBusy(true);
+    try {
+      const r = await api.post('/player/me/fair/rotate');
+      setSeeds(r.data);
+      toast('Seeds rotated! 🔄 Previous server seed revealed below.', 'success');
+    } catch (e) { toast(e.response?.data?.error || 'Could not rotate seeds', 'error'); }
+    finally { setBusy(false); }
+  };
+
   return (
     <div id="prof-tab-provably" style={{ display: show ? 'block' : 'none' }}>
       <div className="prof-section">
         <div className="prof-section-title" data-i18n="prof_provably">Provably Fair</div>
         <div className="prof-section-sub" data-i18n="prof_provably_desc">Verify game results using cryptographic seeds</div>
-        <div className="prof-field" style={{ marginBottom: 14 }}><label data-i18n="prof_client_seed">Client Seed</label><input type="text" defaultValue="7f3a9b2c1e4d8f6a" readOnly /></div>
-        <div className="prof-field" style={{ marginBottom: 14 }}><label data-i18n="prof_server_seed">Server Seed (Hashed)</label><input type="text" defaultValue="a1b2c3d4e5f67890..." readOnly /></div>
-        <button className="prof-save-btn" onClick={() => toast('Seeds rotated!', 'success')} data-i18n="prof_rotate_seeds">Rotate Seeds</button>
+        <div className="prof-field" style={{ marginBottom: 14 }}><label data-i18n="prof_client_seed">Client Seed</label><input type="text" value={seeds?.clientSeed || '— rotate to generate —'} readOnly /></div>
+        <div className="prof-field" style={{ marginBottom: 14 }}><label data-i18n="prof_server_seed">Server Seed (SHA-256 hash)</label><input type="text" value={seeds?.serverSeedHash || '— rotate to generate —'} readOnly /></div>
+        {seeds?.previousServerSeed && (
+          <div className="prof-field" style={{ marginBottom: 14 }}><label>Previous Server Seed (revealed)</label><input type="text" value={seeds.previousServerSeed} readOnly /></div>
+        )}
+        {seeds?.rotatedAt && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 12 }}>Last rotated {new Date(seeds.rotatedAt).toLocaleString()}</div>}
+        <button className="prof-save-btn" onClick={rotate} disabled={busy} data-i18n="prof_rotate_seeds">{busy ? 'Rotating…' : 'Rotate Seeds'}</button>
       </div>
     </div>
   );
@@ -795,25 +778,74 @@ function ProvablyTab({ show, toast }) {
 
 /* ── RESTRICTIONS TAB ── */
 function RestrictionsTab({ show, toast }) {
+  const [daily, setDaily] = useState('');
+  const [session, setSession] = useState('');
+  const [selfEx, setSelfEx] = useState(false);
+  const [exDays, setExDays] = useState(30);
+  const [until, setUntil] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!show) return;
+    let alive = true;
+    api.get('/player/me/limits').then((r) => {
+      if (!alive) return;
+      const l = r.data || {};
+      setDaily(l.dailyDeposit ? String(l.dailyDeposit) : '');
+      setSession(l.sessionMinutes ? String(Math.round(l.sessionMinutes / 60)) : '');
+      const active = l.selfExcludeUntil && Date.parse(l.selfExcludeUntil) > Date.now();
+      setSelfEx(!!active);
+      setUntil(active ? l.selfExcludeUntil : '');
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [show]);
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      const r = await api.post('/player/me/limits', {
+        dailyDeposit: Number(daily) || 0,
+        sessionMinutes: (Number(session) || 0) * 60,
+        selfExcludeDays: selfEx ? exDays : 0,
+      });
+      const active = r.data.selfExcludeUntil && Date.parse(r.data.selfExcludeUntil) > Date.now();
+      setUntil(active ? r.data.selfExcludeUntil : '');
+      toast(active
+        ? `Limits saved — self-exclusion active until ${String(r.data.selfExcludeUntil).slice(0, 10)} 🔒`
+        : 'Limits saved ✔ — the daily deposit limit is enforced at deposit time', 'success');
+    } catch (e) { toast(e.response?.data?.error || 'Could not save limits', 'error'); }
+    finally { setBusy(false); }
+  };
+
   return (
     <div id="prof-tab-restrictions" style={{ display: show ? 'block' : 'none' }}>
       <div className="prof-section">
         <div className="prof-section-title" data-i18n="prof_responsible">Responsible Gaming</div>
-        <div className="prof-section-sub" data-i18n="prof_responsible_desc">Set limits to manage your gaming activity</div>
+        <div className="prof-section-sub" data-i18n="prof_responsible_desc">Set limits to manage your gaming activity — these are enforced by the server</div>
         <div className="prof-form-grid">
-          <div className="prof-field"><label data-i18n="prof_daily_limit">Daily Deposit Limit (₱)</label><input type="number" placeholder="No limit" /></div>
-          <div className="prof-field"><label data-i18n="prof_weekly_limit">Weekly Deposit Limit (₱)</label><input type="number" placeholder="No limit" /></div>
-          <div className="prof-field"><label data-i18n="prof_monthly_limit">Monthly Deposit Limit (₱)</label><input type="number" placeholder="No limit" /></div>
-          <div className="prof-field"><label data-i18n="prof_session_limit">Session Time Limit (hours)</label><input type="number" placeholder="No limit" /></div>
+          <div className="prof-field"><label data-i18n="prof_daily_limit">Daily Deposit Limit (₱)</label><input type="number" placeholder="No limit" value={daily} onChange={(e) => setDaily(e.target.value)} /></div>
+          <div className="prof-field"><label data-i18n="prof_session_limit">Session Time Limit (hours)</label><input type="number" placeholder="No limit" value={session} onChange={(e) => setSession(e.target.value)} /></div>
         </div>
         <div className="prof-toggle-row" style={{ marginTop: 16 }}>
           <div className="prof-toggle-info">
             <div className="prof-toggle-label" data-i18n="prof_self_excl">Self-exclusion</div>
-            <div className="prof-toggle-desc" data-i18n="prof_self_excl_desc">Temporarily disable your account</div>
+            <div className="prof-toggle-desc" data-i18n="prof_self_excl_desc">{until ? `Active until ${String(until).slice(0, 10)} — deposits are blocked` : 'Temporarily block deposits on your account'}</div>
           </div>
-          <Toggle />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {selfEx && (
+              <select value={exDays} onChange={(e) => setExDays(Number(e.target.value))} style={{ padding: '6px 10px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 12 }}>
+                <option value={7}>7 days</option><option value={30}>30 days</option><option value={90}>90 days</option><option value={180}>180 days</option>
+              </select>
+            )}
+            <label className="prof-toggle-wrap" style={{ cursor: 'pointer' }}>
+              <input type="checkbox" checked={selfEx} onChange={(e) => setSelfEx(e.target.checked)} style={{ display: 'none' }} />
+              <span className={'prof-toggle' + (selfEx ? ' on' : '')} style={{ display: 'inline-block', width: 44, height: 24, borderRadius: 14, background: selfEx ? 'var(--gold)' : 'rgba(255,255,255,.15)', position: 'relative', transition: 'background .2s' }}>
+                <span style={{ position: 'absolute', top: 3, left: selfEx ? 23 : 3, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left .2s' }}></span>
+              </span>
+            </label>
+          </div>
         </div>
-        <button className="prof-save-btn" onClick={() => toast('Limits saved!', 'success')} data-i18n="prof_save_limits">Save Limits</button>
+        <button className="prof-save-btn" onClick={save} disabled={busy} data-i18n="prof_save_limits">{busy ? 'Saving…' : 'Save Limits'}</button>
       </div>
     </div>
   );
@@ -821,35 +853,38 @@ function RestrictionsTab({ show, toast }) {
 
 /* ── CUSTOMIZATION TAB ── */
 function CustomizationTab({ show }) {
+  const { toast } = useUI();
+  const { profile } = useAuth();
+  const DEFAULTS = { showBalance: true, animations: true, sound: true, chatNotifs: false };
+  const [prefs, setPrefs] = useState({ ...DEFAULTS, ...(profile?.prefs || {}) });
+  useEffect(() => { if (profile?.prefs) setPrefs((p) => ({ ...DEFAULTS, ...profile.prefs })); }, [profile?.prefs]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const setPref = async (key, value) => {
+    const next = { ...prefs, [key]: value };
+    setPrefs(next);
+    try { await api.post('/player/me/prefs', { [key]: value }); toast('Preference saved ✔', 'success'); }
+    catch { toast('Could not save preference', 'error'); }
+  };
+
+  const ROWS = [
+    ['showBalance', 'Show balance in header', 'prof_show_balance'],
+    ['animations', 'Enable animations', 'prof_animations'],
+    ['sound', 'Sound effects', 'prof_sound'],
+    ['chatNotifs', 'Live chat notifications', 'prof_chat_notif'],
+  ];
   return (
     <div id="prof-tab-customization" style={{ display: show ? 'block' : 'none' }}>
       <div className="prof-section">
         <div className="prof-section-title" data-i18n="prof_display">Display Preferences</div>
-        <div className="prof-section-sub" data-i18n="prof_display_desc">Customize your gaming experience</div>
-        <div className="prof-toggle-row">
-          <div className="prof-toggle-info">
-            <div className="prof-toggle-label" data-i18n="prof_show_balance">Show balance in header</div>
+        <div className="prof-section-sub" data-i18n="prof_display_desc">Customize your gaming experience — saved to your account</div>
+        {ROWS.map(([key, label, i18n]) => (
+          <div className="prof-toggle-row" key={key}>
+            <div className="prof-toggle-info">
+              <div className="prof-toggle-label" data-i18n={i18n}>{label}</div>
+            </div>
+            <Toggle checked={!!prefs[key]} onChange={(v) => setPref(key, v)} />
           </div>
-          <Toggle initialOn />
-        </div>
-        <div className="prof-toggle-row">
-          <div className="prof-toggle-info">
-            <div className="prof-toggle-label" data-i18n="prof_animations">Enable animations</div>
-          </div>
-          <Toggle initialOn />
-        </div>
-        <div className="prof-toggle-row">
-          <div className="prof-toggle-info">
-            <div className="prof-toggle-label" data-i18n="prof_sound">Sound effects</div>
-          </div>
-          <Toggle initialOn />
-        </div>
-        <div className="prof-toggle-row">
-          <div className="prof-toggle-info">
-            <div className="prof-toggle-label" data-i18n="prof_chat_notif">Live chat notifications</div>
-          </div>
-          <Toggle />
-        </div>
+        ))}
       </div>
     </div>
   );
@@ -858,7 +893,44 @@ function CustomizationTab({ show }) {
 /* ════════════ TRANSACTIONS PANEL ════════════ */
 function TransactionsPanel({ show }) {
   const [filter, setFilter] = useState('all');
-  const rows = useMemo(() => (filter === 'all' ? TX_DEMO : TX_DEMO.filter((t) => t.type === filter)), [filter]);
+  const [txns, setTxns] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+
+  // Map a backend transaction onto this panel's row shape.
+  const mapTx = (t) => {
+    const src = String(t.source || t.method || '').toLowerCase();
+    const note = t.note || '';
+    let type = 'promotion';
+    if (t.type === 'deposit') type = 'deposit';
+    else if (t.type === 'withdrawal' || t.type === 'transfer') type = 'withdrawal';
+    else if (t.type === 'bonus') {
+      if (src.includes('commission') || src.includes('referral')) type = 'referral';
+      else if (src.includes('cashback') || note.toLowerCase().includes('cashback')) type = 'cashback';
+      else if (src.includes('rebate')) type = 'rebate';
+      else type = 'promotion';
+    }
+    const sign = (t.type === 'withdrawal' || t.type === 'transfer') ? -1 : 1;
+    const d = new Date(t.createdAt || 0);
+    return {
+      date: Number.isNaN(d.getTime()) ? '' : d.toLocaleString(),
+      type,
+      desc: note || `${(t.method || t.source || t.type || '').toString()} ${t.type}`.trim(),
+      amount: sign * Number(t.amount || 0),
+      status: t.status === 'approved' ? 'completed' : t.status === 'rejected' ? 'processing' : (t.status || 'pending'),
+    };
+  };
+
+  useEffect(() => {
+    if (!show) return;
+    let alive = true;
+    playersService.getTransactions().then((data) => {
+      const list = Array.isArray(data) ? data : data?.items || [];
+      if (alive) setTxns(list.map(mapTx));
+    }).catch(() => {}).finally(() => { if (alive) setLoaded(true); });
+    return () => { alive = false; };
+  }, [show]);
+
+  const rows = useMemo(() => (filter === 'all' ? txns : txns.filter((t) => t.type === filter)), [txns, filter]);
   const totalIn = rows.filter((r) => r.amount > 0).reduce((s, r) => s + r.amount, 0);
   const totalOut = rows.filter((r) => r.amount < 0).reduce((s, r) => s + r.amount, 0);
   const net = totalIn + totalOut;
@@ -873,7 +945,7 @@ function TransactionsPanel({ show }) {
     <div id="prof-tx-panel" style={{ display: show ? 'block' : 'none', flex: 1, minWidth: 0, background: 'var(--surface)', borderRadius: 16, overflow: 'hidden', padding: 28 }}>
 
       {/* Filter tabs */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }} id="tx-filter-tabs">
+      <div className="seg-tabs" style={{ marginBottom: 20 }} id="tx-filter-tabs">
         {FILTERS.map(([k, label, i18n]) => (
           <button key={k} className={'cat-btn' + (filter === k ? ' active' : '')} onClick={() => setFilter(k)} data-i18n={i18n}>{label}</button>
         ))}
@@ -967,27 +1039,45 @@ function TransactionsPanel({ show }) {
 
 /* ════════════ WAGER PANEL ════════════ */
 function WagerPanel({ show }) {
-  const d = WAGER_DATA;
-  const required = d.bonusAmount * d.multiplier;
-  const pct = Math.min(100, (d.wagered / required) * 100);
-  const remaining = Math.max(0, required - d.wagered);
+  const [w, setW] = useState(null); // { bonusBalance, wageredMonth, wageredTotal, bonuses }
+  useEffect(() => {
+    if (!show) return;
+    let alive = true;
+    api.get('/player/wager').then((r) => { if (alive) setW(r.data); }).catch(() => {});
+    return () => { alive = false; };
+  }, [show]);
+
+  const MULT = 20; // standard wagering requirement on bonuses
+  const bonusAmount = Number(w?.bonusBalance || 0);
+  const wagered = Number(w?.wageredMonth || 0);
+  const required = bonusAmount * MULT;
+  const hasBonus = bonusAmount > 0;
+  const pct = required > 0 ? Math.min(100, (wagered / required) * 100) : 0;
+  const remaining = Math.max(0, required - wagered);
   const pctStr = pct.toFixed(1) + '%';
+  const promos = (w?.bonuses || []).map((b) => ({
+    name: b.note || (b.source === 'kyc-bonus' ? 'KYC Approval Bonus' : b.source === 'agent-commission' ? 'Agent Commission' : b.source === 'mission' ? 'Mission Reward' : 'Bonus Credit'),
+    amount: Number(b.amount || 0), type: b.source === 'agent-commission' ? 'referral' : b.source === 'cashback' ? 'cashback' : 'welcome',
+    date: b.at || '', multiplier: MULT, wagered, required: Number(b.amount || 0) * MULT,
+    status: 'completed',
+  }));
+  const d = { bonusAmount, multiplier: MULT, wagered, promos };
 
   return (
     <div id="prof-wager-panel" style={{ display: show ? 'block' : 'none', flex: 1, minWidth: 0, background: 'var(--surface)', borderRadius: 16, overflow: 'hidden', padding: 28 }}>
 
       {/* Active Promotion Banner */}
-      <div id="wager-promo-banner" style={{ background: 'linear-gradient(135deg,#1a2a0a,#1e3a10)', border: '1px solid rgba(74,222,128,.2)', borderRadius: 12, padding: '16px 20px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+      <div id="wager-promo-banner" style={{ background: hasBonus ? 'linear-gradient(135deg,#1a2a0a,#1e3a10)' : 'var(--bg3)', border: '1px solid ' + (hasBonus ? 'rgba(74,222,128,.2)' : 'var(--border)'), borderRadius: 12, padding: '16px 20px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ fontSize: 28 }}>🎁</div>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 800, color: '#4ade80', marginBottom: 2 }} id="wager-promo-name" data-i18n="wager_promo_active">200% Welcome Bonus Active</div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,.5)' }} data-i18n="wager_unlock_desc">Complete wagering requirement to unlock withdrawal</div>
+            <div style={{ fontSize: 13, fontWeight: 800, color: hasBonus ? '#4ade80' : 'var(--text-muted)', marginBottom: 2 }} id="wager-promo-name">{hasBonus ? 'Bonus Balance Active' : 'No active bonus'}</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,.5)' }} data-i18n="wager_unlock_desc">{hasBonus ? 'Complete wagering requirement to unlock withdrawal' : 'Claim a promotion or mission reward to start'}</div>
           </div>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,.4)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 2 }} data-i18n="wager_bonus_amount">Bonus Amount</div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: '#4ade80' }}>+₱4,000.00</div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: '#4ade80' }}>+{peso(bonusAmount, 2)}</div>
         </div>
       </div>
 
@@ -1021,17 +1111,17 @@ function WagerPanel({ show }) {
         <div style={{ background: 'var(--bg3)', borderRadius: 12, padding: 16, textAlign: 'center' }}>
           <div style={{ fontSize: 24, marginBottom: 6 }}>🎰</div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }} data-i18n="wager_total_wagered">Wagered</div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>₱7,360.00</div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>{peso(wagered, 2)}</div>
         </div>
         <div style={{ background: 'var(--bg3)', borderRadius: 12, padding: 16, textAlign: 'center' }}>
           <div style={{ fontSize: 24, marginBottom: 6 }}>🎯</div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }} data-i18n="wager_requirement">Requirement</div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--gold)' }}>20× <span data-i18n="wager_bonus_word">Bonus</span></div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--gold)' }}>{MULT}× <span data-i18n="wager_bonus_word">Bonus</span></div>
         </div>
         <div style={{ background: 'var(--bg3)', borderRadius: 12, padding: 16, textAlign: 'center' }}>
           <div style={{ fontSize: 24, marginBottom: 6 }}>💸</div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 4 }} data-i18n="wager_still_needed">Still Needed</div>
-          <div style={{ fontSize: 16, fontWeight: 800, color: '#f87171' }}>₱12,640.00</div>
+          <div style={{ fontSize: 16, fontWeight: 800, color: '#f87171' }}>{peso(remaining, 2)}</div>
         </div>
       </div>
 
@@ -1048,6 +1138,9 @@ function WagerPanel({ show }) {
       <div style={{ marginBottom: 8 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 12 }} data-i18n="wager_promos_taken">Promotions Taken</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }} id="wager-promo-list">
+          {d.promos.length === 0 && (
+            <div style={{ background: 'var(--bg3)', borderRadius: 12, padding: '16px', fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>No bonuses received yet — check the Promotions and Missions pages.</div>
+          )}
           {d.promos.map((p, i) => {
             const pt = PTYPE[p.type] || { icon: '🎁', color: '#fbbf24' };
             const pPct = Math.min(100, (p.wagered / p.required) * 100);
@@ -1085,6 +1178,21 @@ function WagerPanel({ show }) {
 
 /* ════════════ GAME HISTORY PANEL ════════════ */
 function GameHistoryPanel({ show }) {
+  const [hist, setHist] = useState([]);
+  useEffect(() => {
+    if (!show) return;
+    let alive = true;
+    playersService.getGameHistory().then((data) => {
+      const list = Array.isArray(data) ? data : data?.items || [];
+      if (alive) setHist(list.map((g) => ({
+        id: g.id || g.refId || '', game: g.game || g.gameName || 'Game',
+        provider: g.provider || '', cat: g.category || g.cat || 'slots',
+        wager: Number(g.wager ?? g.amount ?? 0), win: Number(g.win || 0),
+        date: g.createdAt ? new Date(g.createdAt).toLocaleString() : (g.date || ''),
+      })));
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [show]);
   const [search, setSearch] = useState('');
   const [dateFilt, setDateFilt] = useState('all');
   const [provFilt, setProvFilt] = useState('all');
@@ -1095,7 +1203,7 @@ function GameHistoryPanel({ show }) {
     const todayStr = '2025-06-10';
     const weekStart = new Date(now); weekStart.setDate(now.getDate() - 7);
     const monthStart = new Date(now); monthStart.setDate(now.getDate() - 30);
-    let r = GH_DEMO;
+    let r = hist;
     if (dateFilt === 'today') r = r.filter((x) => x.date.startsWith(todayStr));
     else if (dateFilt === 'week') r = r.filter((x) => new Date(x.date.substring(0, 10)) >= weekStart);
     else if (dateFilt === 'month') r = r.filter((x) => new Date(x.date.substring(0, 10)) >= monthStart);
@@ -1106,7 +1214,7 @@ function GameHistoryPanel({ show }) {
     const s = search.toLowerCase();
     if (s) r = r.filter((x) => x.game.toLowerCase().includes(s) || x.provider.toLowerCase().includes(s) || x.id.toLowerCase().includes(s));
     return r;
-  }, [search, dateFilt, provFilt, resFilt]);
+  }, [hist, search, dateFilt, provFilt, resFilt]);
 
   const totalW = rows.reduce((s, r) => s + r.wager, 0);
   const totalWin = rows.reduce((s, r) => s + r.win, 0);
@@ -1237,26 +1345,96 @@ function GameHistoryPanel({ show }) {
   );
 }
 
-/* ════════════ AGENT PANEL ════════════ */
+/* ════════════ AGENT PANEL — wired to /api/agents ════════════ */
+const AG_STATUS_META = {
+  pending: { icon: '⏳', label: 'Pending Review', color: '#f97316', desc: "Your application is in the review queue. We'll notify you once it moves." },
+  document_review: { icon: '📄', label: 'Document Review', color: '#4da3ff', desc: 'Our team is reviewing your documents right now.' },
+  under_investigation: { icon: '🔍', label: 'Under Investigation', color: '#9b6dff', desc: 'Additional checks are in progress. We may contact you.' },
+  need_more_documents: { icon: '📎', label: 'More Documents Needed', color: '#ffd166', desc: 'Action needed — upload the requested documents below.' },
+  rejected: { icon: '✗', label: 'Rejected', color: '#ff5c5c', desc: 'Unfortunately your application was not approved.' },
+};
+
 function AgentPanel({ show, toast }) {
-  const [status, setStatus] = useState('none'); // none | pending | approved
-  const code = 'AGENT88';
+  const { profile } = useAuth();
+  const kycApproved = (profile?.kyc_status || 'unverified') === 'approved';
+  const [data, setData] = useState(null);   // { application, agent, history } | null
+  const [elig, setElig] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [reapply, setReapply] = useState(false);
+  const [tick, setTick] = useState(0);
+  const reload = () => { setReapply(false); setTick((t) => t + 1); };
+
+  useEffect(() => {
+    if (!show || !kycApproved) return;
+    let alive = true;
+    setLoading(true);
+    api.get('/agents/me')
+      .then((r) => { if (alive) { setData(r.data); setElig(null); } })
+      .catch(() => {
+        if (!alive) return;
+        setData(null);
+        api.get('/agents/eligibility').then((r) => { if (alive) setElig(r.data); }).catch(() => {});
+      })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [show, kycApproved, tick]);
+
+  if (!kycApproved) {
+    return (
+      <div id="prof-agent-panel" style={{ display: show ? 'block' : 'none', flex: 1, minWidth: 0, background: 'var(--surface)', borderRadius: 16, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '56px 32px', textAlign: 'center', minHeight: 420 }}>
+          <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(240,192,64,.12)', border: '2px solid rgba(240,192,64,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, marginBottom: 20 }}>🔒</div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', marginBottom: 8 }} data-i18n="agent_locked_title">Agent Program Locked</div>
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,.45)', maxWidth: 360, lineHeight: 1.6, marginBottom: 24 }} data-i18n="agent_locked_desc">
+            Complete and pass identity verification (KYC) before you can apply for the Agent program or view your agent details and referral link.
+          </div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.4)' }}>
+            <span data-i18n="agent_locked_status">KYC status:</span>{' '}
+            <b style={{ color: profile?.kyc_status === 'pending' ? 'var(--gold,#f0c040)' : profile?.kyc_status === 'rejected' ? 'var(--red,#e8293a)' : 'rgba(255,255,255,.6)' }}>
+              {(profile?.kyc_status || 'unverified').toUpperCase()}
+            </b>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const agent = data?.agent && data.agent.status !== 'blacklisted' ? data.agent : null;
+  const application = data?.application || null;
+  const showStatus = !agent && application && !(application.status === 'rejected' && reapply);
+  const showForm = !agent && !showStatus;
+  const missingVerify = elig && !elig.eligible;
 
   return (
     <div id="prof-agent-panel" style={{ display: show ? 'block' : 'none', flex: 1, minWidth: 0, background: 'var(--surface)', borderRadius: 16, overflow: 'hidden' }}>
+      {loading && <div style={{ padding: 48, textAlign: 'center', color: 'rgba(255,255,255,.4)', fontSize: 13 }}>Loading agent status…</div>}
 
-      {/* APPLY SCREEN (shown when not approved) */}
-      <div id="ag-apply-screen" style={{ display: status === 'approved' ? 'none' : 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 32px', textAlign: 'center', minHeight: 420 }}>
-        <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(240,192,64,.12)', border: '2px solid rgba(240,192,64,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, marginBottom: 20 }}>🧑‍💼</div>
-        <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', marginBottom: 8 }} data-i18n="agent_title">Become an Agent</div>
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,.45)', maxWidth: 340, lineHeight: 1.6, marginBottom: 28 }} data-i18n="agent_subtitle">Join our Profit Share Program and earn commissions on every player you refer. Fill in the form below to apply.</div>
+      {!loading && agent && <AgentDashboard agent={agent} suspended={data.agent.status === 'suspended'} toast={toast} />}
 
-        <AgentApplyForm show={status === 'none'} toast={toast} onSubmit={() => setStatus('pending')} />
-        <AgentPendingScreen show={status === 'pending'} onApprove={() => { setStatus('approved'); toast('🎉 Agent account approved!', 'success'); }} />
-      </div>
+      {!loading && showStatus && (
+        <AgentStatusScreen application={application} history={data?.history || []} toast={toast} onReload={reload} onReapply={() => setReapply(true)} />
+      )}
 
-      {/* DASHBOARD SCREEN (shown when approved) */}
-      <AgentDashboard show={status === 'approved'} code={code} toast={toast} />
+      {!loading && showForm && (
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 32px', textAlign: 'center' }}>
+          <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'rgba(240,192,64,.12)', border: '2px solid rgba(240,192,64,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, marginBottom: 20 }}>🧑‍💼</div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: '#fff', marginBottom: 8 }} data-i18n="agent_title">Become an Agent</div>
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,.45)', maxWidth: 340, lineHeight: 1.6, marginBottom: 24 }}>Earn CPA + revenue-share commission on every player you refer. Fill in the form below to apply.</div>
+          {missingVerify ? (
+            <div style={{ width: '100%', maxWidth: 380, textAlign: 'left', background: 'rgba(249,115,22,.08)', border: '1px solid rgba(249,115,22,.3)', borderRadius: 12, padding: 16 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#f97316', marginBottom: 10 }}>Almost there — verify your account first</div>
+              {[['kycApproved', 'KYC verified'], ['emailVerified', 'Email verified'], ['mobileVerified', 'Mobile verified']].map(([k, l]) => (
+                <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: elig[k] ? '#22c55e' : 'rgba(255,255,255,.5)', marginBottom: 6 }}>
+                  <span>{elig[k] ? '✅' : '⬜'}</span> {l}
+                </div>
+              ))}
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', marginTop: 8 }}>Complete the missing steps in the Verification section, then come back here.</div>
+            </div>
+          ) : (
+            <AgentApplyForm profile={profile} toast={toast} onDone={reload} />
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -1276,69 +1454,96 @@ const agInputStyle = { width: '100%', padding: '11px 14px', background: 'var(--b
 const agFocus = (e) => { e.target.style.borderColor = 'var(--gold)'; };
 const agBlur = (e) => { e.target.style.borderColor = 'var(--border)'; };
 
-function AgentApplyForm({ show, toast, onSubmit }) {
-  const utilRef = useRef(null);
-  const doc2Ref = useRef(null);
-  const [util, setUtil] = useState(null);
-  const [doc2, setDoc2] = useState(null);
-  const fields = useRef({});
+// Read-only field pre-filled from the verified account, with a green tick.
+function AgentVerified({ label, value }) {
+  return (
+    <div>
+      <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.07em', color: 'rgba(255,255,255,.4)', display: 'block', marginBottom: 6 }}>{label}</label>
+      <div style={{ position: 'relative' }}>
+        <input style={{ ...agInputStyle, paddingRight: 92, border: '1.5px solid rgba(34,197,94,.45)', background: 'rgba(34,197,94,.07)', cursor: 'not-allowed' }} value={value || ''} readOnly tabIndex={-1} />
+        <span style={{ position: 'absolute', right: 9, top: '50%', transform: 'translateY(-50%)', fontSize: 10, fontWeight: 800, color: '#22c55e', background: 'rgba(34,197,94,.15)', border: '1px solid rgba(34,197,94,.4)', borderRadius: 12, padding: '3px 8px' }}>✓ Verified</span>
+      </div>
+    </div>
+  );
+}
 
-  const handleFile = (e, key, setter) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    if (file.size > 10 * 1024 * 1024) { toast('File too large. Max 10MB.', 'error'); e.target.value = ''; return; }
-    setter(file.name);
-  };
-
-  const submit = () => {
-    const f = fields.current;
-    if (!f.name?.value.trim() || !f.phone?.value.trim() || !f.method?.value || !f.volume?.value) {
-      toast('Please fill in all required fields.', 'error'); return;
-    }
-    if (!util) { toast('Please upload your Utility Bill.', 'error'); return; }
-    if (!doc2) { toast('Please upload your Supporting Document.', 'error'); return; }
-    if (!f.ecName?.value.trim() || !f.ecPhone?.value.trim()) { toast('Please fill in Emergency Contact details.', 'error'); return; }
-    onSubmit();
-    toast('Application submitted! Under review.', 'success');
-  };
-
-  const UploadBox = ({ id, inputRef, accept, icon, fname, onChange }) => (
-    <label id={id + '-box'} htmlFor={id + '-input'} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '18px 14px', border: '1.5px dashed ' + (fname ? 'rgba(34,197,94,.5)' : 'rgba(255,255,255,.15)'), borderRadius: 10, cursor: 'pointer', background: fname ? 'rgba(34,197,94,.06)' : 'rgba(255,255,255,.03)', transition: 'border-color .2s' }}>
-      <input type="file" id={id + '-input'} ref={inputRef} accept={accept} style={{ display: 'none' }} onChange={onChange} />
-      <span id={id + '-icon'} style={{ fontSize: 24 }}>{fname ? '✅' : icon}</span>
-      <span id={id + '-label'} style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.5)' }} data-i18n="agent_click_upload">{fname ? 'File selected' : 'Click to upload'}</span>
-      <span id={id + '-fname'} style={{ fontSize: 11, color: 'var(--gold)', display: fname ? 'block' : 'none' }}>{fname}</span>
-      <span style={{ fontSize: 10, color: 'rgba(255,255,255,.25)' }}>JPG · PNG · PDF · Max 10MB</span>
+function AgentUploadBox({ id, icon, fname, uploading, onFile }) {
+  return (
+    <label htmlFor={id + '-input'} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '18px 14px', border: '1.5px dashed ' + (fname ? 'rgba(34,197,94,.5)' : 'rgba(255,255,255,.15)'), borderRadius: 10, cursor: 'pointer', background: fname ? 'rgba(34,197,94,.06)' : 'rgba(255,255,255,.03)', transition: 'border-color .2s' }}>
+      <input type="file" id={id + '-input'} accept=".jpg,.jpeg,.png,.pdf" style={{ display: 'none' }} onChange={(e) => onFile(e.target.files?.[0])} />
+      <span style={{ fontSize: 24 }}>{uploading ? '⏳' : fname ? '✅' : icon}</span>
+      <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,.5)' }}>{uploading ? 'Uploading…' : fname ? 'Uploaded — click to replace' : 'Click to upload'}</span>
+      {fname && <span style={{ fontSize: 11, color: 'var(--gold)' }}>{fname}</span>}
+      <span style={{ fontSize: 10, color: 'rgba(255,255,255,.25)' }}>JPG · PNG · PDF · Max 8MB</span>
     </label>
   );
+}
+
+function AgentApplyForm({ profile, toast, onDone }) {
+  const fields = useRef({});
+  const [uploads, setUploads] = useState({}); // { selfie:{name,url}, util:{..}, doc2:{..} }
+  const [busyKey, setBusyKey] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const pick = async (key, file) => {
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) { toast('File too large. Max 8MB.', 'error'); return; }
+    setBusyKey(key);
+    try {
+      const { url } = await playersService.uploadFile(file, 'agent');
+      setUploads((p) => ({ ...p, [key]: { name: file.name, url } }));
+      toast('Uploaded ✔', 'success');
+    } catch (e) { toast('Upload failed: ' + (e.response?.data?.error || e.message), 'error'); }
+    finally { setBusyKey(''); }
+  };
+
+  const submit = async () => {
+    const f = fields.current;
+    if (!f.bank?.value.trim() || !f.holder?.value.trim() || !f.acct?.value.trim()) { toast('Please fill in your banking details.', 'error'); return; }
+    if (!uploads.selfie) { toast('Please upload your Selfie with ID.', 'error'); return; }
+    if (!uploads.util) { toast('Please upload your Utility Bill.', 'error'); return; }
+    if (!uploads.doc2) { toast('Please upload your Supporting Document.', 'error'); return; }
+    if (!f.ecName?.value.trim() || !f.ecPhone?.value.trim()) { toast('Please fill in Emergency Contact details.', 'error'); return; }
+    setSending(true);
+    try {
+      await api.post('/agents/apply', {
+        fullName: profile?.fullName || '', phone: profile?.phone || '', email: profile?.email || '',
+        dob: profile?.dob || '', country: profile?.country || '',
+        emergencyContact: `${f.ecName.value.trim()}${f.ecRel?.value ? ' (' + f.ecRel.value + ')' : ''} · ${f.ecPhone.value.trim()}`,
+        bankName: f.bank.value.trim(), bankAccountName: f.holder.value.trim(), bankAccountNo: f.acct.value.trim(),
+        selfieWithId: uploads.selfie.url,
+        documents: [
+          { name: 'Utility Bill — ' + uploads.util.name, url: uploads.util.url },
+          { name: 'Supporting Document — ' + uploads.doc2.name, url: uploads.doc2.url },
+        ],
+      });
+      toast('Application submitted! 🎉 Under review.', 'success');
+      onDone();
+    } catch (e) { toast(e.response?.data?.error || 'Could not submit application', 'error'); }
+    finally { setSending(false); }
+  };
 
   return (
-    <div id="ag-apply-form" style={{ display: show ? 'block' : 'none', width: '100%', maxWidth: 380, textAlign: 'left' }}>
+    <div id="ag-apply-form" style={{ width: '100%', maxWidth: 380, textAlign: 'left' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 20 }}>
-        <AgentField label="Full Name">
-          <input ref={(el) => (fields.current.name = el)} id="ag-apply-name" type="text" placeholder="Your full name" data-i18n-placeholder="agent_name_ph" style={agInputStyle} onFocus={agFocus} onBlur={agBlur} />
+        <AgentVerified label="Full Name (KYC verified)" value={profile?.fullName} />
+        <AgentVerified label="Mobile (verified)" value={profile?.phone} />
+        <AgentVerified label="Email (verified)" value={profile?.email} />
+
+        {/* DIVIDER */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0' }}>
+          <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.08)' }}></div>
+          <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(255,255,255,.3)' }}>Banking — for commission payouts</span>
+          <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.08)' }}></div>
+        </div>
+        <AgentField label="Bank / E-wallet" required>
+          <input ref={(el) => (fields.current.bank = el)} type="text" placeholder="e.g. BDO, GCash…" style={agInputStyle} onFocus={agFocus} onBlur={agBlur} />
         </AgentField>
-        <AgentField label="Contact Number">
-          <input ref={(el) => (fields.current.phone = el)} id="ag-apply-phone" type="tel" placeholder="+63 9XX XXX XXXX" style={agInputStyle} onFocus={agFocus} onBlur={agBlur} />
+        <AgentField label="Account Holder Name" required>
+          <input ref={(el) => (fields.current.holder = el)} type="text" defaultValue={profile?.fullName || ''} placeholder="Account holder" style={agInputStyle} onFocus={agFocus} onBlur={agBlur} />
         </AgentField>
-        <AgentField label="How will you refer players?">
-          <select ref={(el) => (fields.current.method = el)} id="ag-apply-method" defaultValue="" style={{ ...agInputStyle, cursor: 'pointer' }} onFocus={agFocus} onBlur={agBlur}>
-            <option value="" data-i18n="agent_select_method">Select a method</option>
-            <option>Social Media (Facebook, TikTok, etc.)</option>
-            <option>Personal Network / Friends</option>
-            <option>Online Communities / Groups</option>
-            <option>Streaming / Content Creation</option>
-            <option>Other</option>
-          </select>
-        </AgentField>
-        <AgentField label="Expected Monthly Players">
-          <select ref={(el) => (fields.current.volume = el)} id="ag-apply-volume" defaultValue="" style={{ ...agInputStyle, cursor: 'pointer' }} onFocus={agFocus} onBlur={agBlur}>
-            <option value="" data-i18n="agent_select_range">Select range</option>
-            <option>1 – 10 players</option>
-            <option>11 – 50 players</option>
-            <option>51 – 200 players</option>
-            <option>200+ players</option>
-          </select>
+        <AgentField label="Account Number" required>
+          <input ref={(el) => (fields.current.acct = el)} type="text" placeholder="Account / mobile number" style={agInputStyle} onFocus={agFocus} onBlur={agBlur} />
         </AgentField>
 
         {/* DIVIDER */}
@@ -1348,18 +1553,20 @@ function AgentApplyForm({ show, toast, onSubmit }) {
           <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.08)' }}></div>
         </div>
 
-        {/* Utility Bill Upload */}
+        <div>
+          <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.07em', color: 'rgba(255,255,255,.4)', display: 'block', marginBottom: 4 }}>Selfie with ID <span style={{ color: 'var(--red)', fontSize: 10 }}>*</span></label>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', marginBottom: 8 }}>A clear photo of you holding your IC / passport — face and ID details must be readable</div>
+          <AgentUploadBox id="ag-selfie" icon="🤳" fname={uploads.selfie?.name} uploading={busyKey === 'selfie'} onFile={(file) => pick('selfie', file)} />
+        </div>
         <div>
           <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.07em', color: 'rgba(255,255,255,.4)', display: 'block', marginBottom: 4 }}><span data-i18n="agent_util_bill">Utility Bill</span> <span style={{ color: 'var(--red)', fontSize: 10 }}>*</span></label>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', marginBottom: 8 }} data-i18n="agent_util_desc">Electricity, water, or internet bill — must show your name &amp; address (issued within 3 months)</div>
-          <UploadBox id="ag-util" inputRef={utilRef} accept=".jpg,.jpeg,.png,.pdf" icon="🧾" fname={util} onChange={(e) => handleFile(e, 'util', setUtil)} />
+          <AgentUploadBox id="ag-util" icon="🧾" fname={uploads.util?.name} uploading={busyKey === 'util'} onFile={(file) => pick('util', file)} />
         </div>
-
-        {/* Second Document Upload */}
         <div>
           <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.07em', color: 'rgba(255,255,255,.4)', display: 'block', marginBottom: 4 }}><span data-i18n="agent_support_doc">Supporting Document</span> <span style={{ color: 'var(--red)', fontSize: 10 }}>*</span></label>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', marginBottom: 8 }} data-i18n="agent_support_desc">Bank statement, government-issued ID, or lease agreement (issued within 6 months)</div>
-          <UploadBox id="ag-doc2" inputRef={doc2Ref} accept=".jpg,.jpeg,.png,.pdf" icon="📄" fname={doc2} onChange={(e) => handleFile(e, 'doc2', setDoc2)} />
+          <AgentUploadBox id="ag-doc2" icon="📄" fname={uploads.doc2?.name} uploading={busyKey === 'doc2'} onFile={(file) => pick('doc2', file)} />
         </div>
 
         {/* DIVIDER */}
@@ -1369,15 +1576,12 @@ function AgentApplyForm({ show, toast, onSubmit }) {
           <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,.08)' }}></div>
         </div>
 
-        {/* Emergency Contact Name */}
         <div>
           <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.07em', color: 'rgba(255,255,255,.4)', display: 'block', marginBottom: 6 }}><span data-i18n="agent_ec_name">Emergency Contact Name</span> <span style={{ color: 'var(--red)', fontSize: 10 }}>*</span></label>
-          <input ref={(el) => (fields.current.ecName = el)} id="ag-ec-name" type="text" placeholder="Full name" data-i18n-placeholder="agent_full_name_ph" style={agInputStyle} onFocus={agFocus} onBlur={agBlur} />
+          <input ref={(el) => (fields.current.ecName = el)} type="text" placeholder="Full name" style={agInputStyle} onFocus={agFocus} onBlur={agBlur} />
         </div>
-
-        {/* Emergency Contact Relationship */}
         <AgentField label="Relationship">
-          <select id="ag-ec-rel" defaultValue="" style={{ ...agInputStyle, cursor: 'pointer' }} onFocus={agFocus} onBlur={agBlur}>
+          <select ref={(el) => (fields.current.ecRel = el)} defaultValue="" style={{ ...agInputStyle, cursor: 'pointer' }} onFocus={agFocus} onBlur={agBlur}>
             <option value="" data-i18n="agent_select_rel">Select relationship</option>
             <option data-i18n="agent_rel_spouse">Spouse / Partner</option>
             <option data-i18n="agent_rel_parent">Parent</option>
@@ -1387,58 +1591,119 @@ function AgentApplyForm({ show, toast, onSubmit }) {
             <option data-i18n="agent_rel_other">Other</option>
           </select>
         </AgentField>
-
-        {/* Emergency Contact Number */}
         <div>
           <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.07em', color: 'rgba(255,255,255,.4)', display: 'block', marginBottom: 6 }}><span data-i18n="agent_ec_number">Emergency Contact Number</span> <span style={{ color: 'var(--red)', fontSize: 10 }}>*</span></label>
-          <input ref={(el) => (fields.current.ecPhone = el)} id="ag-ec-phone" type="tel" placeholder="+63 9XX XXX XXXX" style={agInputStyle} onFocus={agFocus} onBlur={agBlur} />
+          <input ref={(el) => (fields.current.ecPhone = el)} type="tel" placeholder="+63 9XX XXX XXXX" style={agInputStyle} onFocus={agFocus} onBlur={agBlur} />
         </div>
-      </div>{/* /fields */}
-      <button onClick={submit} style={{ width: '100%', padding: 13, background: 'linear-gradient(135deg,var(--gold),var(--gold-dark))', border: 'none', borderRadius: 10, color: '#06091a', fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '.03em', transition: 'opacity .2s' }} data-i18n="agent_submit">SUBMIT APPLICATION</button>
+      </div>
+      <button onClick={submit} disabled={sending} style={{ width: '100%', padding: 13, background: 'linear-gradient(135deg,var(--gold),var(--gold-dark))', border: 'none', borderRadius: 10, color: '#06091a', fontSize: 15, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '.03em', opacity: sending ? 0.6 : 1 }} data-i18n="agent_submit">{sending ? 'SUBMITTING…' : 'SUBMIT APPLICATION'}</button>
       <div style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', textAlign: 'center', marginTop: 10 }} data-i18n="agent_terms_agree">By applying you agree to our Agent Terms &amp; Conditions</div>
     </div>
   );
 }
 
-function AgentPendingScreen({ show, onApprove }) {
+/* ── live application status (real workflow) ── */
+function AgentStatusScreen({ application, history, toast, onReload, onReapply }) {
+  const meta = AG_STATUS_META[application.status] || AG_STATUS_META.pending;
+  const [busy, setBusy] = useState(false);
+
+  const uploadMore = async (file) => {
+    if (!file) return;
+    setBusy(true);
+    try {
+      const { url } = await playersService.uploadFile(file, 'agent');
+      await api.post('/agents/me/documents', { documents: [{ name: file.name, url }] });
+      toast('Documents sent — back under review ✔', 'success');
+      onReload();
+    } catch (e) { toast(e.response?.data?.error || 'Upload failed', 'error'); }
+    finally { setBusy(false); }
+  };
+
   return (
-    <div id="ag-pending-screen" style={{ display: show ? 'flex' : 'none', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-      <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(249,115,22,.12)', border: '2px solid rgba(249,115,22,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>⏳</div>
-      <div style={{ fontSize: 18, fontWeight: 800, color: '#fff' }} data-i18n="agent_submitted">Application Submitted!</div>
-      <div style={{ fontSize: 13, color: 'rgba(255,255,255,.45)', maxWidth: 300, lineHeight: 1.6, textAlign: 'center' }}>Your application is under review. We'll notify you within 24–48 hours once approved.</div>
-      <div style={{ background: 'rgba(249,115,22,.1)', border: '1px solid rgba(249,115,22,.25)', borderRadius: 10, padding: '12px 20px', fontSize: 12, color: 'rgba(255,255,255,.5)' }}>Status: <strong style={{ color: '#f97316' }}>Pending Review</strong></div>
-      {/* DEMO only: approve button */}
-      <button onClick={onApprove} style={{ marginTop: 8, padding: '8px 20px', background: 'rgba(34,197,94,.15)', border: '1px solid rgba(34,197,94,.3)', borderRadius: 8, color: '#22c55e', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>[DEMO] Approve my application</button>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14, padding: '44px 32px' }}>
+      <div style={{ width: 64, height: 64, borderRadius: '50%', background: meta.color + '1f', border: `2px solid ${meta.color}55`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 }}>{meta.icon}</div>
+      <div style={{ fontSize: 18, fontWeight: 800, color: '#fff' }}>Agent Application</div>
+      <div style={{ background: meta.color + '14', border: `1px solid ${meta.color}40`, borderRadius: 10, padding: '10px 20px', fontSize: 13, fontWeight: 800, color: meta.color }}>{meta.icon} {meta.label}</div>
+      <div style={{ fontSize: 13, color: 'rgba(255,255,255,.45)', maxWidth: 330, lineHeight: 1.6, textAlign: 'center' }}>{meta.desc}</div>
+      {application.remarks && application.status !== 'pending' && (
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,.6)', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 8, padding: '10px 14px', maxWidth: 340 }}>💬 {application.remarks}</div>
+      )}
+
+      {application.status === 'need_more_documents' && (
+        <label style={{ padding: '10px 22px', background: 'linear-gradient(135deg,var(--gold),var(--gold-dark))', borderRadius: 10, color: '#06091a', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>
+          <input type="file" accept=".jpg,.jpeg,.png,.pdf" style={{ display: 'none' }} onChange={(e) => uploadMore(e.target.files?.[0])} />
+          {busy ? 'Uploading…' : '⬆ Upload requested documents'}
+        </label>
+      )}
+
+      {application.status === 'rejected'
+        ? <button onClick={onReapply} style={{ padding: '9px 22px', background: 'rgba(34,197,94,.15)', border: '1px solid rgba(34,197,94,.3)', borderRadius: 8, color: '#22c55e', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>📝 Apply again</button>
+        : <button onClick={onReload} style={{ padding: '8px 20px', background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.12)', borderRadius: 8, color: 'rgba(255,255,255,.6)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>🔄 Check status</button>}
+
+      {history.length > 0 && (
+        <div style={{ width: '100%', maxWidth: 360, marginTop: 8, textAlign: 'left' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(255,255,255,.35)', marginBottom: 8 }}>History</div>
+          {history.slice().reverse().map((h, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, fontSize: 12, padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
+              <span style={{ color: 'var(--gold)' }}>•</span>
+              <span style={{ flex: 1, color: 'rgba(255,255,255,.7)' }}><b>{h.action}</b>{h.remarks ? <span style={{ color: 'rgba(255,255,255,.4)' }}> — {h.remarks}</span> : ''}</span>
+              <span style={{ color: 'rgba(255,255,255,.3)', fontSize: 11, flexShrink: 0 }}>{h.createdAt ? new Date(h.createdAt).toLocaleDateString() : ''}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function AgentDashboard({ show, code, toast }) {
+/* ── approved agent dashboard (live data) ── */
+function AgentDashboard({ agent, suspended, toast }) {
   const [stab, setStab] = useState('overview');
-  const active = AG_MEMBERS_DATA.filter((m) => m.status === 'active').length;
-  const grossWL = AG_MEMBERS_DATA.reduce((s, m) => s + m.winloss, 0);
-  const netComm = Math.max(0, Math.round(grossWL * -1 * 0.3 * 0.71));
-  const link = 'https://legox.com/agent/' + code;
+  const [downline, setDownline] = useState([]);
+  const [comms, setComms] = useState([]);
+  const [balance, setBalance] = useState(null);
+  const [tick, setTick] = useState(0);
+  const refresh = () => setTick((t) => t + 1);
+
+  useEffect(() => {
+    let alive = true;
+    api.get('/agents/me/downline').then((r) => { if (alive && Array.isArray(r.data)) setDownline(r.data); }).catch(() => {});
+    api.get('/agents/me/commission').then((r) => { if (alive && Array.isArray(r.data)) setComms(r.data); }).catch(() => {});
+    playersService.getWallet().then((w) => { if (alive) setBalance(Number(w.balance ?? w.total ?? 0)); }).catch(() => {});
+    return () => { alive = false; };
+  }, [tick]);
+
+  const stats = agent.stats || {};
+  const code = agent.code;
+  const link = `${window.location.origin}/?ref=${code}`;
 
   const stabStyleBase = { padding: '11px 18px', background: 'none', border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' };
   const stabStyle = (id) => ({ ...stabStyleBase, borderBottom: '2px solid ' + (stab === id ? '#f0c040' : 'transparent'), color: stab === id ? '#f0c040' : 'rgba(255,255,255,.4)' });
 
   return (
-    <div id="ag-dashboard-screen" style={{ display: show ? 'block' : 'none' }}>
+    <div id="ag-dashboard-screen">
       {/* Header */}
       <div style={{ padding: '18px 24px', borderBottom: '1px solid rgba(255,255,255,.07)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ fontSize: 17, fontWeight: 800, color: '#fff' }}>🧑‍💼 Agent Dashboard</div>
-            <span style={{ background: 'rgba(34,197,94,.15)', border: '1px solid rgba(34,197,94,.3)', color: '#22c55e', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20 }}>APPROVED</span>
+            {suspended
+              ? <span style={{ background: 'rgba(249,115,22,.15)', border: '1px solid rgba(249,115,22,.3)', color: '#f97316', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20 }}>SUSPENDED</span>
+              : <span style={{ background: 'rgba(34,197,94,.15)', border: '1px solid rgba(34,197,94,.3)', color: '#22c55e', fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20 }}>APPROVED</span>}
           </div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', marginTop: 2 }}>Profit Share Program — commission based on Win/Loss after deductions</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,.4)', marginTop: 2 }}>CPA + RevShare commission on your referred players</div>
         </div>
         <div style={{ background: 'rgba(240,192,64,.12)', border: '1px solid rgba(240,192,64,.25)', borderRadius: 8, padding: '6px 14px', display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 10, color: 'rgba(255,255,255,.5)' }}>Agent Code</span>
-          <span style={{ fontSize: 14, fontWeight: 900, color: 'var(--gold)', fontFamily: "'Cinzel',serif" }} id="ag-code-display">{code}</span>
+          <span style={{ fontSize: 14, fontWeight: 900, color: 'var(--gold)', fontFamily: "'Montserrat',sans-serif" }} id="ag-code-display">{code}</span>
         </div>
       </div>
+
+      {suspended && (
+        <div style={{ margin: '14px 18px 0', background: 'rgba(249,115,22,.08)', border: '1px solid rgba(249,115,22,.3)', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#f97316', fontWeight: 700 }}>
+          ⏸ Your agent account is suspended — commissions and transfers are paused. Contact support.
+        </div>
+      )}
 
       {/* Sub tabs */}
       <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,.07)', overflowX: 'auto' }}>
@@ -1451,54 +1716,57 @@ function AgentDashboard({ show, code, toast }) {
 
       {/* ── OVERVIEW ── */}
       <div id="ag-panel-overview" style={{ display: stab === 'overview' ? 'block' : 'none', padding: 18 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(255,255,255,.35)', marginBottom: 12 }}>This Month</div>
+        <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(255,255,255,.35)', marginBottom: 12 }}>Live Performance</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 16 }}>
-          <AgentKpi color="#f0c040" label="Net Commission" i18n="agent_commission" value={'₱' + netComm.toLocaleString()} sub="after all deductions" />
-          <AgentKpi color="#38bdf8" label="Active Players" i18n="agent_active" value={active} sub="in your downline" />
-          <AgentKpi color="#22c55e" label="Player Net Loss" i18n="agent_net_loss" value={'₱' + Math.abs(grossWL).toLocaleString()} sub="gross win/loss" />
+          <AgentKpi color="#f0c040" label="Commission Earned" i18n="agent_commission" value={peso(Math.round(stats.earned || 0))} sub={peso(Math.round(stats.pending || 0)) + ' pending'} />
+          <AgentKpi color="#38bdf8" label="Active Players" i18n="agent_active" value={`${stats.activePlayers ?? 0}/${stats.players ?? downline.length}`} sub="depositing / total" />
+          <AgentKpi color="#22c55e" label="Downline GGR" i18n="agent_net_loss" value={peso(Math.round(stats.ggr || 0))} sub="all time" />
         </div>
 
         {/* Quick access grid */}
         <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(255,255,255,.35)', marginBottom: 12 }} data-i18n="agent_quick">Quick Access</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <QuickBtn onClick={() => setStab('report')} bg="rgba(240,192,64,.15)" icon="📈" title="Win/Loss Report" titleI18n="agent_wl" sub="Profit after deductions" />
-          <QuickBtn onClick={() => setStab('members')} bg="rgba(56,189,248,.15)" icon="👥" title="Member Records" titleI18n="agent_records" sub="Admin-approved only" />
+          <QuickBtn onClick={() => setStab('report')} bg="rgba(240,192,64,.15)" icon="📈" title="Commission Report" titleI18n="agent_wl" sub="CPA + RevShare records" />
+          <QuickBtn onClick={() => setStab('members')} bg="rgba(56,189,248,.15)" icon="👥" title="Member Records" titleI18n="agent_records" sub={`${downline.length} referred player${downline.length === 1 ? '' : 's'}`} />
           <QuickBtn onClick={() => setStab('finance')} bg="rgba(240,192,64,.15)" icon="💰" title="Finance Center" titleI18n="agent_finance" sub="Deposit for members" />
-          <QuickBtn onClick={() => setStab('share')} bg="rgba(232,41,58,.15)" icon="🔗" title="Share Link" titleI18n="agent_share" sub="Invite sub-agents" subI18n="agent_invite" />
+          <QuickBtn onClick={() => setStab('share')} bg="rgba(232,41,58,.15)" icon="🔗" title="Share Code" titleI18n="agent_share" sub="Grow your downline" subI18n="agent_invite" />
         </div>
 
-        {/* How Agent commission works */}
+        {/* How commission works */}
         <div style={{ marginTop: 16, background: 'rgba(232,41,58,.06)', border: '1px solid rgba(232,41,58,.15)', borderRadius: 10, padding: '12px 14px' }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#e8293a', marginBottom: 6 }}>⚠️ How Agent Commission Works</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#e8293a', marginBottom: 6 }}>ℹ️ How Agent Commission Works</div>
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,.45)', lineHeight: 1.7 }}>
-            Commission = <strong style={{ color: '#fff' }}>(Player Losses − Player Wins)</strong> minus Promo % + Platform % + Game Fee % + Payment Fee %<br />
-            <span style={{ color: '#f97316' }}>You can go negative if your players win more than they lose.</span>
+            <strong style={{ color: '#fff' }}>CPA</strong> — a fixed reward for each new player whose first deposit qualifies.<br />
+            <strong style={{ color: '#fff' }}>RevShare</strong> — a % of your players&apos; GGR (wagers − wins) each month.<br />
+            Commissions are generated monthly and credited to your balance when released.
           </div>
         </div>
       </div>
 
       {/* ── REPORT ── */}
-      <AgentReportPanel show={stab === 'report'} />
+      <AgentReportPanel show={stab === 'report'} comms={comms} />
 
       {/* ── MEMBERS ── */}
       <div id="ag-panel-members" style={{ display: stab === 'members' ? 'block' : 'none', padding: 18 }}>
         <div style={{ background: 'rgba(56,189,248,.06)', border: '1px solid rgba(56,189,248,.15)', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: 12, color: 'rgba(255,255,255,.45)' }}>
-          ℹ️ All members under your account must be <strong style={{ color: '#38bdf8' }}>approved by admin</strong> before they are linked to you.
+          ℹ️ Players who register with your code <strong style={{ color: '#38bdf8' }}>{code}</strong> appear here automatically with live deposit and GGR figures.
         </div>
         <div style={{ border: '1px solid rgba(255,255,255,.07)', borderRadius: 12, overflow: 'hidden' }}>
           <div style={{ background: 'rgba(255,255,255,.03)', padding: '10px 14px 10px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 4, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.07em', color: 'rgba(255,255,255,.35)', borderBottom: '1px solid rgba(255,255,255,.05)' }}>
-            <span>Player</span><span style={{ textAlign: 'center' }} data-i18n="ui_deposit">Deposit</span><span style={{ textAlign: 'center' }}>Win/Loss</span><span style={{ textAlign: 'center' }} data-i18n="misc_status">Status</span>
+            <span>Player</span><span style={{ textAlign: 'center' }} data-i18n="ui_deposit">Deposit</span><span style={{ textAlign: 'center' }}>GGR</span><span style={{ textAlign: 'center' }} data-i18n="misc_status">Status</span>
           </div>
           <div id="ag-members-list">
-            {AG_MEMBERS_DATA.map((m, i) => {
-              const wlColor = m.winloss < 0 ? '#22c55e' : '#e8293a';
-              const wlLabel = m.winloss < 0 ? '-₱' + Math.abs(m.winloss).toLocaleString() : '+₱' + m.winloss.toLocaleString();
+            {downline.length === 0 && (
+              <div style={{ padding: '22px 14px', fontSize: 12, color: 'rgba(255,255,255,.35)', textAlign: 'center' }}>No referred players yet — share your code to start building your downline.</div>
+            )}
+            {downline.map((m, i) => {
+              const activeM = (m.depositCount || 0) > 0;
               return (
                 <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 4, padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,.04)', alignItems: 'center' }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', fontFamily: 'monospace' }}>{m.name}</span>
-                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', textAlign: 'center' }}>₱{m.deposit.toLocaleString()}</span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: wlColor, textAlign: 'center' }}>{wlLabel}</span>
-                  <span style={{ textAlign: 'center' }}><span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, fontWeight: 700, background: m.status === 'active' ? 'rgba(34,197,94,.15)' : 'rgba(249,115,22,.15)', color: m.status === 'active' ? '#22c55e' : '#f97316' }}>{m.status}</span></span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#fff', fontFamily: 'monospace' }}>{m.username}</span>
+                  <span style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', textAlign: 'center' }}>{peso(Math.round(m.depositTotal || 0))}{m.depositCount ? ' ×' + m.depositCount : ''}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: (m.ggr || 0) >= 0 ? '#22c55e' : '#e8293a', textAlign: 'center' }}>{peso(Math.round(m.ggr || 0))}</span>
+                  <span style={{ textAlign: 'center' }}><span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 4, fontWeight: 700, background: activeM ? 'rgba(34,197,94,.15)' : 'rgba(249,115,22,.15)', color: activeM ? '#22c55e' : '#f97316' }}>{activeM ? 'active' : 'new'}</span></span>
                 </div>
               );
             })}
@@ -1507,30 +1775,34 @@ function AgentDashboard({ show, code, toast }) {
       </div>
 
       {/* ── FINANCE ── */}
-      <AgentFinancePanel show={stab === 'finance'} toast={toast} />
+      <AgentFinancePanel show={stab === 'finance'} toast={toast} downline={downline} balance={balance} disabled={suspended} onDone={refresh} />
 
       {/* ── SHARE ── */}
       <div id="ag-panel-share" style={{ display: stab === 'share' ? 'block' : 'none', padding: 18 }}>
         <div style={{ background: 'rgba(240,192,64,.06)', border: '1px solid rgba(240,192,64,.2)', borderRadius: 12, padding: 18, marginBottom: 14 }}>
           <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.1em', color: 'rgba(240,192,64,.7)', marginBottom: 6 }}>Your Agent Code</div>
-          <div style={{ fontFamily: "'Cinzel',serif", fontSize: 28, fontWeight: 900, color: '#f0c040', marginBottom: 12 }} id="ag-share-code">{code}</div>
+          <div style={{ fontFamily: "'Montserrat',sans-serif", fontSize: 28, fontWeight: 900, color: '#f0c040', marginBottom: 12, cursor: 'pointer' }} id="ag-share-code" onClick={() => { navigator.clipboard?.writeText(code).catch(() => {}); toast('✅ Agent code copied!', 'success'); }}>{code}</div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', background: 'rgba(0,0,0,.3)', border: '1px solid rgba(240,192,64,.2)', borderRadius: 8, padding: '8px 12px', cursor: 'pointer', marginBottom: 10 }} onClick={() => { navigator.clipboard?.writeText(link).catch(() => {}); toast('✅ Agent link copied!', 'success'); }}>
-            <span style={{ fontSize: 12, fontFamily: 'monospace', color: 'rgba(240,192,64,.8)', flex: 1 }} id="ag-share-link">{link}</span>
+            <span style={{ fontSize: 12, fontFamily: 'monospace', color: 'rgba(240,192,64,.8)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} id="ag-share-link">{link}</span>
             <span style={{ color: '#f0c040', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>📋 Copy</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            <button onClick={() => toast('Shared to Facebook', 'success')} style={{ padding: 8, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 8, color: 'rgba(255,255,255,.6)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>📘 Facebook</button>
-            <button onClick={() => toast('Shared to Messenger', 'success')} style={{ padding: 8, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 8, color: 'rgba(255,255,255,.6)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>💬 Messenger</button>
-            <button onClick={() => toast('Shared to Telegram', 'success')} style={{ padding: 8, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 8, color: 'rgba(255,255,255,.6)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>✈️ Telegram</button>
-            <button onClick={() => toast('Shared to Viber', 'success')} style={{ padding: 8, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 8, color: 'rgba(255,255,255,.6)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>💜 Viber</button>
+            {[
+              ['📘 Facebook', `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}`],
+              ['✈️ Telegram', `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent('Join me on Onward! Use my code ' + code)}`],
+              ['💬 WhatsApp', `https://wa.me/?text=${encodeURIComponent('Join me on Onward! Register with my code ' + code + ' → ' + link)}`],
+              ['💜 Viber', `viber://forward?text=${encodeURIComponent('Join me on Onward! Register with my code ' + code + ' → ' + link)}`],
+            ].map(([label, url]) => (
+              <button key={label} onClick={() => window.open(url, '_blank', 'noopener')} style={{ padding: 8, background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.08)', borderRadius: 8, color: 'rgba(255,255,255,.6)', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>{label}</button>
+            ))}
           </div>
         </div>
         <div style={{ background: 'rgba(255,255,255,.03)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 12, padding: 14 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 10 }}>Referral Stats</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,.05)', paddingBottom: 7 }}><span style={{ color: 'rgba(255,255,255,.4)' }}>Total Link Clicks</span><strong style={{ color: '#fff' }}>1,842</strong></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,.05)', paddingBottom: 7 }}><span style={{ color: 'rgba(255,255,255,.4)' }}>Sub-agents Approved</span><strong style={{ color: '#22c55e' }}>4</strong></div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,.4)' }}>Pending Approval</span><strong style={{ color: '#f97316' }}>2</strong></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,.05)', paddingBottom: 7 }}><span style={{ color: 'rgba(255,255,255,.4)' }}>Total Players</span><strong style={{ color: '#fff' }}>{downline.length}</strong></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,.05)', paddingBottom: 7 }}><span style={{ color: 'rgba(255,255,255,.4)' }}>Depositing Players</span><strong style={{ color: '#22c55e' }}>{downline.filter((m) => (m.depositCount || 0) > 0).length}</strong></div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: 'rgba(255,255,255,.4)' }}>Commission Pending</span><strong style={{ color: '#f97316' }}>{peso(Math.round(stats.pending || 0))}</strong></div>
           </div>
         </div>
       </div>
@@ -1544,7 +1816,7 @@ function AgentKpi({ color, label, i18n, value, sub }) {
     <div style={{ background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 12, padding: 14, position: 'relative', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: color }}></div>
       <div style={{ fontSize: 10, color: 'rgba(255,255,255,.4)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '.06em' }} data-i18n={i18n}>{label}</div>
-      <div style={{ fontSize: 20, fontWeight: 900, color, fontFamily: "'Cinzel',serif" }}>{value}</div>
+      <div style={{ fontSize: 20, fontWeight: 900, color, fontFamily: "'Montserrat',sans-serif" }}>{value}</div>
       <div style={{ fontSize: 10, color: 'rgba(255,255,255,.3)', marginTop: 3 }}>{sub}</div>
     </div>
   );
@@ -1560,10 +1832,19 @@ function QuickBtn({ onClick, bg, icon, title, titleI18n, sub, subI18n }) {
   );
 }
 
-function AgentReportPanel({ show }) {
+/* ── commission report: real records by month ── */
+function AgentReportPanel({ show, comms }) {
   const [period, setPeriod] = useState('this');
-  const fmt = (v) => (v < 0 ? '-' : '') + '₱' + Math.abs(v).toLocaleString();
-  const isDeduct = (label) => label.startsWith('(-)');
+  const now = new Date();
+  const thisM = now.toISOString().slice(0, 7);
+  const lastD = new Date(now); lastD.setMonth(lastD.getMonth() - 1);
+  const lastM = lastD.toISOString().slice(0, 7);
+  const sel = period === 'this' ? thisM : lastM;
+  const rows = comms.filter((c) => c.period === sel);
+  const paid = rows.filter((c) => c.status === 'paid').reduce((s, c) => s + Number(c.amount || 0), 0);
+  const pending = rows.filter((c) => c.status !== 'paid').reduce((s, c) => s + Number(c.amount || 0), 0);
+  const KIND_ICON = { cpa: '🎯', revshare: '📈', hybrid: '🔀', adjustment: '✍️' };
+  const fmt = (v) => (v < 0 ? '-' : '') + '₱' + Math.abs(Math.round(v)).toLocaleString();
 
   const periodBtn = (p) => p === period
     ? { padding: '5px 14px', borderRadius: 6, background: '#f0c040', border: 'none', color: '#06091a', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }
@@ -1576,38 +1857,43 @@ function AgentReportPanel({ show }) {
         <button className={'ag-period' + (period === 'last' ? ' active' : '')} onClick={() => setPeriod('last')} style={periodBtn('last')}>Last Month</button>
       </div>
       <div style={{ border: '1px solid rgba(255,255,255,.07)', borderRadius: 12, overflow: 'hidden' }}>
-        <div style={{ background: 'rgba(255,255,255,.03)', padding: '10px 14px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(255,255,255,.35)', borderBottom: '1px solid rgba(255,255,255,.05)' }} data-i18n="agent_report">Commission Report (Profit Share)</div>
+        <div style={{ background: 'rgba(255,255,255,.03)', padding: '10px 14px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.08em', color: 'rgba(255,255,255,.35)', borderBottom: '1px solid rgba(255,255,255,.05)' }} data-i18n="agent_report">Commission Report — {sel}</div>
         <div id="ag-report-rows">
-          {AG_REPORT_ROWS.map((r, i) => {
-            const val = period === 'this' ? r.thisMonth : r.lastMonth;
-            const prev = period === 'this' ? r.lastMonth : r.thisMonth;
-            const isNet = r.label.includes('Net Profit') || r.label.includes('Your Share');
-            const color = isNet ? '#f0c040' : isDeduct(r.label) ? '#e8293a' : val < 0 ? '#e8293a' : '#22c55e';
-            return (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 14px', borderBottom: '1px solid rgba(255,255,255,.04)', background: isNet ? 'rgba(240,192,64,.05)' : undefined }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>🪙</div>
-                  <span style={{ fontSize: 13, fontWeight: isNet ? 700 : undefined, color: isNet ? '#fff' : 'rgba(255,255,255,.65)' }}>{r.label}</span>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 13, fontWeight: 800, color }}>{fmt(val)}</div>
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,.3)' }}>Last: {fmt(prev)}</div>
-                </div>
+          {rows.length === 0 && (
+            <div style={{ padding: '22px 14px', fontSize: 12, color: 'rgba(255,255,255,.35)', textAlign: 'center' }}>No commission records for {sel} yet — they're generated monthly by the operator.</div>
+          )}
+          {rows.map((c, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 14px', borderBottom: '1px solid rgba(255,255,255,.04)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>{KIND_ICON[c.kind] || '🪙'}</div>
+                <span style={{ fontSize: 12, color: 'rgba(255,255,255,.65)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.detail || c.kind}</span>
               </div>
-            );
-          })}
+              <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 8 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: Number(c.amount) < 0 ? '#e8293a' : '#f0c040' }}>{fmt(Number(c.amount || 0))}</div>
+                <div style={{ fontSize: 10, color: c.status === 'paid' ? '#22c55e' : '#f97316' }}>{c.status === 'paid' ? '✅ Paid' : '⏳ Pending'}</div>
+              </div>
+            </div>
+          ))}
+          {rows.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '11px 14px', background: 'rgba(240,192,64,.05)' }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>Total — {sel}</span>
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#f0c040' }}>{fmt(paid)} paid · {fmt(pending)} pending</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function AgentFinancePanel({ show, toast }) {
+/* ── finance: real member transfers from the agent's balance ── */
+function AgentFinancePanel({ show, toast, downline, balance, disabled, onDone }) {
   const [fin, setFin] = useState('deposit'); // deposit | bonus
-  const [depAmt, setDepAmt] = useState(18);
-  const [bonusAmt, setBonusAmt] = useState(10);
-  const depMember = useRef(null), depPw = useRef(null);
-  const bonusMember = useRef(null), bonusPw = useRef(null);
+  const [depAmt, setDepAmt] = useState(100);
+  const [bonusAmt, setBonusAmt] = useState(50);
+  const [busy, setBusy] = useState(false);
+  const depMember = useRef(null), depPw = useRef(null), depNote = useRef(null);
+  const bonusMember = useRef(null), bonusPw = useRef(null), bonusNote = useRef(null);
 
   const finTabStyle = (id, color) => ({ padding: '9px 16px', background: 'none', border: 'none', borderBottom: '2px solid ' + (fin === id ? color : 'transparent'), color: fin === id ? color : 'rgba(255,255,255,.4)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' });
   const amtStyle = (active) => active
@@ -1616,24 +1902,31 @@ function AgentFinancePanel({ show, toast }) {
   const inp = { width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)', borderRadius: 8, color: '#fff', fontSize: 13, fontFamily: 'inherit', outline: 'none' };
   const star = { fontSize: 11, color: '#f97316', fontWeight: 700, marginBottom: 5 };
 
-  const submitDeposit = () => {
-    const member = depMember.current?.value.trim();
-    if (!member) { toast('Please enter member username', 'error'); return; }
-    if (!depAmt || depAmt <= 0) { toast('Please enter a valid amount', 'error'); return; }
-    if (!depPw.current?.value.trim()) { toast('Please enter fund password', 'error'); return; }
-    toast('✅ Deposit of ₱' + depAmt.toLocaleString() + ' sent to ' + member, 'success');
-    if (depMember.current) depMember.current.value = '';
-    if (depPw.current) depPw.current.value = '';
+  const send = async (kind, memberRef, amount, pwRef, noteRef) => {
+    if (disabled) { toast('Agent account is suspended — transfers are paused', 'error'); return; }
+    const username = memberRef.current?.value.trim();
+    if (!username) { toast('Please choose a member', 'error'); return; }
+    if (!amount || amount <= 0) { toast('Please enter a valid amount', 'error'); return; }
+    if (!pwRef.current?.value.trim()) { toast('Please enter your account password', 'error'); return; }
+    setBusy(true);
+    try {
+      const r = await api.post('/agents/me/transfer', { username, amount, kind, note: noteRef.current?.value || '', password: pwRef.current.value });
+      toast((kind === 'bonus' ? '🎁 Bonus of ' : '✅ Deposit of ') + '₱' + amount.toLocaleString() + ' sent to ' + r.data.member, 'success');
+      if (pwRef.current) pwRef.current.value = '';
+      if (noteRef.current) noteRef.current.value = '';
+      onDone();
+    } catch (e) { toast(e.response?.data?.error || 'Transfer failed', 'error'); }
+    finally { setBusy(false); }
   };
-  const submitBonus = () => {
-    const member = bonusMember.current?.value.trim();
-    if (!member) { toast('Please enter member username', 'error'); return; }
-    if (!bonusAmt || bonusAmt <= 0) { toast('Please enter a valid amount', 'error'); return; }
-    if (!bonusPw.current?.value.trim()) { toast('Please enter fund password', 'error'); return; }
-    toast('🎁 Bonus of ₱' + bonusAmt.toLocaleString() + ' gifted to ' + member, 'success');
-    if (bonusMember.current) bonusMember.current.value = '';
-    if (bonusPw.current) bonusPw.current.value = '';
-  };
+
+  const MemberSelect = ({ inputRef }) => (
+    downline.length > 0
+      ? <select ref={inputRef} defaultValue="" style={{ ...inp, cursor: 'pointer' }}>
+          <option value="">Select member…</option>
+          {downline.map((m) => <option key={m.id} value={m.username}>{m.username}</option>)}
+        </select>
+      : <input ref={inputRef} type="text" placeholder="No downline members yet" style={inp} disabled />
+  );
 
   return (
     <div id="ag-panel-finance" style={{ display: show ? 'block' : 'none', padding: 18 }}>
@@ -1641,27 +1934,26 @@ function AgentFinancePanel({ show, toast }) {
         <button className={'ag-fin-tab' + (fin === 'deposit' ? ' active' : '')} onClick={() => setFin('deposit')} style={finTabStyle('deposit', '#f97316')} data-i18n="agent_member_dep">Member Deposit</button>
         <button className={'ag-fin-tab' + (fin === 'bonus' ? ' active' : '')} onClick={() => setFin('bonus')} style={finTabStyle('bonus', '#f97316')}>Bonus Gift</button>
       </div>
+      <div style={{ background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 10, padding: '10px 14px', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: 12, color: 'rgba(255,255,255,.4)' }}>Your Balance — transfers are deducted from it</span>
+        <span style={{ fontSize: 15, fontWeight: 800, color: '#f97316' }}>{balance == null ? '…' : peso(Math.round(balance))}</span>
+      </div>
       <div id="ag-fin-deposit-wrap" style={{ display: fin === 'deposit' ? 'block' : 'none' }}>
-        <div style={{ background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.07)', borderRadius: 10, padding: '10px 14px', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: 12, color: 'rgba(255,255,255,.4)' }}>Payment Account — Deposit Balance</span>
-          <span style={{ fontSize: 15, fontWeight: 800, color: '#f97316' }}>₱0</span>
-        </div>
-        <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,.35)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '.06em' }} data-i18n="dep_info">Deposit Info</div>
-        <div style={{ marginBottom: 10 }}><div style={star}>* Member Account:</div><input ref={depMember} id="ag-dep-member" type="text" placeholder="Enter member username" style={inp} /></div>
+        <div style={{ marginBottom: 10 }}><div style={star}>* Member Account:</div><MemberSelect inputRef={depMember} /></div>
         <div style={{ marginBottom: 10 }}><div style={star}>* Deposit Amount:</div>
           <div style={{ display: 'flex', gap: 6, marginBottom: 7 }}>
-            {[18, 50, 100, 500].map((v) => (
+            {[50, 100, 500, 1000].map((v) => (
               <button key={v} onClick={() => setDepAmt(v)} className={'ag-amt' + (depAmt === v ? ' active' : '')} style={amtStyle(depAmt === v)}>{v}</button>
             ))}
           </div>
           <input id="ag-dep-amount" type="number" value={depAmt} onChange={(e) => setDepAmt(Number(e.target.value))} style={inp} />
         </div>
-        <div style={{ marginBottom: 10 }}><div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', fontWeight: 700, marginBottom: 5 }} data-i18n="dep_remark">Remark:</div><input id="ag-dep-remark" type="text" placeholder="Enter remark (optional)" style={inp} /></div>
-        <div style={{ marginBottom: 16 }}><div style={star}>* Fund Password:</div><input ref={depPw} id="ag-dep-pw" type="password" placeholder="Enter fund password" style={inp} /></div>
-        <button onClick={submitDeposit} style={{ width: '100%', padding: 12, background: 'linear-gradient(135deg,#c0410a,#f97316)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }} data-i18n="dep_confirm">Confirm Deposit</button>
+        <div style={{ marginBottom: 10 }}><div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', fontWeight: 700, marginBottom: 5 }} data-i18n="dep_remark">Remark:</div><input ref={depNote} id="ag-dep-remark" type="text" placeholder="Enter remark (optional)" style={inp} /></div>
+        <div style={{ marginBottom: 16 }}><div style={star}>* Fund Password (your account password):</div><input ref={depPw} id="ag-dep-pw" type="password" placeholder="Enter your account password" style={inp} /></div>
+        <button onClick={() => send('deposit', depMember, depAmt, depPw, depNote)} disabled={busy} style={{ width: '100%', padding: 12, background: 'linear-gradient(135deg,#c0410a,#f97316)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', opacity: busy ? 0.6 : 1 }} data-i18n="dep_confirm">{busy ? 'Sending…' : 'Confirm Deposit'}</button>
       </div>
       <div id="ag-fin-bonus-wrap" style={{ display: fin === 'bonus' ? 'block' : 'none' }}>
-        <div style={{ marginBottom: 10 }}><div style={star}>* Member Account:</div><input ref={bonusMember} id="ag-bonus-member" type="text" placeholder="Enter member username" style={inp} /></div>
+        <div style={{ marginBottom: 10 }}><div style={star}>* Member Account:</div><MemberSelect inputRef={bonusMember} /></div>
         <div style={{ marginBottom: 10 }}><div style={star}>* Bonus Amount:</div>
           <div style={{ display: 'flex', gap: 6, marginBottom: 7 }}>
             {[10, 50, 100, 200].map((v) => (
@@ -1670,9 +1962,9 @@ function AgentFinancePanel({ show, toast }) {
           </div>
           <input id="ag-bonus-amount" type="number" value={bonusAmt} onChange={(e) => setBonusAmt(Number(e.target.value))} style={inp} />
         </div>
-        <div style={{ marginBottom: 10 }}><div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', fontWeight: 700, marginBottom: 5 }}>Remark:</div><input type="text" placeholder="Optional" style={inp} /></div>
-        <div style={{ marginBottom: 16 }}><div style={star}>* Fund Password:</div><input ref={bonusPw} id="ag-bonus-pw" type="password" placeholder="Enter fund password" style={inp} /></div>
-        <button onClick={submitBonus} style={{ width: '100%', padding: 12, background: 'linear-gradient(135deg,#c0410a,#f97316)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit' }}>Confirm Gift</button>
+        <div style={{ marginBottom: 10 }}><div style={{ fontSize: 11, color: 'rgba(255,255,255,.4)', fontWeight: 700, marginBottom: 5 }}>Remark:</div><input ref={bonusNote} type="text" placeholder="Optional" style={inp} /></div>
+        <div style={{ marginBottom: 16 }}><div style={star}>* Fund Password (your account password):</div><input ref={bonusPw} id="ag-bonus-pw" type="password" placeholder="Enter your account password" style={inp} /></div>
+        <button onClick={() => send('bonus', bonusMember, bonusAmt, bonusPw, bonusNote)} disabled={busy} style={{ width: '100%', padding: 12, background: 'linear-gradient(135deg,#c0410a,#f97316)', border: 'none', borderRadius: 10, color: '#fff', fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', opacity: busy ? 0.6 : 1 }}>{busy ? 'Sending…' : 'Confirm Gift'}</button>
       </div>
     </div>
   );

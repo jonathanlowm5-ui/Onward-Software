@@ -20,21 +20,42 @@ const { normalizeCurrency } = require('../playerUtils');
 const router = express.Router();
 
 // ---- Canonical defaults ----------------------------------------------------
+// Slice fields mirror the admin "Prize Setting" table:
+//   l=Name  type=Type  p=Prize  seq=Sequence  w=Percentage(win%)
+//   qty=Quantity(0=unlimited)  claimed=Claimed(server-tracked)
+//   req=Requirement  mult=Multiply(turnover x)  c=colour  on=active
+const SLICE_TYPES = ['Cash', 'Bonus', 'Free Spin', 'Token', 'Physical', 'None'];
+const SLICE_REQS = ['T/O', 'Deposit', 'None'];
 const DEFAULT_SLICES = [
-  { l: '₱50 Cash', p: 50, w: 30, c: '#e8253a', on: 1 },
-  { l: '₱100 Cash', p: 100, w: 20, c: '#f4b223', on: 1 },
-  { l: '₱200 Cash', p: 200, w: 15, c: '#2ecc71', on: 1 },
-  { l: 'Free Spin x3', p: 3, w: 12, c: '#3ab7ff', on: 1 },
-  { l: '₱500 Cash', p: 500, w: 8, c: '#a86dff', on: 1 },
-  { l: '₱1,000 Cash', p: 1000, w: 5, c: '#ff7a1a', on: 1 },
-  { l: 'Try Again', p: 0, w: 7, c: '#14182a', on: 1 },
-  { l: '₱5,000 JACKPOT', p: 5000, w: 3, c: '#f7e08b', on: 1 },
+  { l: '₱50 Cash', type: 'Cash', p: 50, seq: 1, w: 30, qty: 0, claimed: 0, req: 'T/O', mult: 3, c: '#e8253a', on: 1 },
+  { l: '₱100 Cash', type: 'Cash', p: 100, seq: 2, w: 20, qty: 0, claimed: 0, req: 'T/O', mult: 3, c: '#f4b223', on: 1 },
+  { l: '₱200 Cash', type: 'Cash', p: 200, seq: 3, w: 15, qty: 0, claimed: 0, req: 'T/O', mult: 3, c: '#2ecc71', on: 1 },
+  { l: 'Free Spin x3', type: 'Free Spin', p: 3, seq: 4, w: 12, qty: 0, claimed: 0, req: 'None', mult: 0, c: '#3ab7ff', on: 1 },
+  { l: '₱500 Cash', type: 'Cash', p: 500, seq: 5, w: 8, qty: 0, claimed: 0, req: 'T/O', mult: 3, c: '#a86dff', on: 1 },
+  { l: '₱1,000 Cash', type: 'Cash', p: 1000, seq: 6, w: 5, qty: 0, claimed: 0, req: 'T/O', mult: 3, c: '#ff7a1a', on: 1 },
+  { l: 'Try Again', type: 'None', p: 0, seq: 7, w: 7, qty: 0, claimed: 0, req: 'None', mult: 0, c: '#14182a', on: 1 },
+  { l: '₱5,000 JACKPOT', type: 'Cash', p: 5000, seq: 8, w: 3, qty: 0, claimed: 0, req: 'T/O', mult: 3, c: '#f7e08b', on: 1 },
 ];
 
 function defaultConfig() {
   return {
     wheel: {
       enabled: true,
+      image: '',
+      theme: {
+        bgImage: '',
+        titleImage: '',
+        frameImage: '',
+        pinImage: '',
+        tokenImage: '',
+        buttonImage: '',
+        title: 'WHEEL OF FORTUNE',
+        rimColor: '#f4b223',
+        hubColor: '#f4b223',
+        pointerColor: '#f4b223',
+        bulbs: true,
+        discScale: 0.74,
+      },
       freeSpinsPerDay: 1,
       spinCost: 50,
       maxPerDay: 5,
@@ -67,13 +88,41 @@ const num = (x, d = 0) => {
 const str = (x, d = '') => (x === undefined || x === null ? d : String(x).trim());
 const bool = (x, d = true) => (x === undefined || x === null ? d : !!x && x !== 0 && x !== '0');
 
-function cleanSlice(raw = {}, def = {}) {
+function pick(val, list, dflt) {
+  const s = str(val, dflt);
+  return list.includes(s) ? s : dflt;
+}
+function cleanSlice(raw = {}, def = {}, idx = 0) {
   return {
-    l: str(raw.l ?? raw.label, def.l || 'Prize').slice(0, 40) || 'Prize',
+    l: str(raw.l ?? raw.name ?? raw.label, def.l || 'Prize').slice(0, 40) || 'Prize',
+    type: pick(raw.type, SLICE_TYPES, def.type || 'Cash'),
     p: Math.max(0, num(raw.p ?? raw.prize, def.p || 0)),
-    w: Math.max(0, num(raw.w ?? raw.weight, def.w || 0)),
+    seq: Math.max(0, num(raw.seq ?? raw.sequence, def.seq || idx + 1)),
+    w: Math.max(0, num(raw.w ?? raw.weight ?? raw.percentage, def.w || 0)),
+    qty: Math.max(0, num(raw.qty ?? raw.quantity, def.qty || 0)),
+    claimed: Math.max(0, num(raw.claimed, def.claimed || 0)),
+    req: pick(raw.req ?? raw.requirement, SLICE_REQS, def.req || 'T/O'),
+    mult: Math.max(0, num(raw.mult ?? raw.multiply, def.mult || 0)),
     c: str(raw.c ?? raw.colour ?? raw.color, def.c || '#3aa0ff').slice(0, 24) || '#3aa0ff',
     on: bool(raw.on, def.on !== undefined ? def.on : true) ? 1 : 0,
+  };
+}
+
+function cleanTheme(raw = {}, def = {}) {
+  const t = raw && typeof raw === 'object' ? raw : {};
+  return {
+    bgImage: str(t.bgImage, '').slice(0, 2048),
+    titleImage: str(t.titleImage, '').slice(0, 2048),
+    frameImage: str(t.frameImage, '').slice(0, 2048),
+    pinImage: str(t.pinImage, '').slice(0, 2048),
+    tokenImage: str(t.tokenImage, '').slice(0, 2048),
+    buttonImage: str(t.buttonImage, '').slice(0, 2048),
+    title: str(t.title, def.title || 'WHEEL OF FORTUNE').slice(0, 60),
+    rimColor: str(t.rimColor, def.rimColor || '#f4b223').slice(0, 24) || (def.rimColor || '#f4b223'),
+    hubColor: str(t.hubColor, def.hubColor || '#f4b223').slice(0, 24) || (def.hubColor || '#f4b223'),
+    pointerColor: str(t.pointerColor, def.pointerColor || '#f4b223').slice(0, 24) || (def.pointerColor || '#f4b223'),
+    bulbs: bool(t.bulbs, def.bulbs !== undefined ? def.bulbs : true),
+    discScale: Math.min(1, Math.max(0.5, num(t.discScale, def.discScale || 0.74))),
   };
 }
 
@@ -82,11 +131,13 @@ function cleanConfig(raw = {}) {
   const w = raw.wheel || {};
   const t = raw.ticket || {};
   const slices = Array.isArray(w.slices) && w.slices.length
-    ? w.slices.slice(0, 24).map((s) => cleanSlice(s))
+    ? w.slices.slice(0, 24).map((s, i) => cleanSlice(s, {}, i))
     : def.wheel.slices;
   return {
     wheel: {
       enabled: bool(w.enabled, def.wheel.enabled),
+      image: str(w.image, '').slice(0, 2048),
+      theme: cleanTheme(w.theme, def.wheel.theme),
       freeSpinsPerDay: Math.max(0, num(w.freeSpinsPerDay, def.wheel.freeSpinsPerDay)),
       spinCost: Math.max(0, num(w.spinCost, def.wheel.spinCost)),
       maxPerDay: Math.max(1, num(w.maxPerDay, def.wheel.maxPerDay)),
@@ -122,7 +173,14 @@ router.get('/', (req, res) => {
 
 // ---- admin: save config ----------------------------------------------------
 router.put('/', requireAuth, requirePerm('settings.manage'), (req, res) => {
+  const prev = currentConfig();
   const cfg = cleanConfig(req.body || {});
+  // Claimed Quantity is server-authoritative — never trust the client value.
+  // Preserve the live counts by sequence so an admin save can't reset them.
+  const prevBySeq = new Map(prev.wheel.slices.map((s) => [s.seq, s.claimed]));
+  cfg.wheel.slices = cfg.wheel.slices.map((s) => (
+    prevBySeq.has(s.seq) ? { ...s, claimed: prevBySeq.get(s.seq) } : s
+  ));
   store.saveSettings({ miniGames: cfg, miniGamesUpdatedAt: new Date().toISOString() });
   res.json(cfg);
 });
@@ -145,7 +203,11 @@ router.post('/wheel/spin', requirePlayer, (req, res) => {
   const p = store.get('players', req.auth.sub);
   if (!p) return res.status(404).json({ error: 'Player not found' });
 
-  const active = cfg.slices.filter((s) => s.on);
+  // Active = enabled AND not sold out (qty 0 means unlimited), ordered by the
+  // Sequence column so the returned index lines up with the player wheel.
+  const active = cfg.slices
+    .filter((s) => s.on && (s.qty <= 0 || s.claimed < s.qty))
+    .sort((a, b) => (Number(a.seq) || 0) - (Number(b.seq) || 0));
   if (!active.length) return res.status(400).json({ error: 'No active wheel slices configured' });
 
   const todays = spinsTodayFor(p.id);
@@ -178,12 +240,26 @@ router.post('/wheel/spin', requirePlayer, (req, res) => {
   }
   const slice = active[index];
   const prize = Number(slice.p || 0);
-  // Only cash prizes (label mentioning Cash/Jackpot or a plain amount) credit
-  // the wallet; "Free Spin x3" / "Try Again" carry small or zero token values.
-  const isCash = prize > 0 && /cash|jackpot|₱|\bbonus\b/i.test(slice.l);
+  // Cash/Bonus types credit the wallet; Free Spin / Token / None do not.
+  // Fall back to the old label heuristic for legacy slices without a type.
+  const cashType = slice.type === 'Cash' || slice.type === 'Bonus';
+  const isCash = prize > 0 && (cashType || (!slice.type && /cash|jackpot|₱|\bbonus\b/i.test(slice.l)));
   if (isCash) balance += prize;
 
   const updated = store.update('players', p.id, { balance });
+
+  // Increment the won slice's Claimed Quantity (server-authoritative).
+  try {
+    const raw = store.getSettings().miniGames;
+    if (raw && raw.wheel && Array.isArray(raw.wheel.slices)) {
+      const i = raw.wheel.slices.findIndex((s) => Number(s.seq) === Number(slice.seq));
+      const j = i >= 0 ? i : raw.wheel.slices.findIndex((s) => str(s.l) === str(slice.l));
+      if (j >= 0) {
+        raw.wheel.slices[j].claimed = Math.max(0, num(raw.wheel.slices[j].claimed, 0)) + 1;
+        store.saveSettings({ miniGames: raw });
+      }
+    }
+  } catch (e) { /* claimed tracking is best-effort */ }
 
   store.insert('wheel_spins', {
     playerId: p.id, username: p.username, date: today(),

@@ -13,17 +13,17 @@ import api from '../../services/api';
  * credited to the player's real balance.
  */
 
-// Build the conic-gradient + per-slice centre angles for the active slices.
+// Build the conic-gradient + per-slice centre angles. Segments are ALWAYS equal
+// size visually; a slice's weight only controls its win chance (decided
+// server-side), not how big it looks on the wheel.
 function wheelGeometry(active) {
-  const total = active.reduce((a, s) => a + (s.w > 0 ? s.w : 0), 0) || active.length;
-  let acc = 0;
+  const n = active.length || 1;
+  const seg = 360 / n;
   const stops = [];
   const centers = [];
-  active.forEach((s) => {
-    const w = s.w > 0 ? s.w : (total / active.length);
-    const start = (acc / total) * 360;
-    acc += w;
-    const end = (acc / total) * 360;
+  active.forEach((s, i) => {
+    const start = i * seg;
+    const end = (i + 1) * seg;
     stops.push(`${s.c} ${start.toFixed(2)}deg ${end.toFixed(2)}deg`);
     centers.push((start + end) / 2);
   });
@@ -34,14 +34,50 @@ function FortuneWheel({ config, onClose }) {
   const { toast, openModal, currency } = useUI();
   const { isLoggedIn, profile, refreshProfile } = useAuth();
   const wheel = config?.wheel || {};
-  const active = useMemo(() => (wheel.slices || []).filter((s) => s.on), [wheel.slices]);
+  // Ordered by the Sequence column AND filtered exactly like the backend
+  // (enabled + not sold out) so the returned win index lands on the correct
+  // slice. If this diverges from the backend pool the wheel lands wrong.
+  const active = useMemo(
+    () => (wheel.slices || [])
+      .filter((s) => s.on && (Number(s.qty) <= 0 || Number(s.claimed || 0) < Number(s.qty)))
+      .slice()
+      .sort((a, b) => (Number(a.seq) || 0) - (Number(b.seq) || 0)),
+    [wheel.slices],
+  );
   const { gradient, centers } = useMemo(() => wheelGeometry(active), [active]);
+  // A custom wheel PNG uses equal segments (in slice order) for landing.
+  const wheelImage = wheel.image || '';
+  const landCenters = useMemo(
+    () => (wheelImage ? active.map((_, i) => (i + 0.5) * (360 / (active.length || 1))) : centers),
+    [wheelImage, active, centers],
+  );
+  // Half a segment — the disc is offset by this so a slice CENTRE (a number),
+  // not a dividing line, sits under the top pointer at rest and after every spin.
+  const segDeg = 360 / (active.length || 1);
+  const halfSeg = segDeg / 2;
 
   const [rot, setRot] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [status, setStatus] = useState(null); // { freeLeft, spinsToday, maxPerDay, spinCost }
   const [result, setResult] = useState(null); // { label, won }
   const timer = useRef(null);
+  // Measure the stage's inner width so the wheel scales to fit small screens
+  // (otherwise the fixed 340px wheel overflows narrow phones and the right-hand
+  // prizes clip). Falls back to the viewport width before the first measure.
+  const stageRef = useRef(null);
+  const [stageW, setStageW] = useState(0);
+  useEffect(() => {
+    const measure = () => {
+      const el = stageRef.current;
+      if (!el) return;
+      const cs = window.getComputedStyle(el);
+      const pad = parseFloat(cs.paddingLeft || '0') + parseFloat(cs.paddingRight || '0');
+      setStageW(Math.max(0, el.clientWidth - pad));
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
 
   const loadStatus = () => {
     if (!isLoggedIn) { setStatus(null); return; }
@@ -63,9 +99,11 @@ function FortuneWheel({ config, onClose }) {
     try {
       const { data } = await api.post('/mini-games/wheel/spin');
       const idx = Math.max(0, Math.min(active.length - 1, data?.result?.index ?? 0));
-      const target = centers[idx] || 0;
+      // Subtract halfSeg to match the disc's resting offset, so the slice CENTRE
+      // (not the boundary line) lands under the top pointer.
+      const target = (landCenters[idx] || 0) - halfSeg;
       // Land the winning slice centre under the top pointer with ≥5 full turns.
-      const desired = (360 - (target % 360)) % 360;
+      const desired = ((360 - (target % 360)) % 360 + 360) % 360;
       const current = ((rot % 360) + 360) % 360;
       let delta = desired - current;
       if (delta < 0) delta += 360;
@@ -88,66 +126,152 @@ function FortuneWheel({ config, onClose }) {
     }
   };
 
-  const size = 320;
+  // Fit the wheel to its stage: shrinking on phones so it never overflows the
+  // modal. A themed wheel (with uploaded background/frame art) fills more of the
+  // stage so the wheel is the hero instead of floating in empty artwork.
+  const themed = !!(wheel.theme?.bgImage || wheel.theme?.frameImage);
+  const avail = stageW || (typeof window !== 'undefined' ? window.innerWidth - 96 : 340);
+  const size = Math.max(220, Math.min(themed ? 400 : 360, avail));
+  const theme = wheel.theme || {};
+  const rimColor = theme.rimColor || '#f4b223';
+  const hubColor = theme.hubColor || '#f4b223';
+  const pointerColor = theme.pointerColor || '#f4b223';
+  // Optional uploaded art for each wheel element (override the CSS defaults).
+  const frameImage = theme.frameImage || '';
+  const pinImage = theme.pinImage || '';
+  const tokenImage = theme.tokenImage || '';
+  const buttonImage = theme.buttonImage || '';
+  const showBulbs = theme.bulbs !== false && !frameImage; // a frame image supplies its own rim
+  // With a frame image the prize disc shrinks to sit INSIDE the frame ring and
+  // renders on top of it, so the frame surrounds the prize instead of covering
+  // it. discScale (admin-tunable) is the prize size as a fraction of the frame.
+  const discScale = Math.min(1, Math.max(0.5, Number(theme.discScale) || 0.74));
+  const discInset = frameImage ? Math.round((size * (1 - discScale)) / 2) : 0;
+  const discSize = size - discInset * 2;
+  const BULB_COUNT = 16;
+  const bulbs = Array.from({ length: BULB_COUNT }, (_, i) => {
+    const ang = (i / BULB_COUNT) * 2 * Math.PI;
+    const rB = size / 2 - 7;
+    return { x: size / 2 + rB * Math.cos(ang), y: size / 2 + rB * Math.sin(ang), on: i % 2 === 0 };
+  });
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr)', gap: 18, justifyItems: 'center' }}>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', width: '100%' }}>
-        <span style={chip}>🎟️ Free today: <b style={{ color: 'var(--gold)' }}>{freeLeft}</b></span>
-        {spinCost > 0 && <span style={chip}>Paid spin: <b style={{ color: 'var(--gold)' }}>{sym}{spinCost.toLocaleString()}</b></span>}
+    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr)', gap: 14, justifyItems: 'center' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center', width: '100%', padding: '14px 14px 0', boxSizing: 'border-box' }}>
+        <span style={chip}>
+          {tokenImage ? <img src={tokenImage} alt="" style={{ height: 18, width: 18, objectFit: 'contain', verticalAlign: 'middle', marginRight: 4 }} /> : '🎟️ '}
+          Free today: <b style={{ color: 'var(--gold)' }}>{freeLeft}</b>
+        </span>
+        {spinCost > 0 && <span style={chip}>
+          {tokenImage && <img src={tokenImage} alt="" style={{ height: 18, width: 18, objectFit: 'contain', verticalAlign: 'middle', marginRight: 4 }} />}
+          Paid spin: <b style={{ color: 'var(--gold)' }}>{sym}{spinCost.toLocaleString()}</b>
+        </span>}
         {isLoggedIn && <span style={chip}>Balance: <b style={{ color: 'var(--gold)' }}>{sym}{Number(profile?.balance || 0).toLocaleString()}</b></span>}
       </div>
 
-      <div style={{ position: 'relative', width: size, height: size, maxWidth: '86vw' }}>
-        {/* pointer */}
-        <div style={{ position: 'absolute', top: -6, left: '50%', transform: 'translateX(-50%)', zIndex: 3,
-          width: 0, height: 0, borderLeft: '14px solid transparent', borderRight: '14px solid transparent',
-          borderTop: '26px solid var(--gold,#f4b223)', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,.5))' }} />
-        {/* disc */}
-        <div style={{
-          width: '100%', height: '100%', borderRadius: '50%', background: gradient,
-          transform: `rotate(${rot}deg)`,
-          transition: spinning ? 'transform 4s cubic-bezier(.17,.67,.27,1)' : 'none',
-          boxShadow: '0 0 0 8px rgba(244,178,35,.85), 0 0 0 12px rgba(0,0,0,.35), 0 14px 40px rgba(0,0,0,.5)',
-          position: 'relative',
-        }}>
-          {/* slice labels */}
-          {active.map((s, i) => {
-            const a = (centers[i] - 90) * (Math.PI / 180); // -90 → 0deg at top
-            const r = size * 0.34;
-            const x = size / 2 + r * Math.cos(a);
-            const y = size / 2 + r * Math.sin(a);
-            return (
-              <span key={i} style={{
-                position: 'absolute', left: x, top: y, transform: 'translate(-50%,-50%)',
-                fontSize: 11, fontWeight: 800, color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,.85)',
-                maxWidth: 76, textAlign: 'center', lineHeight: 1.05, pointerEvents: 'none',
-              }}>{s.l}</span>
-            );
-          })}
+      {/* Stage — when a background image is uploaded it bleeds edge-to-edge so it
+          fills the whole mini-games card (cancelling the modal-body padding), and
+          holds the title + wheel. Without art it's a transparent centred column. */}
+      <div ref={stageRef} style={{
+        position: 'relative',
+        width: '100%',
+        maxWidth: theme.bgImage ? 'none' : 440,
+        overflow: 'visible',
+        padding: theme.bgImage ? '22px 16px 28px' : '4px 0',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14,
+        background: theme.bgImage ? `url(${theme.bgImage}) center/cover no-repeat` : 'transparent',
+      }}>
+        {/* title — sits on the themed background */}
+        {theme.titleImage
+          ? <img src={theme.titleImage} alt="" style={{ display: 'block', width: '100%', maxWidth: 420, maxHeight: 116, objectFit: 'contain', margin: '0 auto' }} />
+          : <div style={{ ...fwTitle, textAlign: 'center', width: '100%' }}>{theme.title || 'WHEEL OF FORTUNE'}</div>}
+
+        <div style={{ position: 'relative', width: size, height: size, aspectRatio: '1 / 1' }}>
+          {/* frame — uploaded ring image, else generated gold rim ring (z2) */}
+          {frameImage
+            ? <img src={frameImage} alt="" style={{ position: 'absolute', inset: -6, width: 'calc(100% + 12px)', height: 'calc(100% + 12px)', objectFit: 'contain', pointerEvents: 'none', zIndex: 2 }} />
+            : <div style={{ position: 'absolute', inset: 0, borderRadius: '50%', pointerEvents: 'none', zIndex: 2,
+                boxShadow: `inset 0 0 0 3px rgba(0,0,0,.45), inset 0 0 0 13px ${rimColor}, inset 0 0 0 16px rgba(0,0,0,.4)` }} />}
+          {/* light bulbs (z2) */}
+          {showBulbs && bulbs.map((b, i) => (
+            <span key={i} style={{ position: 'absolute', left: b.x, top: b.y, transform: 'translate(-50%,-50%)', zIndex: 2,
+              width: 7, height: 7, borderRadius: '50%', background: b.on ? '#fff7d6' : '#b98e2c',
+              boxShadow: b.on ? '0 0 5px 1px rgba(255,240,180,.9)' : 'inset 0 0 2px rgba(0,0,0,.5)' }} />
+          ))}
+          {/* indicator — gold arrow sitting just above the centre gem (z5) */}
+          <div style={{ position: 'absolute', top: `calc(50% - 40px)`, left: '50%', transform: 'translateX(-50%)', zIndex: 5,
+            width: 0, height: 0, borderLeft: '9px solid transparent', borderRight: '9px solid transparent',
+            borderBottom: `16px solid ${pointerColor}`, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,.6))' }} />
+          {/* PIN — centre hub gem in the middle of the wheel (z4) */}
+          {pinImage
+            ? <img src={pinImage} alt="" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 4,
+                width: 52, height: 52, objectFit: 'contain', filter: 'drop-shadow(0 2px 8px rgba(0,0,0,.55))', pointerEvents: 'none' }} />
+            : <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 4,
+                width: 44, height: 44, borderRadius: '50%', background: `radial-gradient(circle at 35% 30%, #fff2c0, ${hubColor})`,
+                border: '3px solid rgba(0,0,0,.35)', boxShadow: '0 2px 8px rgba(0,0,0,.55)' }} />}
+          {/* PRIZE disc — sits inside the frame ring, drawn on top so the frame
+              can never cover it (z3, above the frame at z2) */}
+          <div style={{
+            position: 'absolute', top: discInset, left: discInset, width: discSize, height: discSize,
+            borderRadius: '50%', zIndex: 3,
+            ...(wheelImage
+              ? { backgroundImage: `url(${wheelImage})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+              : { background: gradient }),
+            transform: `rotate(${rot - halfSeg}deg)`,
+            transition: spinning ? 'transform 4s cubic-bezier(.17,.67,.27,1)' : 'none',
+            boxShadow: 'inset 0 0 30px rgba(0,0,0,.45)',
+          }}>
+            {/* slice labels — only for the generated colour wheel */}
+            {!wheelImage && active.map((s, i) => {
+              const a = (centers[i] - 90) * (Math.PI / 180); // -90 → 0deg at top
+              const r = discSize * 0.33;
+              const x = discSize / 2 + r * Math.cos(a);
+              const y = discSize / 2 + r * Math.sin(a);
+              return (
+                <span key={i} style={{
+                  position: 'absolute', left: x, top: y, transform: `translate(-50%,-50%) rotate(${centers[i]}deg)`,
+                  fontSize: 11, fontWeight: 800, color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,.85)',
+                  maxWidth: 74, textAlign: 'center', lineHeight: 1.05, pointerEvents: 'none', whiteSpace: 'nowrap',
+                }}>{s.l}</span>
+              );
+            })}
+          </div>
         </div>
-        {/* hub */}
-        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 2,
-          width: 54, height: 54, borderRadius: '50%', background: 'radial-gradient(circle at 35% 30%, #2a3350, #121a2c)',
-          border: '3px solid var(--gold,#f4b223)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>🎡</div>
       </div>
 
       {result && (
-        <div style={{ textAlign: 'center', fontWeight: 800, color: result.won > 0 ? 'var(--gold,#f4b223)' : 'var(--text-muted,#8898b8)' }}>
+        <div style={{ textAlign: 'center', fontWeight: 800, padding: '0 14px', color: result.won > 0 ? 'var(--gold,#f4b223)' : 'var(--text-muted,#8898b8)' }}>
           {result.won > 0 ? `🎉 ${sym}${result.won.toLocaleString()} — ${result.label}` : `🎯 ${result.label}`}
         </div>
       )}
 
-      <button onClick={spin} disabled={spinning}
-        style={{
-          padding: '13px 40px', borderRadius: 999, border: 'none', cursor: spinning ? 'default' : 'pointer',
-          fontWeight: 900, fontSize: 16, color: '#1a1205',
-          background: spinning ? '#7a6a32' : 'linear-gradient(180deg,#ffd75e,#f4b223)',
-          boxShadow: '0 8px 20px rgba(244,178,35,.4)', minWidth: 200,
-        }}>
-        {spinning ? 'Spinning…' : isPaid ? `▶ Spin (${sym}${spinCost.toLocaleString()})` : '▶ Spin to Win'}
-      </button>
-      <div style={{ fontSize: 12, color: 'var(--text-muted,#8898b8)', textAlign: 'center', maxWidth: 360 }}>
+      {/* Bottom controls — SPIN button + token balance badge (like the concept) */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, flexWrap: 'wrap', width: '100%', padding: '0 14px', boxSizing: 'border-box' }}>
+        {buttonImage
+          ? <button onClick={spin} disabled={spinning} title={isPaid ? `Spin (${sym}${spinCost.toLocaleString()})` : 'Spin to Win'}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: spinning ? 'default' : 'pointer', opacity: spinning ? 0.6 : 1, lineHeight: 0 }}>
+              <img src={buttonImage} alt="Spin" style={{ height: 60, width: 'auto', objectFit: 'contain', filter: 'drop-shadow(0 6px 14px rgba(0,0,0,.4))' }} />
+            </button>
+          : <button onClick={spin} disabled={spinning}
+              style={{
+                padding: '13px 40px', borderRadius: 999, border: 'none', cursor: spinning ? 'default' : 'pointer',
+                fontWeight: 900, fontSize: 16, color: '#1a1205',
+                background: spinning ? '#7a6a32' : 'linear-gradient(180deg,#ffd75e,#f4b223)',
+                boxShadow: '0 8px 20px rgba(244,178,35,.4)', minWidth: 200,
+              }}>
+              {spinning ? 'Spinning…' : isPaid ? `▶ Spin (${sym}${spinCost.toLocaleString()})` : '▶ Spin to Win'}
+            </button>}
+        {tokenImage && (
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <img src={tokenImage} alt="" style={{ width: 48, height: 48, objectFit: 'contain', position: 'relative', zIndex: 1, filter: 'drop-shadow(0 3px 6px rgba(0,0,0,.5))' }} />
+            <div style={{ marginLeft: -16, padding: '9px 18px 9px 26px', borderRadius: 999, minWidth: 96,
+              background: 'rgba(38,18,72,.75)', border: '1px solid rgba(244,178,35,.55)', color: 'var(--gold,#f4b223)', fontWeight: 800, fontSize: 14, textAlign: 'right' }}>
+              {isLoggedIn ? `${sym}${Number(profile?.balance || 0).toLocaleString()}` : 'Tokens'}
+            </div>
+          </div>
+        )}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--text-muted,#8898b8)', textAlign: 'center', maxWidth: 360, padding: '0 14px 16px' }}>
         {wheel.freeSpinsPerDay ? `${wheel.freeSpinsPerDay} free spin(s) per day` : 'Paid spins'} ·
         {' '}up to {wheel.maxPerDay || 5} spins/day. Prizes are credited to your wallet instantly.
       </div>
@@ -155,40 +279,99 @@ function FortuneWheel({ config, onClose }) {
   );
 }
 
-function LuckyTicket({ config }) {
-  const { currency } = useUI();
+const parseAmount = (s) => {
+  const m = String(s ?? '').replace(/,/g, '').match(/\d+(?:\.\d+)?/);
+  return m ? parseFloat(m[0]) : 0;
+};
+const RANK_BADGE = ['🥇', '🥈', '🥉'];
+
+function LuckyTicket({ config, onClose }) {
+  const { currency, openModal } = useUI();
   const ticket = config?.ticket || {};
   const tiers = ticket.prizeTiers || [];
   const sym = currency?.symbol || '₱';
+  const totalWinners = tiers.reduce((a, t) => a + (Number(t.winners) || 0), 0) || ticket.winnersCount || 0;
+  const prizePool = tiers.reduce((a, t) => a + parseAmount(t.prize) * (Number(t.winners) || 0), 0);
+
+  const deposit = () => { onClose?.(); openModal('deposit'); };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))', gap: 10 }}>
-        <div style={infoCard}><div style={infoLbl}>Next Draw</div><div style={infoVal}>{ticket.drawDate || 'To be announced'}</div></div>
-        <div style={infoCard}><div style={infoLbl}>Winners</div><div style={infoVal}>{ticket.winnersCount || 0}</div></div>
-        <div style={infoCard}><div style={infoLbl}>Earn a Ticket</div><div style={{ ...infoVal, fontSize: 13 }}>{ticket.earnBy || `Every ${sym}100 deposited`}</div></div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '16px 16px 18px' }}>
+      {/* Hero — prize pool + next draw */}
+      <div style={{
+        position: 'relative', overflow: 'hidden', borderRadius: 16, padding: '20px 18px',
+        background: 'radial-gradient(120% 140% at 0% 0%, rgba(244,178,35,.22), transparent 60%), linear-gradient(135deg,#241a0e,#171c2e)',
+        border: '1px solid rgba(244,178,35,.4)', textAlign: 'center',
+      }}>
+        <div style={{ position: 'absolute', right: -14, top: -10, fontSize: 96, opacity: 0.08, pointerEvents: 'none' }}>🎟️</div>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 11, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: 'var(--gold,#f4b223)' }}>
+          🎟️ Lucky Ticket Draw
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--text-muted,#8898b8)', marginTop: 12, letterSpacing: '.05em', textTransform: 'uppercase' }}>Total Prize Pool</div>
+        <div style={{ fontSize: 34, fontWeight: 900, color: 'var(--gold,#f4b223)', lineHeight: 1.1, textShadow: '0 2px 12px rgba(244,178,35,.35)' }}>
+          {prizePool > 0 ? `${sym}${prizePool.toLocaleString()}` : '—'}
+        </div>
+        <div style={{ marginTop: 12, display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px', borderRadius: 999, background: 'rgba(0,0,0,.28)', border: '1px solid rgba(255,255,255,.1)' }}>
+          <span style={{ fontSize: 13 }}>🗓️</span>
+          <span style={{ fontSize: 12, color: 'var(--text-muted,#8898b8)' }}>Next draw:</span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>{ticket.drawDate || 'To be announced'}</span>
+        </div>
       </div>
-      <div style={{ borderRadius: 12, border: '1px solid var(--border,#243049)', overflow: 'hidden' }}>
-        <div style={{ padding: '10px 14px', fontWeight: 800, background: 'rgba(255,255,255,.04)' }}>🏆 Prize Tiers</div>
+
+      {/* Stat row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div style={ltStat}><div style={ltLbl}>🏆 Total Winners</div><div style={ltVal}>{totalWinners}</div></div>
+        <div style={ltStat}><div style={ltLbl}>🎫 Earn a Ticket</div><div style={{ ...ltVal, fontSize: 13, lineHeight: 1.25 }}>{ticket.earnBy || `Every ${sym}100 deposited`}</div></div>
+      </div>
+
+      {/* Prize tiers */}
+      <div style={{ borderRadius: 14, border: '1px solid var(--border,#243049)', overflow: 'hidden', background: 'rgba(255,255,255,.02)' }}>
+        <div style={{ padding: '12px 14px', fontWeight: 800, fontSize: 13, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--text-muted,#8898b8)', background: 'rgba(255,255,255,.04)', display: 'flex', justifyContent: 'space-between' }}>
+          <span>Prize Tiers</span><span>Winners</span>
+        </div>
         {tiers.map((t, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderTop: '1px solid var(--border,#243049)' }}>
-            <span style={{ fontWeight: 800, minWidth: 80 }}>{t.rank}</span>
-            <span style={{ color: 'var(--gold,#f4b223)', fontWeight: 900, flex: 1 }}>{t.prize}</span>
-            <span style={{ color: 'var(--text-muted,#8898b8)', fontSize: 13 }}>{t.winners} winner{t.winners === 1 ? '' : 's'}</span>
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderTop: '1px solid var(--border,#243049)', background: i < 3 ? 'rgba(244,178,35,.05)' : 'transparent' }}>
+            <span style={{
+              flexShrink: 0, width: 30, height: 30, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: i < 3 ? 16 : 11, fontWeight: 800, color: '#fff',
+              background: i < 3 ? 'rgba(244,178,35,.14)' : 'rgba(255,255,255,.05)', border: '1px solid var(--border,#243049)',
+            }}>{RANK_BADGE[i] || (i + 1)}</span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: 13, color: '#fff', whiteSpace: 'nowrap' }}>{String(t.rank).replace(/^[🥇🥈🥉]\s*/u, '')}</div>
+              <div style={{ color: 'var(--gold,#f4b223)', fontWeight: 900, fontSize: 14, whiteSpace: 'nowrap' }}>{t.prize}</div>
+            </span>
+            <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 700, color: 'var(--text-muted,#8898b8)', padding: '4px 10px', borderRadius: 999, background: 'rgba(255,255,255,.05)', border: '1px solid var(--border,#243049)' }}>×{t.winners}</span>
           </div>
         ))}
         {!tiers.length && <div style={{ padding: 16, textAlign: 'center', color: 'var(--text-muted,#8898b8)' }}>No active draw right now.</div>}
       </div>
-      <div style={{ fontSize: 12, color: 'var(--text-muted,#8898b8)', textAlign: 'center' }}>
-        Deposit & play to collect Lucky Tickets — winners are drawn automatically and credited on draw day.
+
+      {/* CTA */}
+      <button onClick={deposit} style={{
+        width: '100%', padding: '14px', borderRadius: 12, border: 'none', cursor: 'pointer',
+        fontWeight: 900, fontSize: 15, color: '#1a1205',
+        background: 'linear-gradient(180deg,#ffd75e,#f0c040)', boxShadow: '0 8px 20px rgba(240,192,64,.3)',
+      }}>💰 Deposit to Earn Tickets</button>
+
+      <div style={{ fontSize: 12, color: 'var(--text-muted,#8898b8)', textAlign: 'center', lineHeight: 1.5 }}>
+        Collect Lucky Tickets as you deposit &amp; play. Winners are drawn automatically and credited on draw day.
       </div>
     </div>
   );
 }
 
-const chip = { fontSize: 13, color: 'var(--text-muted,#8898b8)', background: 'rgba(255,255,255,.05)', border: '1px solid var(--border,#243049)', borderRadius: 999, padding: '5px 12px' };
-const infoCard = { background: 'rgba(255,255,255,.04)', border: '1px solid var(--border,#243049)', borderRadius: 12, padding: '12px 14px' };
-const infoLbl = { fontSize: 12, color: 'var(--text-muted,#8898b8)' };
-const infoVal = { fontWeight: 800, marginTop: 3 };
+// Stat chips — flat style matching the seg-tabs filter items.
+const chip = {
+  fontSize: 13, fontWeight: 700, letterSpacing: '.01em',
+  color: 'rgba(255,255,255,.62)',
+  background: 'rgba(255,255,255,.06)', border: 'none',
+  borderRadius: 9, padding: '7px 13px',
+  display: 'inline-flex', alignItems: 'center', gap: 5,
+};
+const fwTitle = { fontFamily: "'Montserrat',sans-serif", fontWeight: 900, fontSize: 26, lineHeight: 1.05, textAlign: 'center', color: '#ffd75e', textShadow: '0 2px 0 #a8730a, 0 4px 8px rgba(0,0,0,.6)', letterSpacing: '.04em' };
+const ltStat = { background: 'rgba(255,255,255,.04)', border: '1px solid var(--border,#243049)', borderRadius: 12, padding: '11px 13px' };
+const ltLbl = { fontSize: 11, color: 'var(--text-muted,#8898b8)', textTransform: 'uppercase', letterSpacing: '.04em' };
+const ltVal = { fontWeight: 800, marginTop: 4, color: '#fff' };
 
 export default function MiniGamesModal() {
   const { activeModal, closeModal } = useUI();
@@ -217,9 +400,11 @@ export default function MiniGamesModal() {
         <span className="modal-title">🎡 Mini Games</span>
         <button className="modal-close" onClick={closeModal}>✕</button>
       </div>
-      <div style={{ display: 'flex', gap: 8, padding: '0 18px', marginTop: 6 }}>
-        {wheelOn && <TabBtn active={tab === 'wheel'} onClick={() => setTab('wheel')}>🎡 Fortune Wheel</TabBtn>}
-        {ticketOn && <TabBtn active={tab === 'ticket'} onClick={() => setTab('ticket')}>🎟️ Lucky Ticket</TabBtn>}
+      <div style={{ padding: '0 18px', marginTop: 6 }}>
+        <div className="seg-tabs">
+          {wheelOn && <TabBtn active={tab === 'wheel'} onClick={() => setTab('wheel')}>🎡 Fortune Wheel</TabBtn>}
+          {ticketOn && <TabBtn active={tab === 'ticket'} onClick={() => setTab('ticket')}>🎟️ Lucky Ticket</TabBtn>}
+        </div>
       </div>
       <div className="modal-body" style={{ paddingTop: 16 }}>
         {loading ? (
@@ -227,24 +412,20 @@ export default function MiniGamesModal() {
         ) : !config ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Mini games are unavailable right now.</div>
         ) : tab === 'ticket' && ticketOn ? (
-          <LuckyTicket config={config} />
+          <LuckyTicket config={config} onClose={closeModal} />
         ) : wheelOn ? (
           <FortuneWheel config={config} onClose={closeModal} />
         ) : (
-          <LuckyTicket config={config} />
+          <LuckyTicket config={config} onClose={closeModal} />
         )}
       </div>
     </Modal>
   );
 }
 
+// Flat tab item — styling comes from the shared .seg-tabs container.
 function TabBtn({ active, onClick, children }) {
   return (
-    <button onClick={onClick} style={{
-      padding: '8px 16px', borderRadius: 999, cursor: 'pointer', fontWeight: 800, fontSize: 14,
-      border: '1px solid ' + (active ? 'var(--gold,#f4b223)' : 'var(--border,#243049)'),
-      background: active ? 'rgba(244,178,35,.16)' : 'transparent',
-      color: active ? 'var(--gold,#f4b223)' : 'var(--text,#fff)',
-    }}>{children}</button>
+    <button className={active ? 'active' : ''} onClick={onClick}>{children}</button>
   );
 }

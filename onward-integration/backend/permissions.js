@@ -21,7 +21,13 @@ const ALL_PERMISSIONS = [
   'players.kick',
   'kyc.approve',        // approve / reject KYC + verify email/mobile
   'transactions.approve',
-  'settings.manage',    // site settings, KYC bonus, etc.
+  'settings.manage',    // site settings, KYC bonus, currency rates, etc.
+  'marketing.manage',   // campaigns, providers, automations, ads
+  'content.manage',     // promotions, banners, games, mini-games, page content
+  'agents.manage',      // view applications / agents, suspend, plans
+  'agents.approve',     // move applications through the approval workflow
+  'agents.commission',  // commission plans, generation, payouts
+  'agents.blacklist',   // blacklist an agent (superadmin-level)
   'admins.manage',      // create / edit / delete admin accounts
 ];
 
@@ -31,8 +37,13 @@ const ROLE_PERMS = {
   manager: [
     'players.edit', 'players.status', 'players.adjust', 'players.resetpw',
     'players.kick', 'kyc.approve', 'transactions.approve',
+    'settings.manage', 'content.manage', 'marketing.manage',
+    'agents.manage', 'agents.approve', 'agents.commission',
   ],
-  admin: ['players.status', 'players.kick', 'kyc.approve', 'transactions.approve'],
+  admin: [
+    'players.status', 'players.kick', 'kyc.approve', 'transactions.approve',
+    'settings.manage', 'content.manage', 'agents.manage',
+  ],
   support: ['players.status', 'kyc.approve'],
   viewer: [],
 };

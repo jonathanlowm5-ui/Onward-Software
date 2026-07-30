@@ -13,7 +13,7 @@ const ITEMS = [
   { id: 'slots', icon: '🎰', label: 'Casino', match: '/slots' },
   { id: 'deposit', icon: '＋', label: 'Deposit', cta: true },
   { id: 'promos', icon: '🎁', label: 'Promos', match: '/promotions' },
-  { id: 'profile', icon: '👤', label: 'Account', match: '/profile' },
+  { id: 'referral', icon: '🤝', label: 'Referral', match: '/referral' },
 ];
 
 export default function H5BottomNav() {

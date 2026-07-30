@@ -16,6 +16,7 @@
 const express = require('express');
 const store = require('../store');
 const { requireAuth } = require('../auth');
+const { requirePerm } = require('../permissions');
 
 const router = express.Router();
 const COLLECTION = 'games';
@@ -31,7 +32,16 @@ function clean(body) {
     color: body.color || '',
     launchUrl: body.launchUrl || body.gameUrl || '',
     image: body.image || '',
+    // Editable external game id / code (shown in the admin Game List). Falls
+    // back to the record id on the frontend when empty.
+    code: String(body.code || '').trim(),
+    // Language support label (free text, e.g. "EN, CN, VN").
+    langs: String(body.langs ?? body.languages ?? '').trim(),
+    // Theoretical return-to-player %, shown on the admin game card.
+    rtp: Number.isFinite(+body.rtp) ? +body.rtp : 0,
     enabled: body.enabled === undefined ? true : !!body.enabled,
+    popular: !!body.popular,
+    hot: !!body.hot,
     order: Number.isFinite(+body.order) ? +body.order : 0,
   };
 }
@@ -55,29 +65,44 @@ router.get('/providers', (req, res) => {
   res.json(Object.entries(counts).map(([name, games]) => ({ name, games })).sort((a, b) => a.name.localeCompare(b.name)));
 });
 
+// ---- ADMIN: import the bundled heibao catalogue (idempotent, by externalId) ----
+router.post('/heibao-sync', requireAuth, requirePerm('content.manage'), (req, res) => {
+  const { importMissing } = require('../heibaoImport');
+  const r = importMissing(Number(req.body?.limit) || Infinity);
+  if (r.remaining === 0 && r.total > 0) store.saveSettings({ heibaoImportDoneV2: true });
+  res.json(r);
+});
+
 // ---- ADMIN: create ----
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, requirePerm('content.manage'), (req, res) => {
   const data = clean(req.body);
   if (!data.name) return res.status(400).json({ error: 'Game name is required' });
   res.status(201).json(store.insert(COLLECTION, data));
 });
 
 // ---- ADMIN: update ----
-router.put('/:id', requireAuth, (req, res) => {
+router.put('/:id', requireAuth, requirePerm('content.manage'), (req, res) => {
   const updated = store.update(COLLECTION, req.params.id, clean(req.body));
   if (!updated) return res.status(404).json({ error: 'Game not found' });
   res.json(updated);
 });
 
+// ---- ADMIN: feature in Popular Games ----
+router.patch('/:id/popular', requireAuth, requirePerm('content.manage'), (req, res) => {
+  const game = store.get(COLLECTION, req.params.id);
+  if (!game) return res.status(404).json({ error: 'Game not found' });
+  res.json(store.update(COLLECTION, req.params.id, { popular: !game.popular }));
+});
+
 // ---- ADMIN: enable / disable ----
-router.patch('/:id/toggle', requireAuth, (req, res) => {
+router.patch('/:id/toggle', requireAuth, requirePerm('content.manage'), (req, res) => {
   const game = store.get(COLLECTION, req.params.id);
   if (!game) return res.status(404).json({ error: 'Game not found' });
   res.json(store.update(COLLECTION, req.params.id, { enabled: !game.enabled }));
 });
 
 // ---- ADMIN: delete ----
-router.delete('/:id', requireAuth, (req, res) => {
+router.delete('/:id', requireAuth, requirePerm('content.manage'), (req, res) => {
   if (!store.remove(COLLECTION, req.params.id))
     return res.status(404).json({ error: 'Game not found' });
   res.json({ ok: true });

@@ -22,11 +22,20 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const store = require('../store');
 const { signPlayer, requirePlayer } = require('../auth');
+const { rateLimit } = require('../rateLimit');
 const {
   CURRENCIES, normalizeCurrency, generatePlayerCode, ensurePlayerCode,
-  publicView, registeredFullName, holderMatchesPlayer, clientIp, deviceFrom, recordLogin, gen6,
+  publicView, registeredFullName, holderMatchesPlayer, clientIp, deviceFrom, recordLogin, gen6, safeMediaUrl,
 } = require('../playerUtils');
 const { geoLookup, isBlocked } = require('../geoip');
+
+// Admin-managed IP blocklist (Security page): settings.securityConfig.ipBlocks.
+function ipBlocked(ip) {
+  try {
+    const list = (store.getSettings().securityConfig || {}).ipBlocks || [];
+    return list.some((b) => b && (b.ip || b) === ip && (b.enabled === undefined || b.enabled !== false));
+  } catch { return false; }
+}
 
 const router = express.Router();
 const PLAYERS = 'players';
@@ -52,7 +61,7 @@ function view(p) {
 }
 
 // ---------- public: register ----------
-router.post('/register', async (req, res) => {
+router.post('/register', rateLimit('player-register', 10, 60_000), async (req, res) => {
   const b = req.body || {};
   const username = String(b.username || '').trim();
   const email = String(b.email || '').trim().toLowerCase();
@@ -78,6 +87,7 @@ router.post('/register', async (req, res) => {
 
   // Geolocate the registration IP (for the admin + country restrictions).
   const regIp = clientIp(req);
+  if (ipBlocked(regIp)) return res.status(403).json({ error: 'Registration is not available.' });
   const geo = await geoLookup(regIp);
   if (isBlocked(store.getSettings(), geo)) {
     return res.status(403).json({ error: `Registration isn’t available in your region${geo.country ? ` (${geo.country})` : ''}.` });
@@ -116,11 +126,12 @@ router.post('/register', async (req, res) => {
     registrationUserAgent: String(req.headers['user-agent'] || ''),
   });
   await recordLogin(store, player, req, 'register');
+  require('../marketing/auto').trigger('registration', player);
   res.status(201).json({ token: signPlayer(player), player: view(player) });
 });
 
 // ---------- public: login (username or email) ----------
-router.post('/login', async (req, res) => {
+router.post('/login', rateLimit('player-login', 20, 60_000), async (req, res) => {
   const id = String(req.body?.username || req.body?.email || '').trim().toLowerCase();
   const password = String(req.body?.password || '');
   let player = store.list(PLAYERS).find(
@@ -131,20 +142,31 @@ router.post('/login', async (req, res) => {
   if (player.status === 'blocked') return res.status(403).json({ error: 'Account is blocked' });
   if (player.status === 'suspended') return res.status(403).json({ error: 'Account is suspended — contact support' });
 
-  // Country restriction check before issuing a session.
+  // IP blocklist + country restriction checks before issuing a session.
+  if (ipBlocked(clientIp(req))) return res.status(403).json({ error: 'Access is not available.' });
   const geo = await geoLookup(clientIp(req));
   if (isBlocked(store.getSettings(), geo)) {
     return res.status(403).json({ error: `Access isn’t available in your region${geo.country ? ` (${geo.country})` : ''}.` });
   }
 
   player = ensurePlayerCode(store, player) || player; // backfill legacy/demo players
-  player = store.update(PLAYERS, player.id, { lastLoginAt: new Date().toISOString() }) || player;
+  // Daily login streak (drives "login" missions): +1 on consecutive days,
+  // unchanged on a same-day re-login, reset to 1 after a missed day.
+  const today = new Date().toISOString().slice(0, 10);
+  let loginStreak = Number(player.loginStreak || 0);
+  if (player.lastLoginDay !== today) {
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    loginStreak = player.lastLoginDay === yesterday ? loginStreak + 1 : 1;
+  }
+  player = store.update(PLAYERS, player.id, {
+    lastLoginAt: new Date().toISOString(), lastLoginDay: today, loginStreak,
+  }) || player;
   await recordLogin(store, player, req, 'login');
   res.json({ token: signPlayer(player), player: view(player) });
 });
 
 // ---------- public: forgot password (issues a reset acknowledgement) ----------
-router.post('/forgot-password', (req, res) => {
+router.post('/forgot-password', rateLimit('player-forgot', 5, 60_000), (req, res) => {
   const email = String(req.body?.email || '').trim().toLowerCase();
   if (emailOk(email)) {
     const p = store.list(PLAYERS).find((x) => (x.email || '').toLowerCase() === email);
@@ -181,8 +203,17 @@ router.get('/me', requirePlayer, (req, res) => {
   res.json(view(p));
 });
 
-// Players may ONLY change email, mobile and avatar. Player ID, username, first
-// name, last name, registration date and currency are system-fixed (admin only).
+// Welcome-bonus progress. The Promotions page shows a 4-tier welcome card;
+// each tier the player claims bumps this counter. Once all 4 are claimed the
+// card is hidden for good. welcomeClaimed flows into the profile via ...rest.
+router.post('/welcome/claim', requirePlayer, (req, res) => {
+  const p = currentPlayer(req);
+  if (!p) return res.status(404).json({ error: 'Player not found' });
+  const current = Math.max(0, Number(p.welcomeClaimed || 0));
+  if (current >= 4) return res.json(view(p)); // already finished
+  const updated = store.update(PLAYERS, p.id, { welcomeClaimed: current + 1 }) || p;
+  res.json(view(updated));
+});
 router.put('/me', requirePlayer, (req, res) => {
   const p = currentPlayer(req);
   if (!p) return res.status(404).json({ error: 'Player not found' });
@@ -206,7 +237,17 @@ router.put('/me', requirePlayer, (req, res) => {
     patch.phone = String(mobile).trim();
     if (patch.phone !== (p.phone || '')) patch.mobileVerified = false;
   }
-  if (b.avatar !== undefined) patch.avatar = b.avatar;
+  // Cap the avatar so it can't blow past Firestore's 1 MB document limit. A
+  // small data-URI (or a URL) is fine; anything larger is rejected.
+  if (b.avatar !== undefined) {
+    const avatar = String(b.avatar || '');
+    if (avatar.length > 500_000) return res.status(413).json({ error: 'Avatar image is too large (max ~350 KB)' });
+    patch.avatar = safeMediaUrl(avatar);
+  }
+  // Per-player game favourites (array of game ids/names).
+  if (b.favorites !== undefined && Array.isArray(b.favorites)) {
+    patch.favorites = [...new Set(b.favorites.map((x) => String(x).slice(0, 64)))].slice(0, 500);
+  }
 
   res.json(view(store.update(PLAYERS, p.id, patch)));
 });
@@ -220,9 +261,13 @@ router.post('/me/change-password', requirePlayer, async (req, res) => {
   if (!p.passwordHash || !bcrypt.compareSync(current, p.passwordHash))
     return res.status(400).json({ error: 'Current password is incorrect' });
   if (next.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters' });
-  store.update(PLAYERS, p.id, { passwordHash: bcrypt.hashSync(next, 10) });
+  // Invalidate every existing session (sessionValidAfter is checked in
+  // requirePlayer) so a stolen/old token stops working after a password change,
+  // then mint a fresh token for the caller so their current session continues.
+  const nowSec = Math.floor(Date.now() / 1000);
+  const updated = store.update(PLAYERS, p.id, { passwordHash: bcrypt.hashSync(next, 10), sessionValidAfter: nowSec + 1 });
   await recordLogin(store, p, req, 'password-change');
-  res.json({ ok: true });
+  res.json({ ok: true, token: signPlayer(updated) });
 });
 
 // ---------- player: two-factor toggle (mock — stores the preference) ----------
@@ -240,7 +285,12 @@ function requestCode(field) {
     if (!p) return res.status(404).json({ error: 'Player not found' });
     const code = gen6();
     const expires = Date.now() + 10 * 60 * 1000;
-    store.update(PLAYERS, p.id, { [`${field}Otp`]: code, [`${field}OtpExpires`]: expires });
+    store.update(PLAYERS, p.id, { [`${field}Otp`]: code, [`${field}OtpExpires`]: expires, [`${field}OtpTries`]: 0 });
+    store.insert('otp_log', {
+      playerId: p.id, username: p.username, channel: field,
+      target: field === 'email' ? p.email : p.phone, action: 'sent',
+      ip: clientIp(req),
+    });
     // MOCK: a real build emails / SMSes the code. We return it as devCode so the
     // flow is testable end-to-end now; remove devCode when a provider is wired.
     res.json({ ok: true, message: `Verification code sent to your ${field}.`, devCode: code });
@@ -253,15 +303,22 @@ function confirmCode(field) {
     const code = String(req.body?.code || '').trim();
     if (!p[`${field}Otp`] || Date.now() > Number(p[`${field}OtpExpires`] || 0))
       return res.status(400).json({ error: 'Code expired — request a new one' });
-    if (code !== String(p[`${field}Otp`]))
+    // Cap wrong attempts so a 6-digit code can't be brute-forced in its window.
+    const tries = Number(p[`${field}OtpTries`] || 0);
+    if (tries >= 5) return res.status(429).json({ error: 'Too many attempts — request a new code' });
+    if (code !== String(p[`${field}Otp`])) {
+      store.update(PLAYERS, p.id, { [`${field}OtpTries`]: tries + 1 });
+      store.insert('otp_log', { playerId: p.id, username: p.username, channel: field, target: field === 'email' ? p.email : p.phone, action: 'failed', ip: clientIp(req) });
       return res.status(400).json({ error: 'Invalid verification code' });
+    }
+    store.insert('otp_log', { playerId: p.id, username: p.username, channel: field, target: field === 'email' ? p.email : p.phone, action: 'verified', ip: clientIp(req) });
     const flag = field === 'email' ? 'emailVerified' : 'mobileVerified';
     res.json(view(store.update(PLAYERS, p.id, { [flag]: true, [`${field}Otp`]: null, [`${field}OtpExpires`]: null })));
   };
 }
-router.post('/me/verify/email/request', requirePlayer, requestCode('email'));
+router.post('/me/verify/email/request', requirePlayer, rateLimit('otp-req', 6, 60_000), requestCode('email'));
 router.post('/me/verify/email/confirm', requirePlayer, confirmCode('email'));
-router.post('/me/verify/mobile/request', requirePlayer, requestCode('mobile'));
+router.post('/me/verify/mobile/request', requirePlayer, rateLimit('otp-req', 6, 60_000), requestCode('mobile'));
 router.post('/me/verify/mobile/confirm', requirePlayer, confirmCode('mobile'));
 
 // ---------- player: wallet ----------
@@ -275,7 +332,23 @@ router.get('/wallet', requirePlayer, (req, res) => {
 router.post('/deposit', requirePlayer, (req, res) => {
   const p = currentPlayer(req);
   const amount = Number(req.body?.amount || 0);
-  if (!(amount >= 100)) return res.status(400).json({ error: 'Minimum deposit is 100' });
+  if (!Number.isFinite(amount) || !(amount >= 100)) return res.status(400).json({ error: 'Minimum deposit is 100' });
+  // Responsible-gaming: self-exclusion + daily deposit limit (set in Profile).
+  const limits = p.limits || {};
+  if (limits.selfExcludeUntil && Date.parse(limits.selfExcludeUntil) > Date.now()) {
+    return res.status(403).json({ error: `Self-exclusion active until ${String(limits.selfExcludeUntil).slice(0, 10)}` });
+  }
+  const dailyLimit = Number(limits.dailyDeposit || 0);
+  if (dailyLimit > 0) {
+    const today = new Date().toISOString().slice(0, 10);
+    const depositedToday = store.list('transactions')
+      .filter((t) => String(t.playerId) === String(p.id) && t.type === 'deposit'
+        && t.status !== 'rejected' && (t.createdAt || '').slice(0, 10) === today)
+      .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+    if (depositedToday + amount > dailyLimit) {
+      return res.status(403).json({ error: `Daily deposit limit reached (${dailyLimit.toLocaleString()} — you've deposited ${depositedToday.toLocaleString()} today)` });
+    }
+  }
   const tx = store.insert('transactions', {
     playerId: p.id, username: p.username, type: 'deposit', amount,
     currency: normalizeCurrency(p.currency),
@@ -287,17 +360,59 @@ router.post('/deposit', requirePlayer, (req, res) => {
 router.post('/withdraw', requirePlayer, (req, res) => {
   const p = currentPlayer(req);
   const amount = Number(req.body?.amount || 0);
-  // A bound bank account is mandatory before any withdrawal.
+  // A bound bank account AND verified identity are mandatory before any
+  // withdrawal (standard anti-fraud gate).
   if (!bankBound(p.id))
     return res.status(403).json({ error: 'Please bind a bank account before withdrawing', code: 'BANK_REQUIRED' });
-  if (!(amount >= 500)) return res.status(400).json({ error: 'Minimum withdrawal is 500' });
-  if (amount > Number(p.balance || 0)) return res.status(400).json({ error: 'Amount exceeds balance' });
+  if ((p.kyc_status || 'unverified') !== 'approved')
+    return res.status(403).json({ error: 'Please complete KYC verification before withdrawing', code: 'KYC_REQUIRED' });
+  if (!Number.isFinite(amount) || !(amount >= 500)) return res.status(400).json({ error: 'Minimum withdrawal is 500' });
+  const bal = Number(p.balance || 0);
+  if (amount > bal) return res.status(400).json({ error: 'Amount exceeds balance' });
+  // Reserve the funds immediately so a player cannot queue multiple withdrawals
+  // that each pass the balance check and overdraw when all are approved. The
+  // held amount is refunded if the withdrawal is later rejected.
+  store.update('players', p.id, { balance: bal - amount });
   const tx = store.insert('transactions', {
     playerId: p.id, username: p.username, type: 'withdrawal', amount,
     currency: normalizeCurrency(p.currency),
-    method: req.body?.method || 'Bank', accountId: req.body?.accountId || null, status: 'pending', note: '',
+    method: req.body?.method || 'Bank', accountId: req.body?.accountId || null,
+    status: 'pending', note: '', held: true,
   });
   res.status(201).json(tx);
+});
+
+// ---------- player: notification feed (header bell) ----------
+// Recent account events derived from the player's transactions: credited
+// rewards, deposit/withdrawal status changes. Newest first, capped at 20.
+router.get('/notifications', requirePlayer, (req, res) => {
+  // Marketing / automation in-app messages for this player.
+  const msgs = store.list('player_messages')
+    .filter((m) => String(m.playerId) === String(req.auth.sub))
+    .map((m) => ({ id: m.id, icon: m.icon || '📣', text: (m.title ? m.title + ' — ' : '') + (m.text || ''), at: m.createdAt || '' }));
+  const rows = store.list('transactions')
+    .filter((t) => String(t.playerId) === String(req.auth.sub))
+    .sort((a, b) => (b.updatedAt || b.createdAt || '').localeCompare(a.updatedAt || a.createdAt || ''))
+    .slice(0, 20)
+    .map((t) => {
+      const amt = Number(t.amount || 0);
+      const cur = t.currency || 'PHP';
+      let icon = '💳'; let text = '';
+      if (t.type === 'bonus') {
+        icon = '🎁';
+        text = t.note || `Bonus credited: ${amt} ${cur}`;
+      } else if (t.type === 'deposit') {
+        icon = t.status === 'approved' ? '✅' : t.status === 'rejected' ? '❌' : '⏳';
+        text = `Deposit of ${amt} ${cur} ${t.status === 'approved' ? 'approved' : t.status === 'rejected' ? 'rejected' : 'pending review'}`;
+      } else if (t.type === 'withdrawal') {
+        icon = t.status === 'approved' ? '💸' : t.status === 'rejected' ? '❌' : '⏳';
+        text = `Withdrawal of ${amt} ${cur} ${t.status === 'approved' ? 'paid out' : t.status === 'rejected' ? 'rejected' : 'pending review'}`;
+      } else {
+        text = t.note || `${t.type} — ${amt} ${cur}`;
+      }
+      return { id: t.id, icon, text, at: t.updatedAt || t.createdAt || '' };
+    });
+  res.json([...msgs, ...rows].sort((a, b) => (b.at || '').localeCompare(a.at || '')).slice(0, 20));
 });
 
 // ---------- player: transactions & game history ----------
@@ -309,9 +424,20 @@ router.get('/transactions', requirePlayer, (req, res) => {
 });
 
 router.get('/game-history', requirePlayer, (req, res) => {
-  const rows = store.list('game_history')
-    .filter((g) => String(g.playerId) === String(req.auth.sub))
-    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  // Primary source is the live bets ledger; legacy game_history rows merge in.
+  const fromBets = store.list('bets')
+    .filter((b) => String(b.playerId) === String(req.auth.sub))
+    .map((b) => ({
+      id: b.refId || b.id, game: b.game || b.gameName || 'Game',
+      provider: b.provider || '', category: b.category || b.cat || '',
+      wager: Number(b.amount || 0), win: Number(b.win || 0),
+      createdAt: b.createdAt || '',
+    }));
+  const legacy = store.list('game_history')
+    .filter((g) => String(g.playerId) === String(req.auth.sub));
+  const rows = [...fromBets, ...legacy]
+    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+    .slice(0, 200);
   res.json(rows);
 });
 
@@ -375,11 +501,119 @@ router.post('/kyc', requirePlayer, (req, res) => {
   const b = req.body || {};
   const rec = store.insert('kyc', {
     playerId: p.id, username: p.username, docType: b.docType || 'id',
-    frontUrl: b.frontUrl || '', backUrl: b.backUrl || '', selfieUrl: b.selfieUrl || '',
+    frontUrl: safeMediaUrl(b.frontUrl), backUrl: safeMediaUrl(b.backUrl), selfieUrl: safeMediaUrl(b.selfieUrl),
     status: 'pending', note: '',
   });
   store.update(PLAYERS, p.id, { kyc_status: 'pending' });
   res.status(201).json(rec);
+});
+
+
+/* ---------- player: referral programme (every player can refer) ---------- */
+// New players who enter THIS player's code (playerCode) at registration are
+// counted as their referrals. Agents additionally see their agent-code downline
+// on the Agent page — this endpoint is the lightweight everyone-can-share one.
+router.get('/referral', requirePlayer, (req, res) => {
+  const p = currentPlayer(req);
+  if (!p) return res.status(404).json({ error: 'Player not found' });
+  const code = p.playerCode || '';
+  const referred = store.list(PLAYERS)
+    .filter((x) => (x.referralCode || x.referral_code || '') === code)
+    .map((x) => {
+      const deps = store.list('transactions')
+        .filter((t) => String(t.playerId) === String(x.id) && t.type === 'deposit' && t.status === 'approved');
+      return {
+        username: x.username, joined: (x.createdAt || '').slice(0, 10),
+        deposited: deps.reduce((sum, t) => sum + Number(t.amount || 0), 0),
+        active: deps.length > 0,
+      };
+    });
+  const s = store.getSettings();
+  res.json({
+    code,
+    reward: s.referralReward || '',
+    total: referred.length,
+    active: referred.filter((r) => r.active).length,
+    referred: referred.slice(0, 100),
+  });
+});
+
+/* ---------- player: wager / bonus summary (Profile → Wager panel) ---------- */
+router.get('/wager', requirePlayer, (req, res) => {
+  const p = currentPlayer(req);
+  if (!p) return res.status(404).json({ error: 'Player not found' });
+  const month = new Date().toISOString().slice(0, 7);
+  const bets = store.list('bets').filter((b) => String(b.playerId) === String(p.id));
+  const wageredMonth = bets.filter((b) => (b.createdAt || '').slice(0, 7) === month)
+    .reduce((s2, b) => s2 + Number(b.amount || 0), 0);
+  const bonuses = store.list('transactions')
+    .filter((t) => String(t.playerId) === String(p.id) && t.type === 'bonus' && t.status === 'approved')
+    .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  res.json({
+    bonusBalance: Number(p.bonus || 0),
+    wageredMonth,
+    wageredTotal: bets.reduce((s2, b) => s2 + Number(b.amount || 0), 0),
+    bonuses: bonuses.slice(0, 20).map((t) => ({
+      at: (t.createdAt || '').slice(0, 10), amount: Number(t.amount || 0),
+      source: t.source || t.method || 'bonus', note: t.note || '',
+    })),
+  });
+});
+
+/* ---------- player: responsible-gaming limits (persisted + ENFORCED) ---------- */
+router.get('/me/limits', requirePlayer, (req, res) => {
+  const p = currentPlayer(req);
+  if (!p) return res.status(404).json({ error: 'Player not found' });
+  res.json(p.limits || {});
+});
+router.post('/me/limits', requirePlayer, (req, res) => {
+  const p = currentPlayer(req);
+  if (!p) return res.status(404).json({ error: 'Player not found' });
+  const b = req.body || {};
+  const limits = { ...(p.limits || {}) };
+  if (b.dailyDeposit !== undefined) limits.dailyDeposit = Math.max(0, Number(b.dailyDeposit) || 0);
+  if (b.sessionMinutes !== undefined) limits.sessionMinutes = Math.max(0, Number(b.sessionMinutes) || 0);
+  if (b.selfExcludeDays !== undefined) {
+    const days = Math.max(0, Number(b.selfExcludeDays) || 0);
+    limits.selfExcludeUntil = days > 0 ? new Date(Date.now() + days * 864e5).toISOString() : '';
+  }
+  store.update(PLAYERS, p.id, { limits });
+  res.json(limits);
+});
+
+/* ---------- player: UI preferences (Profile → Customization) ---------- */
+router.post('/me/prefs', requirePlayer, (req, res) => {
+  const p = currentPlayer(req);
+  if (!p) return res.status(404).json({ error: 'Player not found' });
+  const prefs = { ...(p.prefs || {}), ...(req.body || {}) };
+  // Bound the stored preferences blob so a client can't bloat the player doc.
+  if (JSON.stringify(prefs).length > 20_000) return res.status(413).json({ error: 'Preferences payload is too large' });
+  store.update(PLAYERS, p.id, { prefs });
+  res.json(prefs);
+});
+
+/* ---------- player: provably-fair seeds ---------- */
+router.get('/me/fair', requirePlayer, (req, res) => {
+  const p = currentPlayer(req);
+  if (!p) return res.status(404).json({ error: 'Player not found' });
+  const { serverSeed, ...pub } = p.fairSeeds || {};
+  res.json(pub);
+});
+router.post('/me/fair/rotate', requirePlayer, (req, res) => {
+  const p = currentPlayer(req);
+  if (!p) return res.status(404).json({ error: 'Player not found' });
+  const crypto = require('crypto');
+  const serverSeed = crypto.randomBytes(32).toString('hex');
+  const fairSeeds = {
+    clientSeed: String(req.body?.clientSeed || crypto.randomBytes(8).toString('hex')),
+    serverSeedHash: crypto.createHash('sha256').update(serverSeed).digest('hex'),
+    previousServerSeed: (p.fairSeeds || {}).serverSeed || '', // reveal last seed on rotation
+    serverSeed, // kept server-side; revealed on the NEXT rotation
+    rotatedAt: new Date().toISOString(),
+  };
+  store.update(PLAYERS, p.id, { fairSeeds });
+  const { serverSeed: _hidden, ...pub } = fairSeeds;
+  res.json(pub);
 });
 
 module.exports = router;

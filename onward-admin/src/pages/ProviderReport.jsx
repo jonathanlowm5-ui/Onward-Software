@@ -1,57 +1,89 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useUI } from '../context/UIContext';
+import { getWinloss } from '../services/configService';
 
-const RPROVQ = [
-  { n: "Pragmatic Play", games: 142, bets: 486200, wager: "₱12.4M", ggr: "₱1.48M", rtp: 88.1, top: "Sweet Bonanza", active: true },
-  { n: "Evolution Gaming", games: 98, bets: 198400, wager: "₱8.2M", ggr: "₱1.02M", rtp: 87.6, top: "Lightning Roulette", active: true },
-  { n: "PG Soft", games: 84, bets: 214800, wager: "₱6.8M", ggr: "₱882K", rtp: 87.0, top: "Mahjong Ways", active: true },
-  { n: "Spribe", games: 12, bets: 88100, wager: "₱3.1M", ggr: "₱441K", rtp: 85.8, top: "Aviator", active: true },
-  { n: "Jili Games", games: 64, bets: 142300, wager: "₱4.4M", ggr: "₱374K", rtp: 91.5, top: "Money Coming", active: true },
-  { n: "Hacksaw Gaming", games: 38, bets: 62400, wager: "₱1.9M", ggr: "₱228K", rtp: 88.0, top: "Stick Em", active: true },
-  { n: "Red Tiger", games: 55, bets: 41200, wager: "₱1.2M", ggr: "₱168K", rtp: 86.0, top: "Dragon's Luck", active: true },
-  { n: "Microgaming", games: 120, bets: 18900, wager: "₱840K", ggr: "₱126K", rtp: 85.0, top: "Mega Moolah", active: false },
-];
-const killRate = (rtp) => +(100 - rtp).toFixed(1);
-const killColor = (k) => k >= 14 ? "var(--red)" : k >= 12 ? "#ff8c42" : "var(--green)";
+const money = (v) => Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
+const killRate = (rtp) => +(100 - Number(rtp || 0)).toFixed(1);
+const killColor = (k) => (k >= 14 ? 'var(--red)' : k >= 12 ? '#ff8c42' : 'var(--green)');
+
+const dlCsv = (name, header, rows) => {
+  const csv = [header, ...rows].map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  const a = document.createElement('a'); a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url);
+};
 
 export default function ProviderReport() {
   const { toast } = useUI();
-  const [range, setRange] = useState('This Month');
+  const [days, setDays] = useState(30);
+  const [d, setD] = useState(null);
 
-  const rprovRefresh = (r) => toast("Provider report refreshed ↻ " + r + " · " + RPROVQ.filter((p) => p.active).length + " active providers");
-  const rprovExport = () => toast("Provider report exported ⬇ " + RPROVQ.length + " providers (incl. kill rate)");
+  useEffect(() => { getWinloss('provider', days).then(setD).catch(() => {}); }, [days]);
 
-  const avgRtp = (RPROVQ.reduce((s, p) => s + p.rtp, 0) / RPROVQ.length).toFixed(1);
-  const avgKill = (RPROVQ.reduce((s, p) => s + killRate(p.rtp), 0) / RPROVQ.length).toFixed(1);
+  if (!d) return <><h1 className="hero-h">🎮 Provider Report</h1><div className="card">Loading…</div></>;
+
+  const rows = d.rows || [];
+  const totWagered = rows.reduce((s, r) => s + r.wagered, 0);
+  const totWon = rows.reduce((s, r) => s + r.won, 0);
+  const totGgr = rows.reduce((s, r) => s + r.ggr, 0);
+  const totBets = rows.reduce((s, r) => s + r.bets, 0);
+  const avgRtp = totWagered > 0 ? Math.round((totWon / totWagered) * 1000) / 10 : 0;
+
+  const rprovExport = () => {
+    dlCsv('provider-report.csv', ['Provider', 'Bets', 'Players', 'Wagered', 'Won', 'GGR', 'RTP %', 'Kill Rate %'],
+      rows.map((r) => [r.provider, r.bets, r.players, r.wagered, r.won, r.ggr, r.rtp, killRate(r.rtp)]));
+    toast('Provider report exported ⬇ ' + rows.length + ' providers (incl. kill rate)');
+  };
 
   return (
     <>
-      <div className="rep-head"><div className="grow"><h1 className="hero-h">🎮 Provider Report</h1><div className="hero-sub" style={{ marginBottom: 0 }}>Revenue, RTP, kill rate and performance breakdown by game provider</div></div>
-        <div className="acts"><select value={range} onChange={(e) => { setRange(e.target.value); rprovRefresh(e.target.value); }}><option>This Month</option><option>Last Month</option><option>This Year</option></select><button className="rep-btn" onClick={rprovExport}>⬇ Export CSV</button></div></div>
-      <div className="grid kpi-grid">
-        <div className="card kpi g"><div className="lbl">Total GGR</div><div className="val">₱4.82M</div><div className="trend up">↑ 14.2% MoM</div></div>
-        <div className="card kpi b"><div className="lbl">Active Providers</div><div className="val">{RPROVQ.filter((p) => p.active).length}</div><div className="trend" style={{ color: 'var(--muted)' }}>integrated</div></div>
-        <div className="card kpi"><div className="lbl">Total Bets</div><div className="val">1.24M</div><div className="trend" style={{ color: 'var(--muted)' }}>this month</div></div>
-        <div className="card kpi" style={{ borderTopColor: '#9b30d9' }}><div className="lbl">Avg Kill Rate</div><div className="val">{avgKill}%</div><div className="trend" style={{ color: 'var(--muted)' }}>avg RTP {avgRtp}%</div></div>
+      <div className="page-head">
+        <div>
+          <h1 className="hero-h">🎮 Provider Report</h1>
+          <div className="hero-sub" style={{ marginBottom: 0 }}>Revenue, RTP, kill rate and performance breakdown by game provider — from real bet data</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <select value={days} onChange={(e) => setDays(Number(e.target.value))}>
+            <option value={7}>Last 7 Days</option><option value={30}>Last 30 Days</option><option value={90}>Last 90 Days</option>
+          </select>
+          <button className="mini-btn" onClick={rprovExport}>⬇ Export CSV</button>
+        </div>
       </div>
-      <div className="rep-card">
-        <div className="rch">Provider Performance</div>
-        <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}><table className="rep-tbl" style={{ minWidth: '1080px' }}>
-          <thead><tr><th>Provider</th><th>Games</th><th>Total Bets</th><th>Total Wager</th><th>GGR</th><th>RTP Paid</th><th>Kill Rate <span className="pw-q" title="House win efficiency = 100% − RTP. Higher = the provider retains more of player wagers.">?</span></th><th>Top Game</th><th>Status</th></tr></thead>
-          <tbody>{RPROVQ.map((p, i) => {
-            const k = killRate(p.rtp);
-            return (<tr key={i}>
-              <td className="name">{p.n}</td>
-              <td className="rep-blue">{p.games}</td>
-              <td className="rep-blue">{p.bets.toLocaleString()}</td>
-              <td className="rep-g">{p.wager}</td>
-              <td className="rep-green">{p.ggr}</td>
-              <td>{p.rtp.toFixed(1)}%</td>
-              <td><span className="rep-kill" style={{ color: killColor(k) }}>{k}%</span><span className="rep-kill-bar"><i style={{ width: `${Math.min(100, k / 20 * 100).toFixed(0)}%`, background: killColor(k) }}></i></span></td>
-              <td className="rep-mut">{p.top}</td>
-              <td>{p.active ? <span className="rep-stat-active">active</span> : <span className="rep-stat-inactive">inactive</span>}</td>
-            </tr>);
-          })}</tbody>
+
+      <div className="grid kpi-grid">
+        <div className="card kpi g"><div className="lbl">Total GGR</div><div className="val">{money(totGgr)}</div><div className="trend" style={{ color: 'var(--muted)' }}>last {days} days</div></div>
+        <div className="card kpi b"><div className="lbl">Providers</div><div className="val">{rows.length}</div><div className="trend" style={{ color: 'var(--muted)' }}>with bet activity</div></div>
+        <div className="card kpi"><div className="lbl">Total Bets</div><div className="val">{totBets.toLocaleString()}</div><div className="trend" style={{ color: 'var(--muted)' }}>{money(totWagered)} wagered</div></div>
+        <div className="card kpi" style={{ borderTopColor: '#9b30d9' }}><div className="lbl">Avg Kill Rate</div><div className="val">{killRate(avgRtp)}%</div><div className="trend" style={{ color: 'var(--muted)' }}>avg RTP {avgRtp}%</div></div>
+      </div>
+
+      <div className="card" style={{ marginTop: 'var(--pad)' }}>
+        <div className="card-title">Provider Performance</div>
+        <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}><table style={{ minWidth: 960 }}>
+          <thead><tr><th>Provider</th><th>Bets</th><th>Players</th><th>Wagered</th><th>Won</th><th>GGR</th><th>RTP Paid</th><th>Kill Rate <span className="pw-q" title="House win efficiency = 100% − RTP. Higher = the provider retains more of player wagers.">?</span></th></tr></thead>
+          <tbody>
+            {rows.length === 0
+              ? <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--muted)', padding: 24 }}>No bet activity in this period yet.</td></tr>
+              : rows.map((r) => {
+                const k = killRate(r.rtp);
+                return (
+                  <tr key={r.provider}>
+                    <td><b>{r.provider}</b></td>
+                    <td>{r.bets.toLocaleString()}</td>
+                    <td>{r.players.toLocaleString()}</td>
+                    <td style={{ color: 'var(--gold)' }}>{money(r.wagered)}</td>
+                    <td>{money(r.won)}</td>
+                    <td style={{ color: r.ggr >= 0 ? 'var(--green)' : 'var(--red)', fontWeight: 800 }}>{money(r.ggr)}</td>
+                    <td>{r.rtp.toFixed(1)}%</td>
+                    <td>
+                      <span style={{ color: killColor(k), fontWeight: 800 }}>{k}%</span>
+                      <span style={{ display: 'inline-block', verticalAlign: 'middle', marginLeft: 8, width: 60, height: 6, background: 'rgba(255,255,255,.06)', borderRadius: 4, overflow: 'hidden' }}>
+                        <span style={{ display: 'block', width: `${Math.min(100, Math.max(0, (k / 20) * 100)).toFixed(0)}%`, height: '100%', background: killColor(k) }} />
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+          </tbody>
         </table></div>
       </div>
     </>

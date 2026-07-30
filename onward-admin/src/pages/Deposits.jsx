@@ -169,7 +169,11 @@ export default function Deposits() {
       setLoading(false);
     }
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    const id = setInterval(load, 20000); // approval queue: poll for new requests
+    return () => clearInterval(id);
+  }, []);
 
   const approve = async (i) => {
     const d = deps[i];

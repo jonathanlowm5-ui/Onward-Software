@@ -1,21 +1,28 @@
 // VIP page — faithful conversion of the original #view-vip markup + interactions.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useUI } from '../context/UIContext';
+import { useAuth } from '../context/AuthContext';
+import PageBanner from '../components/common/PageBanner.jsx';
+import usePageHero from '../hooks/usePageHero';
+import usePageBanner from '../hooks/usePageBanner';
 import useSectionNav from '../hooks/useSectionNav';
+import useWebDesign from '../hooks/useWebDesign';
 import api from '../services/api';
 
 // ---- Default theme (used until the admin-configured tiers load) ----
+// bg1/bg2 = a distinct dark gradient per tier so every VIP level card has its
+// own colour out of the box (the admin can still override per level).
 const DEFAULT_VIP_LEVELS = [
-  { lvl: 1, c: '#cd7f32', cl: '#e3a565', cd: '#9c5e20', rgb: '205,127,50', rb: '1%' },
-  { lvl: 2, c: '#c0c8d0', cl: '#e6ecf2', cd: '#8b929b', rgb: '192,200,208', rb: '1.5%' },
-  { lvl: 3, c: '#f0c040', cl: '#fbe08a', cd: '#c9971a', rgb: '240,192,64', rb: '2%' },
-  { lvl: 4, c: '#34c759', cl: '#7ee59a', cd: '#1f8f3e', rgb: '52,199,89', rb: '2.5%' },
-  { lvl: 5, c: '#1ab5b5', cl: '#5fe0e0', cd: '#0f8585', rgb: '26,181,181', rb: '3%' },
-  { lvl: 6, c: '#3b82f6', cl: '#7dabff', cd: '#2360c8', rgb: '59,130,246', rb: '4%' },
-  { lvl: 7, c: '#a855f7', cl: '#c89bff', cd: '#7d34c8', rgb: '168,85,247', rb: '5%' },
-  { lvl: 8, c: '#ec4899', cl: '#f888bf', cd: '#bd2e74', rgb: '236,72,153', rb: '6%' },
-  { lvl: 9, c: '#ef4444', cl: '#f88080', cd: '#c22e2e', rgb: '239,68,68', rb: '8%' },
-  { lvl: 10, c: '#5ad1ed', cl: '#a8eeff', cd: '#22b8d4', rgb: '90,209,237', rb: '10%' },
+  { lvl: 1, c: '#cd7f32', cl: '#e3a565', cd: '#9c5e20', rgb: '205,127,50', rb: '1%', bg1: '#4a2f13', bg2: '#17100a' },
+  { lvl: 2, c: '#c0c8d0', cl: '#e6ecf2', cd: '#8b929b', rgb: '192,200,208', rb: '1.5%', bg1: '#3c424b', bg2: '#14171b' },
+  { lvl: 3, c: '#f0c040', cl: '#fbe08a', cd: '#c9971a', rgb: '240,192,64', rb: '2%', bg1: '#4d3c12', bg2: '#191307' },
+  { lvl: 4, c: '#34c759', cl: '#7ee59a', cd: '#1f8f3e', rgb: '52,199,89', rb: '2.5%', bg1: '#123f22', bg2: '#08170d' },
+  { lvl: 5, c: '#1ab5b5', cl: '#5fe0e0', cd: '#0f8585', rgb: '26,181,181', rb: '3%', bg1: '#0f3f3f', bg2: '#071818' },
+  { lvl: 6, c: '#3b82f6', cl: '#7dabff', cd: '#2360c8', rgb: '59,130,246', rb: '4%', bg1: '#16305f', bg2: '#070f22' },
+  { lvl: 7, c: '#a855f7', cl: '#c89bff', cd: '#7d34c8', rgb: '168,85,247', rb: '5%', bg1: '#311c4d', bg2: '#130920' },
+  { lvl: 8, c: '#ec4899', cl: '#f888bf', cd: '#bd2e74', rgb: '236,72,153', rb: '6%', bg1: '#4d1735', bg2: '#1c0a14' },
+  { lvl: 9, c: '#ef4444', cl: '#f88080', cd: '#c22e2e', rgb: '239,68,68', rb: '8%', bg1: '#4d1616', bg2: '#1c0808' },
+  { lvl: 10, c: '#5ad1ed', cl: '#a8eeff', cd: '#22b8d4', rgb: '90,209,237', rb: '10%', bg1: '#123f49', bg2: '#07191d' },
 ];
 
 // Map an admin VIP tier (from /api/vip/tiers) into the shape this page renders.
@@ -27,6 +34,7 @@ function tierToLevel(t, i) {
     cl: t.cl || def.cl,
     cd: t.cd || def.cd,
     rgb: t.rgb || def.rgb,
+    bg1: def.bg1, bg2: def.bg2,  // per-tier default card gradient
     rb: t.rake || def.rb,        // rakeback chip on the card
     name: t.n || '',             // admin-configured tier name
     ic: t.ic || '',              // emoji icon
@@ -55,8 +63,6 @@ const VIP_BENEFITS = [
   { name: 'Weekly Aid Bonus', icon: '💎', minLevel: 3, amts: [0, 0, 200, 300, 400, 600, 800, 1000, 1500, 2000] },
 ];
 
-const PLAYER_VIP_LEVEL = 1; // the level the player has achieved (default VIP 1)
-
 // English vt() equivalents (the original uses per-language tables; defaults to en)
 const T = {
   ribbon: 'Current Level', yourLevel: 'Your Level', level: 'Level', rakeback: 'Rakeback',
@@ -69,18 +75,35 @@ const T = {
 };
 
 // One horizontal VIP rank card (port of vipHCardHTML).
-function VipHCard({ l, idx, active, mine, onTap, cardRef, levels }) {
+// `me` is the real /vip/me payload when logged in (null for guests → zero progress).
+function VipHCard({ l, idx, active, mine, onTap, cardRef, levels, me, tierColors }) {
+  const tierBg = usePageBanner('vip' + l.lvl); // admin-uploaded per-tier background
+  // Admin per-tier colour override (Web Design → VIP Background). When set for
+  // this level it drives the card gradient (no image) and the accent colour.
+  const tc = tierColors || null;
+  const hasTc = tc && (tc.c1 || tc.c2 || tc.ac);
+  const ac = tc?.ac || l.c;
   const next = levels[idx + 1];
   const nextLabel = next ? 'VIP ' + next.lvl : T.max;
-  const depDone = 1000, depTarget = 1600, depMore = Math.max(depTarget - depDone, 0);
-  const depPct = Math.min(100, Math.round((depDone / depTarget) * 100));
-  const ptsDone = 404, ptsTarget = 4000, ptsMore = Math.max(ptsTarget - ptsDone, 0);
-  const ptsPct = Math.min(100, Math.round((ptsDone / ptsTarget) * 100));
+  const maxed = !!me && !me.next; // logged in and already at the top tier
+  const depDone = Number(me?.depDone) || 0;
+  const depTarget = Number(me?.next?.dep) || 0;
+  const depMore = Math.max(depTarget - depDone, 0);
+  const depPct = maxed ? 100 : depTarget > 0 ? Math.min(100, Math.round((depDone / depTarget) * 100)) : 0;
+  const ptsDone = Number(me?.ptsDone) || 0;
+  const ptsTarget = Number(me?.next?.exp) || 0;
+  const ptsMore = Math.max(ptsTarget - ptsDone, 0);
+  const ptsPct = maxed ? 100 : ptsTarget > 0 ? Math.min(100, Math.round((ptsDone / ptsTarget) * 100)) : 0;
   return (
     <div
       ref={cardRef}
       className={'vipw-header vipw-hcard' + (mine ? ' mine' : '') + (active ? ' active' : '')}
-      style={{ '--vc': l.c, '--vc-l': l.cl, '--vc-d': l.cd, '--vc-rgb': l.rgb }}
+      style={{ '--vc': ac, '--vc-l': l.cl, '--vc-d': l.cd, '--vc-rgb': l.rgb,
+        ...(tierBg
+          ? { backgroundImage: `linear-gradient(rgba(8,6,2,.45),rgba(8,6,2,.6)), url(${tierBg})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+          : (hasTc && tc.c1
+            ? { background: `linear-gradient(135deg,${tc.c1},${tc.c2 || tc.c1})` }
+            : (l.bg1 ? { background: `linear-gradient(135deg,${l.bg1},${l.bg2 || l.bg1})` } : {}))) }}
       onClick={onTap}
     >
       {mine && <div className="vipw-mine-tag">{T.ribbon}</div>}
@@ -103,8 +126,24 @@ function VipHCard({ l, idx, active, mine, onTap, cardRef, levels }) {
 }
 
 export default function VIP() {
-  const { openModal } = useUI();
+  const { openModal, toast } = useUI();
+  const { profile, isLoggedIn } = useAuth();
   const go = useSectionNav();
+  const hero = usePageHero('vip');
+  const webDesign = useWebDesign(); // per-tier VIP colours (Web Design → VIP Background)
+  const vipTiers = webDesign?.vipTiers || {};
+
+  // Real VIP progress (/vip/me) when logged in; guests stay at level 0 / 0%.
+  const [vipMe, setVipMe] = useState(null);
+  useEffect(() => {
+    if (!isLoggedIn) { setVipMe(null); return undefined; }
+    let alive = true;
+    api.get('/vip/me')
+      .then((r) => { if (alive && r.data) setVipMe(r.data); })
+      .catch(() => { /* keep zero progress if it can't be loaded */ });
+    return () => { alive = false; };
+  }, [isLoggedIn]);
+  const playerLevel = isLoggedIn && vipMe ? Number(vipMe.level) || 0 : 0;
 
   // Admin-configured VIP tiers (names, icon pictures, rebate, level bonus).
   // Falls back to the bundled default theme until the backend responds.
@@ -122,7 +161,7 @@ export default function VIP() {
   }, []);
 
   // Selected VIP level (index into VIP_LEVELS), default to player's achieved level.
-  const [selLevel, setSelLevel] = useState(Math.min(Math.max(PLAYER_VIP_LEVEL - 1, 0), DEFAULT_VIP_LEVELS.length - 1));
+  const [selLevel, setSelLevel] = useState(0);
   const [benefitsOpen, setBenefitsOpen] = useState(false);
   const [openFaqs, setOpenFaqs] = useState(() => new Set());
   const toggleFaq = (i) =>
@@ -152,6 +191,15 @@ export default function VIP() {
     centerGlobal(N + selLevel, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Once the real level is known, jump the wheel to the player's tier.
+  useEffect(() => {
+    if (!vipMe) return;
+    const idx = Math.min(Math.max((Number(vipMe.level) || 0) - 1, 0), N - 1);
+    setSelLevel(idx);
+    centerGlobal(N + idx, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vipMe, N]);
 
   // Arrow stepping (port of vipStep): center neighbour, settle handler selects.
   const vipStep = (dir) => centerGlobal(N + selLevel + dir, true);
@@ -201,7 +249,12 @@ export default function VIP() {
           <div className="vipw-bcard-amt locked">₱{amtAtUnlock.toLocaleString()} <span>{T.atVip(b.minLevel)}</span></div>
         )}
         {unlocked ? (
-          <button className="vipw-claim" onClick={() => openModal('register')}>{T.claim}</button>
+          <button
+            className="vipw-claim"
+            onClick={() => (isLoggedIn
+              ? toast('Level bonus is credited automatically when you reach this tier')
+              : openModal('register'))}
+          >{T.claim}</button>
         ) : (
           <div className="vipw-bcard-status">{T.insufficient}</div>
         )}
@@ -218,15 +271,19 @@ export default function VIP() {
         <div className="vip-welcome-bar">
           <div className="vip-welcome-icon">👋</div>
           <div className="vip-welcome-info">
-            <div className="vip-welcome-text"><span data-i18n="vip_welcome_back">Welcome back, </span><span id="vip-username">Player</span></div>
+            <div className="vip-welcome-text"><span data-i18n="vip_welcome_back">Welcome back, </span><span id="vip-username">{profile?.username || 'Player'}</span></div>
             <div className="vip-welcome-sub"><span data-i18n="vip_growth">Growth Up your level and Get more Benefits!</span> <span>→</span></div>
           </div>
           <div style={{ flex: 1, minWidth: 200 }}>
             <div className="vip-xp-wrap">
               <div className="vip-xp-left">🥉</div>
               <div style={{ flex: 1 }}>
-                <div className="vip-xp-track"><div className="vip-xp-fill" id="vip-xp-fill" style={{ width: '0%' }} /></div>
-                <div className="vip-xp-label" id="vip-xp-label">0.00 ₱ / 615.05 ₱</div>
+                <div className="vip-xp-track"><div className="vip-xp-fill" id="vip-xp-fill" style={{ width: `${vipMe ? Math.min(100, Number(vipMe.progress) || 0) : 0}%` }} /></div>
+                <div className="vip-xp-label" id="vip-xp-label">
+                  {isLoggedIn && profile
+                    ? `${Number(profile.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${profile.currency || 'PHP'}`
+                    : '0.00 ₱ / 615.05 ₱'}
+                </div>
               </div>
               <div className="vip-xp-right">🥈</div>
             </div>
@@ -236,16 +293,21 @@ export default function VIP() {
         <div className="vip-inner">
 
           {/* Hero banner */}
-          <div className="vip-hero" style={{ marginBottom: 40 }}>
-            <div className="vip-hero-coins">
-              <span>🪙</span><span>💰</span><span>🏆</span><span>💎</span>
-              <span>🎰</span><span>🃏</span><span>💵</span><span>🎁</span>
+          <PageBanner pageKey="vip"
+            title={hero.title || 'Become a member of the Onward VIP Club'}
+            desc={hero.desc || 'Experience the highest level of service, exclusive bonuses and other benefits'}
+          >
+            <div className="vip-hero" style={{ marginBottom: 40 }}>
+              <div className="vip-hero-coins">
+                <span>🪙</span><span>💰</span><span>🏆</span><span>💎</span>
+                <span>🎰</span><span>🃏</span><span>💵</span><span>🎁</span>
+              </div>
+              <div className="vip-hero-content">
+                <div className="vip-hero-title">{hero.title ? <span>{hero.title}</span> : <span data-i18n="vip_hero_title">Become a member of the Onward VIP Club</span>}</div>
+                <div className="vip-hero-sub" {...(hero.desc ? {} : { 'data-i18n': 'vip_hero_sub' })}>{hero.desc || 'Experience the highest level of service, exclusive bonuses and other benefits'}</div>
+              </div>
             </div>
-            <div className="vip-hero-content">
-              <div className="vip-hero-title"><span data-i18n="vip_hero_title">Become a member of the Onward VIP Club</span></div>
-              <div className="vip-hero-sub" data-i18n="vip_hero_sub">Experience the highest level of service, exclusive bonuses and other benefits</div>
-            </div>
-          </div>
+          </PageBanner>
 
           {/* Benefits section (removed in v10.55 per request) */}
           <div className="vip-benefits" style={{ display: 'none' }}>
@@ -298,11 +360,13 @@ export default function VIP() {
                         key={g}
                         l={VIP_LEVELS[i]}
                         idx={i}
-                        mine={i === PLAYER_VIP_LEVEL - 1}
+                        mine={i === playerLevel - 1}
                         active={g === N + selLevel}
                         onTap={() => vipCardTap(g)}
                         cardRef={(el) => { cardRefs.current[g] = el; }}
                         levels={VIP_LEVELS}
+                        me={isLoggedIn ? vipMe : null}
+                        tierColors={vipTiers[VIP_LEVELS[i]?.lvl]}
                       />
                     );
                   })}

@@ -57,6 +57,24 @@ app.use('/api/agents', require('./routes/agents'));
 app.use('/api/vip', require('./routes/vip'));
 app.use('/api/bank-channels', require('./routes/bankchannels'));
 app.use('/api/mini-games', require('./routes/minigames'));
+app.use('/api/announcement', require('./routes/announcement'));
+app.use('/api/deposit-config', require('./routes/depositconfig'));
+app.use('/api/page-banners', require('./routes/pagebanners'));
+app.use('/api/social-links', require('./routes/social'));
+app.use('/api/currency-rates', require('./routes/currencyrates'));
+app.use('/api/lottery', require('./routes/lottery'));
+app.use('/api/tournaments', require('./routes/tournaments'));
+app.use('/api/missions', require('./routes/missions'));
+app.use('/api/vouchers', require('./routes/vouchers'));
+app.use('/api/bets', require('./routes/bets'));
+app.use('/api/support-pages', require('./routes/supportpages'));
+app.use('/api/marketing', require('./routes/marketing'));
+app.use('/api/top-buttons', require('./routes/topbuttons'));
+app.use('/api/web-design', require('./routes/webdesign'));
+app.use('/api/floating', require('./routes/floating'));
+app.use('/api/reports', require('./routes/reports'));
+app.use('/api/public', require('./routes/public'));
+app.use('/api/giveaways', require('./routes/giveaways'));
 
 app.get('/api/health', (req, res) => res.json({ ok: true, service: 'onward-api' }));
 

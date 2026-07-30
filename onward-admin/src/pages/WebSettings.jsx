@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useUI } from '../context/UIContext';
+import { getConfig, saveConfig, pingUrl } from '../services/configService';
 
 // Original WEBCFG defaults.
 const WEBCFG = {
@@ -46,13 +47,37 @@ const TOG_NAMES = { cache: 'Cache', minify: 'Minify Assets', http2: 'HTTP/2 Push
 
 export default function WebSettings() {
   const { toast } = useUI();
+  const [loaded, setLoaded] = useState(false);
   const [cfg, setCfg] = useState(WEBCFG);
   const [domains, setDomains] = useState(WEBDOM);
   const [dns, setDns] = useState(WEBDNS);
   const [dnsFilter, setDnsFilter] = useState(WEBDNSF);
+  const [saving, setSaving] = useState(false);
+  const [pings, setPings] = useState({}); // dom -> { loading } | { ok, ms, status }
+
+  useEffect(() => {
+    getConfig()
+      .then((c) => {
+        const w = c.webConfig;
+        if (w) {
+          if (w.config) setCfg({ ...WEBCFG, ...w.config });
+          if (Array.isArray(w.domains)) setDomains(w.domains);
+          if (Array.isArray(w.dns)) setDns(w.dns);
+        }
+      })
+      .catch(() => toast('⚠ Could not load saved web config — showing defaults'))
+      .finally(() => setLoaded(true));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeDom = domains.filter((d) => d.active).length;
   const setField = (k, v) => setCfg((p) => ({ ...p, [k]: v }));
+
+  const domCheck = (dom) => {
+    setPings((p) => ({ ...p, [dom]: { loading: true } }));
+    pingUrl('https://' + dom)
+      .then((r) => setPings((p) => ({ ...p, [dom]: r })))
+      .catch(() => setPings((p) => ({ ...p, [dom]: { ok: false, error: 'request failed' } })));
+  };
 
   const tog = (k) => {
     setCfg((p) => {
@@ -67,15 +92,11 @@ export default function WebSettings() {
       toast('⚠ CDN Origin URL must start with http(s)://');
       return;
     }
-    toast(
-      'Web settings saved ✅ ' +
-        cfg.provider +
-        ' · ' +
-        activeDom +
-        ' domains · ' +
-        dns.length +
-        ' DNS records'
-    );
+    setSaving(true);
+    saveConfig({ webConfig: { config: cfg, domains, dns } })
+      .then(() => toast('Web settings saved ✅ ' + cfg.provider + ' · ' + activeDom + ' domains · ' + dns.length + ' DNS records'))
+      .catch((e) => toast('⚠ ' + (e.message || 'Save failed')))
+      .finally(() => setSaving(false));
   };
 
   const refresh = () => {
@@ -162,6 +183,8 @@ export default function WebSettings() {
     .map((r, idx) => ({ r, idx }))
     .filter(({ r }) => dnsFilter === 'all' || r.type === dnsFilter);
 
+  if (!loaded) return <div className="hist-empty">Loading web config…</div>;
+
   return (
     <>
       <div className="set-head">
@@ -173,7 +196,7 @@ export default function WebSettings() {
         </div>
         <div className="acts">
           <button className="set-refresh" onClick={refresh}>↻ Refresh</button>
-          <button className="set-saveall" onClick={save}>💾 Save All</button>
+          <button className="set-saveall" onClick={save} disabled={saving}>{saving ? 'Saving…' : '💾 Save All'}</button>
         </div>
       </div>
       <div className="grid kpi-grid">
@@ -257,10 +280,13 @@ export default function WebSettings() {
                   <th>Status</th>
                   <th>Primary</th>
                   <th style={{ textAlign: 'center' }}>Act.</th>
+                  <th>Check</th>
                 </tr>
               </thead>
               <tbody>
-                {domains.map((d, i) => (
+                {domains.map((d, i) => {
+                  const p = pings[d.dom];
+                  return (
                   <tr key={i}>
                     <td className="mono" style={{ color: d.active ? 'var(--text)' : 'var(--muted)' }}>{d.dom}</td>
                     <td>{d.ssl ? <span className="web-ssl-ok">🔒</span> : <span className="web-ssl-no">🔓</span>}</td>
@@ -272,8 +298,15 @@ export default function WebSettings() {
                         <span className="slider"></span>
                       </label>
                     </td>
+                    <td style={{ whiteSpace: 'nowrap' }}>
+                      <button className="mini-btn" onClick={() => domCheck(d.dom)} disabled={!!p?.loading}>{p?.loading ? '…' : 'Check'}</button>{' '}
+                      {p && !p.loading && (p.ok
+                        ? <span style={{ color: 'var(--green)', fontSize: '.72rem', fontWeight: 700 }}>✅ {p.status || 'OK'} · {p.ms}ms</span>
+                        : <span style={{ color: 'var(--red)', fontSize: '.72rem', fontWeight: 700 }}>✕ {p.error || p.status || 'unreachable'}{p.ms != null ? ' · ' + p.ms + 'ms' : ''}</span>)}
+                    </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

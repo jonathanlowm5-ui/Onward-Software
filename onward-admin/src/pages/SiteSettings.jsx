@@ -2,6 +2,43 @@ import { useEffect, useState } from 'react';
 import { useUI } from '../context/UIContext';
 import { getSettings, updateSettings } from '../services/cmsService';
 import { getGeoBlock, saveGeoBlock } from '../services/playerService';
+import { getCurrencyRates, saveCurrencyRates } from '../services/currencyRatesService';
+import { getConfig, saveConfig } from '../services/configService';
+
+/* Player-site live numbers: jackpot pool base, online-count baseline, referral
+ * reward text. Served to players via GET /public/stats + /player/referral. */
+function SiteNumbersCard() {
+  const { toast } = useUI();
+  const [pool, setPool] = useState('');
+  const [baseline, setBaseline] = useState('');
+  const [reward, setReward] = useState('');
+  useEffect(() => {
+    getConfig().then((c) => {
+      setPool(c.jackpotPool != null ? String(c.jackpotPool) : '');
+      setBaseline(c.onlineBaseline != null ? String(c.onlineBaseline) : '');
+      setReward(c.referralReward || '');
+    }).catch(() => {});
+  }, []);
+  const save = async () => {
+    try {
+      await saveConfig({
+        jackpotPool: Number(pool) || 0,
+        onlineBaseline: Number(baseline) || 0,
+        referralReward: reward,
+      });
+      toast('Player-site numbers saved ✔ — live on /public/stats');
+    } catch (e) { toast('⚠ ' + (e.message || 'Save failed')); }
+  };
+  return (
+    <div className="set-card" style={{ marginTop: 16 }}>
+      <div className="ch">🎰 Player-Site Numbers</div>
+      <div className="gss-set-fld"><label>Jackpot Pool base (₱ — grows with real wagering)</label><input value={pool} inputMode="numeric" onChange={(e) => setPool(e.target.value)} placeholder="e.g. 1000000" /></div>
+      <div className="gss-set-fld"><label>Online-count baseline (added to the real online count; 0 = raw)</label><input value={baseline} inputMode="numeric" onChange={(e) => setBaseline(e.target.value)} placeholder="0" /></div>
+      <div className="gss-set-fld"><label>Referral reward text (shown on the Referral page)</label><input value={reward} onChange={(e) => setReward(e.target.value)} placeholder="e.g. ₱500 per active friend" /></div>
+      <button className="gss-savebtn" onClick={save}>Save Changes</button>
+    </div>
+  );
+}
 
 // Self-contained country / IP restriction panel. Blocks registration AND login
 // from the listed countries (ISO 3166 alpha-2 codes, e.g. US, GB, CN).
@@ -64,6 +101,102 @@ function GeoBlockCard() {
           </span>
         ))}
       </div>
+    </div>
+  );
+}
+
+// Currency conversion rates. rate[X] = how many units of X equal 1 unit of the
+// base. The wallet stays in each player's account currency; these power the
+// player-site "view balance in another currency" converter indicator.
+const FX_CODES = [
+  ['PHP', '🇵🇭', 'Philippine Peso'], ['USD', '🇺🇸', 'US Dollar'], ['EUR', '🇪🇺', 'Euro'],
+  ['INR', '🇮🇳', 'Indian Rupee'], ['THB', '🇹🇭', 'Thai Baht'], ['VND', '🇻🇳', 'Vietnamese Dong'],
+  ['IDR', '🇮🇩', 'Indonesian Rupiah'], ['MYR', '🇲🇾', 'Malaysian Ringgit'],
+  ['CNY', '🇨🇳', 'Chinese Yuan'], ['JPY', '🇯🇵', 'Japanese Yen'],
+];
+
+function CurrencyRatesCard() {
+  const { toast } = useUI();
+  const [base, setBase] = useState('PHP');
+  const [rates, setRates] = useState({});
+  const [enabled, setEnabled] = useState(FX_CODES.map(([c]) => c));
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    getCurrencyRates()
+      .then((d) => {
+        if (!alive) return;
+        if (d.base) setBase(d.base);
+        setRates(d.rates || {});
+        if (Array.isArray(d.enabled) && d.enabled.length) setEnabled(d.enabled);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  const setRate = (code, v) => setRates((p) => ({ ...p, [code]: v }));
+  const toggleEnabled = (code) => setEnabled((p) => (p.includes(code) ? p.filter((c) => c !== code) : [...p, code]));
+
+  const save = async () => {
+    const clean = {};
+    FX_CODES.forEach(([c]) => { const n = Number(rates[c]); if (n > 0) clean[c] = n; });
+    if (Number(clean[base]) !== 1) {
+      clean[base] = 1; // base is always 1.0 by definition
+    }
+    // Always keep the base currency offerable.
+    const en = enabled.includes(base) ? enabled : [base, ...enabled];
+    setBusy(true);
+    try {
+      const saved = await saveCurrencyRates(base, clean, en);
+      if (saved.base) setBase(saved.base);
+      setRates(saved.rates || clean);
+      if (Array.isArray(saved.enabled)) setEnabled(saved.enabled);
+      toast('Currency settings saved ✔');
+    } catch (e) {
+      toast('⚠ Save failed: ' + (e.message || 'error'));
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="set-card" style={{ marginTop: 16 }}>
+      <div className="ch">💱 Currency Conversion Rates</div>
+      <div className="desc">
+        Each player's wallet stays in their own account currency. These rates power the
+        <b> “view in another currency”</b> converter shown to players. Set how many units of each
+        currency equal <b>1 {base}</b> (the base). The base row is locked to 1.0.
+      </div>
+      <div className="gss-set-fld" style={{ marginTop: 8 }}>
+        <label>Base Currency</label>
+        <select value={base} onChange={(e) => setBase(e.target.value)}>
+          {FX_CODES.map(([c, fl, nm]) => <option key={c} value={c}>{fl} {c} — {nm}</option>)}
+        </select>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: 8, marginTop: 8 }}>
+        {FX_CODES.map(([c, fl, nm]) => {
+          const isBase = c === base;
+          return (
+            <div key={c} className="gss-set-fld" style={{ margin: 0 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 16 }}>{fl}</span> {c} <span style={{ color: 'var(--muted,#8898b8)', fontWeight: 400, fontSize: 11 }}>per 1 {base}</span>
+              </label>
+              <input
+                value={isBase ? '1' : (rates[c] ?? '')}
+                disabled={isBase || busy}
+                inputMode="decimal"
+                placeholder="0.00"
+                onChange={(e) => setRate(c, e.target.value.replace(/[^0-9.]/g, ''))}
+                title={nm}
+              />
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, fontSize: 11, color: 'var(--muted,#8898b8)', fontWeight: 600, cursor: isBase ? 'default' : 'pointer' }} title="Offer this currency to players at registration">
+                <input type="checkbox" checked={isBase || enabled.includes(c)} disabled={isBase || busy} onChange={() => toggleEnabled(c)} style={{ width: 14, height: 14 }} />
+                Offer at registration
+              </label>
+            </div>
+          );
+        })}
+      </div>
+      <button className="gss-savebtn" disabled={busy} onClick={save}>{busy ? 'Saving…' : 'Save Conversion Rates'}</button>
     </div>
   );
 }
@@ -192,7 +325,9 @@ export default function SiteSettings() {
             <div className="gss-sec-tog"><label className="switch"><input type="checkbox" checked={sec.regOpen} onChange={() => secToggle('regOpen')} /><span className="slider"></span></label> New registrations open</div>
             <div className="gss-set-fld" style={{ margin: '6px 0 0' }}><label>Max Withdrawal / Day (₱)</label><input value={cfg.maxWdDay} inputMode="numeric" onChange={(e) => setCfgField('maxWdDay', e.target.value)} /></div>
           </div>
+          <SiteNumbersCard />
           <GeoBlockCard />
+          <CurrencyRatesCard />
         </div>
         <div className="set-card gss-feat">
           <div className="ch">🌐 Global Site Switch</div>

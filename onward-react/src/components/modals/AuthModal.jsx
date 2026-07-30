@@ -3,6 +3,19 @@ import Modal from './Modal.jsx';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import { deposit as depositRequest } from '../../services/playersService';
+import api from '../../services/api';
+import telegramLogo from '../../assets/social/telegram.svg';
+import googleLogo from '../../assets/social/google.svg';
+
+// Agent/referral code carried on share links (?ref=CODE) — remembered for the
+// session so the register form is pre-filled even if the modal opens later.
+const refFromUrl = () => {
+  try {
+    const u = new URLSearchParams(window.location.search).get('ref');
+    if (u) { sessionStorage.setItem('onward_ref', u); return u; }
+    return sessionStorage.getItem('onward_ref') || '';
+  } catch { return ''; }
+};
 
 const EMPTY_REG = {
   name: '', username: '', email: '', phone: '',
@@ -38,19 +51,29 @@ export default function AuthModal() {
     }
   };
 
-  const open = activeModal === 'login' || activeModal === 'register' || activeModal === 'deposit';
+  // Deposit now has its own rich modal (DepositModal); AuthModal handles auth.
+  const open = activeModal === 'login' || activeModal === 'register';
   const [tab, setTab] = useState('login');
   const [busy, setBusy] = useState(false);
 
   // Login form
   const [loginUser, setLoginUser] = useState('');
   const [loginPass, setLoginPass] = useState('');
-  // Register form
-  const [reg, setReg] = useState(EMPTY_REG);
+  // Register form (referral pre-filled from a shared agent link, if any)
+  const [reg, setReg] = useState(() => ({ ...EMPTY_REG, referral: refFromUrl() }));
+  // Currencies offered at registration come from the admin (enabled list).
+  const [currencies, setCurrencies] = useState(CURRENCIES);
+  useEffect(() => {
+    let alive = true;
+    api.get('/currency-rates')
+      .then((r) => { const en = r.data?.enabled; if (alive && Array.isArray(en) && en.length) setCurrencies(en); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   useEffect(() => {
     if (open) {
-      setTab(activeModal === 'deposit' ? 'deposit' : activeModal);
+      setTab(activeModal);
       setError('');
     }
   }, [open, activeModal, setError]);
@@ -154,8 +177,8 @@ export default function AuthModal() {
             <span data-i18n="auth_login_play">{busy ? 'Logging in…' : '🎰 Login & Play'}</span>
           </button>
           <div className="form-divider" data-i18n="auth_or_continue">or continue with</div>
-          <button className="social-btn"><span>✈️</span> <span data-i18n="auth_telegram">Continue with Telegram</span></button>
-          <button className="social-btn"><span>🔍</span> <span data-i18n="auth_google">Continue with Google</span></button>
+          <button className="social-btn"><img src={telegramLogo} alt="" className="social-logo" /> <span data-i18n="auth_telegram">Continue with Telegram</span></button>
+          <button className="social-btn"><img src={googleLogo} alt="" className="social-logo" /> <span data-i18n="auth_google">Continue with Google</span></button>
           <div className="form-footer">
             <a href="#" onClick={doForgot} data-i18n="auth_forgot">Forgot Password?</a> &nbsp;·&nbsp;{' '}
             <span data-i18n="auth_new">New?</span>{' '}
@@ -194,7 +217,7 @@ export default function AuthModal() {
             <div className="form-group">
               <label data-i18n="auth_currency">Currency</label>
               <select id="reg-currency" value={reg.currency} onChange={setR('currency')} style={{ width: '100%', padding: '12px', borderRadius: '8px', background: '#0c1322', color: '#fff', border: '1px solid #2a3a5c', fontSize: '14px' }}>
-                {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                {currencies.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
           </div>
@@ -241,13 +264,33 @@ export default function AuthModal() {
   );
 }
 
+// Compact money label for the quick-select chips (1000 -> 1K, 2500 -> 2.5K,
+// 60770 -> 60.77K, 730 -> 730).
+function shortAmt(n) {
+  const v = Number(n) || 0;
+  if (v >= 1000) {
+    const k = v / 1000;
+    return (Number.isInteger(k) ? k : +k.toFixed(2)) + 'K';
+  }
+  return String(v);
+}
+
 function DepositPanel() {
   const { toast, closeModal } = useUI();
   const { isLoggedIn, refreshProfile } = useAuth();
   const [method, setMethod] = useState('GCash');
   const [amount, setAmount] = useState('');
   const [busy, setBusy] = useState(false);
+  const [quick, setQuick] = useState([500, 1000, 2000, 5000, 10000, 20000]);
   const methods = ['GCash', 'Maya', 'Bank'];
+
+  useEffect(() => {
+    let alive = true;
+    api.get('/deposit-config')
+      .then((r) => { if (alive && Array.isArray(r.data?.quickAmounts) && r.data.quickAmounts.length) setQuick(r.data.quickAmounts); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   const doDeposit = async () => {
     const amt = Number(amount);
@@ -269,7 +312,7 @@ function DepositPanel() {
   return (
     <div className="tab-panel active" id="panel-deposit">
       <div className="modal-body">
-        <h3 style={{ fontFamily: "'Cinzel',serif", marginBottom: '20px' }} data-i18n="dep_title">Deposit Funds</h3>
+        <h3 style={{ fontFamily: "'Montserrat',sans-serif", marginBottom: '20px' }} data-i18n="dep_title">Deposit Funds</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '10px', marginBottom: '20px' }} id="payment-methods">
           {methods.map((m) => (
             <button key={m} className={`cat-btn${method === m ? ' active' : ''}`} style={{ justifyContent: 'center' }} onClick={() => setMethod(m)}>{m}</button>
@@ -279,9 +322,9 @@ function DepositPanel() {
           <label data-i18n="dep_amount_label">Amount (₱)</label>
           <input type="number" placeholder="Min ₱100" id="deposit-amount" value={amount} onChange={(e) => setAmount(e.target.value)} />
         </div>
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '20px' }}>
-          {[500, 1000, 2000, 5000].map((v) => (
-            <button key={v} className="cat-btn" onClick={() => setAmount(String(v))}>₱{v.toLocaleString()}</button>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '8px', marginBottom: '20px' }}>
+          {quick.map((v) => (
+            <button key={v} className={`cat-btn${Number(amount) === Number(v) ? ' active' : ''}`} style={{ justifyContent: 'center', padding: '9px 6px' }} onClick={() => setAmount(String(v))}>{shortAmt(v)}</button>
           ))}
         </div>
         <div style={{ padding: '14px', background: 'rgba(240,192,64,.08)', border: '1px solid rgba(240,192,64,.2)', borderRadius: 'var(--radius)', marginBottom: '20px', fontSize: '13px', color: 'var(--text-muted)' }}>

@@ -1,17 +1,14 @@
+import { useEffect, useState } from 'react';
 import { useUI } from '../context/UIContext';
+import { useAuth } from '../context/AuthContext';
+import PageBanner from '../components/common/PageBanner.jsx';
+import usePageHero from '../hooks/usePageHero';
+import { SOCIALS } from '../services/social';
+import api from '../services/api';
 
+// Marketing placeholder shown to guests (real players get their own code).
 const REF_LINK = 'https://legox.com/ref/PLAYER123';
-
-// Demo data shown when logged in (empty by default in the original).
-const REF_FRIENDS = [];
-
-const SHARE_BTNS = [
-  { label: '📘 Facebook' },
-  { label: '✈️ Telegram' },
-  { label: '🐦 Twitter / X' },
-  { label: '💬 WhatsApp' },
-  { label: '📧 Email' },
-];
+const SHARE_TEXT = 'Join me on Onward Casino and we both get rewarded!';
 
 const STEPS = [
   { num: '1', icon: '🔗', title: 'Share Your Link', titleKey: 'ref_share', desc: 'Copy your unique referral link and share it with friends via social media, messaging apps, or email.' },
@@ -20,14 +17,35 @@ const STEPS = [
 ];
 
 export default function Referral() {
-  const { toast } = useUI();
+  const { toast, openModal } = useUI();
+  const { isLoggedIn } = useAuth();
+  const hero = usePageHero('referral');
+
+  // Real referral programme data (code, reward, stats, referred friends).
+  const [ref, setRef] = useState(null);
+  useEffect(() => {
+    if (!isLoggedIn) { setRef(null); return undefined; }
+    let alive = true;
+    api.get('/player/referral')
+      .then((r) => { if (alive && r.data) setRef(r.data); })
+      .catch(() => { /* keep marketing defaults if it can't be loaded */ });
+    return () => { alive = false; };
+  }, [isLoggedIn]);
+
+  // The register modal already consumes ?ref=CODE from the landing URL.
+  const refLink = isLoggedIn && ref?.code
+    ? `${window.location.origin}/?ref=${ref.code}`
+    : REF_LINK;
+  const rewardText = ref?.reward || '₱500';
 
   const copyRefLink = () => {
-    navigator.clipboard.writeText(REF_LINK);
+    if (!isLoggedIn) { openModal('register'); return; }
+    navigator.clipboard.writeText(refLink);
     toast('Referral link copied!', 'success');
   };
 
-  const count = REF_FRIENDS.length;
+  const friends = Array.isArray(ref?.referred) ? ref.referred : [];
+  const count = friends.length;
   const countLabel = `${count} referral${count !== 1 ? 's' : ''}`;
 
   return (
@@ -35,35 +53,40 @@ export default function Referral() {
       <div className="ref-page">
         <div className="ref-inner">
 
-          {/* Hero */}
-          <div className="ref-hero">
-            <div className="ref-hero-icon">🤝</div>
-            <div className="ref-hero-content">
-              <div className="ref-hero-title">Refer Friends &<br /><span data-i18n="ref_earn_together">Earn Together</span></div>
-              <div className="ref-hero-sub">Invite your friends to Onward and earn ₱500 for every friend who registers and makes their first deposit. No limits — the more you refer, the more you earn!</div>
+          {/* Hero (uploadable banner falls back to the built-in hero) */}
+          <PageBanner pageKey="referral"
+            title={hero.title || 'Refer Friends & Earn Together'}
+            desc={hero.desc || 'Invite your friends to Onward and earn ₱500 for every friend who registers and makes their first deposit. No limits — the more you refer, the more you earn!'}
+          >
+            <div className="ref-hero">
+              <div className="ref-hero-icon">🤝</div>
+              <div className="ref-hero-content">
+                <div className="ref-hero-title">{hero.title ? hero.title : <>Refer Friends &<br /><span data-i18n="ref_earn_together">Earn Together</span></>}</div>
+                <div className="ref-hero-sub">{hero.desc || 'Invite your friends to Onward and earn ₱500 for every friend who registers and makes their first deposit. No limits — the more you refer, the more you earn!'}</div>
+              </div>
             </div>
-          </div>
+          </PageBanner>
 
           {/* Stats */}
           <div className="ref-stats">
             <div className="ref-stat-card">
               <div className="ref-stat-label" data-i18n="ref_total">Total Referrals</div>
-              <div className="ref-stat-val" id="ref-stat-total">0</div>
+              <div className="ref-stat-val" id="ref-stat-total">{ref?.total ?? 0}</div>
               <div className="ref-stat-sub" data-i18n="ref_friends_invited">friends invited</div>
             </div>
             <div className="ref-stat-card">
               <div className="ref-stat-label" data-i18n="ref_active">Active Referrals</div>
-              <div className="ref-stat-val" id="ref-stat-active">0</div>
+              <div className="ref-stat-val" id="ref-stat-active">{ref?.active ?? 0}</div>
               <div className="ref-stat-sub" data-i18n="ref_made_deposit">made a deposit</div>
             </div>
             <div className="ref-stat-card">
               <div className="ref-stat-label" data-i18n="ref_earned">Total Earned</div>
-              <div className="ref-stat-val" id="ref-stat-earned">₱0</div>
+              <div className="ref-stat-val" id="ref-stat-earned">₱{((ref?.active ?? 0) * (parseInt(String(rewardText).replace(/[^0-9]/g, ''), 10) || 0)).toLocaleString()}</div>
               <div className="ref-stat-sub" data-i18n="ref_from">from referrals</div>
             </div>
             <div className="ref-stat-card">
               <div className="ref-stat-label" data-i18n="ref_reward">Reward Per Referral</div>
-              <div className="ref-stat-val">₱500</div>
+              <div className="ref-stat-val">{rewardText}</div>
               <div className="ref-stat-sub" data-i18n="ref_on_deposit">on first deposit</div>
             </div>
           </div>
@@ -73,12 +96,25 @@ export default function Referral() {
             <div className="ref-link-title" data-i18n="ref_link">Your Referral Link</div>
             <div className="ref-link-sub">Share this link with your friends. When they register and deposit, you both get rewarded!</div>
             <div className="ref-link-row">
-              <input className="ref-link-input" id="ref-link-val" type="text" value={REF_LINK} readOnly />
+              <input className="ref-link-input" id="ref-link-val" type="text" value={refLink} readOnly />
               <button className="ref-copy-btn" onClick={copyRefLink}>📋 Copy Link</button>
             </div>
             <div className="ref-share-btns">
-              {SHARE_BTNS.map((b, i) => (
-                <button key={i} className="ref-share-btn" onClick={() => toast('Link shared!', 'success')}>{b.label}</button>
+              {SOCIALS.map((s) => (
+                <button
+                  key={s.key}
+                  className="ref-share-btn"
+                  title={`Share on ${s.name}`}
+                  onClick={() => {
+                    if (!isLoggedIn) { openModal('register'); return; }
+                    const url = s.share && s.share(refLink, SHARE_TEXT);
+                    if (url) { window.open(url, '_blank', 'noopener,width=600,height=520'); }
+                    else { navigator.clipboard?.writeText(refLink); toast(`Link copied — paste it on ${s.name}`, 'success'); }
+                  }}
+                >
+                  <img src={s.icon} alt="" />
+                  <span>{s.name}</span>
+                </button>
               ))}
             </div>
           </div>
@@ -115,12 +151,12 @@ export default function Referral() {
                     <th>Username</th><th>Joined</th><th>Status</th><th>Reward</th>
                   </tr></thead>
                   <tbody>
-                    {REF_FRIENDS.map((r, i) => (
+                    {friends.map((r, i) => (
                       <tr key={i}>
-                        <td><strong>{r.name}</strong></td>
+                        <td><strong>{r.username}</strong></td>
                         <td style={{ color: 'var(--text-muted)' }}>{r.joined}</td>
-                        <td className={`ref-status-${r.status}`}>{r.status === 'active' ? '✓ Active' : '⏳ Pending'}</td>
-                        <td style={{ color: 'var(--gold)', fontWeight: 700 }}>{r.status === 'active' ? '₱500' : '—'}</td>
+                        <td className={`ref-status-${r.active ? 'active' : 'pending'}`}>{r.active ? '✓ Active' : '⏳ Pending'}</td>
+                        <td style={{ color: 'var(--gold)', fontWeight: 700 }}>{r.active ? rewardText : '—'}</td>
                       </tr>
                     ))}
                   </tbody>

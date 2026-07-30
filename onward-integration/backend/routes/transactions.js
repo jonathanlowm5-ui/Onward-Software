@@ -51,12 +51,18 @@ router.get('/', requireAuth, (req, res) => {
 });
 
 // ---- create ----
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, requirePerm('transactions.approve'), (req, res) => {
   const b = req.body || {};
+  const type = ['deposit', 'withdrawal', 'bonus', 'adjustment'].includes(b.type) ? b.type : 'deposit';
+  const amount = Number(b.amount);
+  // Reject invalid amounts. Only "adjustment" may be negative (manual correction).
+  if (!Number.isFinite(amount) || amount === 0 || (amount < 0 && type !== 'adjustment')) {
+    return res.status(400).json({ error: 'A valid non-zero amount is required' });
+  }
   const tx = store.insert(COLLECTION, {
     playerId: b.playerId || null,
-    type: ['deposit', 'withdrawal', 'bonus', 'adjustment'].includes(b.type) ? b.type : 'deposit',
-    amount: Number(b.amount || 0),
+    type,
+    amount,
     method: b.method || '',
     status: b.status || 'pending',
     note: b.note || '',
@@ -69,16 +75,58 @@ router.patch('/:id/approve', requireAuth, requirePerm('transactions.approve'), (
   const tx = store.get(COLLECTION, req.params.id);
   if (!tx) return res.status(404).json({ error: 'Transaction not found' });
   if (tx.status === 'approved') return res.json(tx);
-  const sign = tx.type === 'withdrawal' ? -1 : 1;
-  if (tx.playerId) adjustBalance(tx.playerId, sign * Number(tx.amount || 0));
-  res.json(store.update(COLLECTION, req.params.id, { status: 'approved' }));
+  // A rejected transaction is terminal — re-approving it would double-move money.
+  if (tx.status === 'rejected') return res.status(409).json({ error: 'Transaction was already rejected' });
+  const amount = Number(tx.amount || 0);
+  if (tx.type === 'withdrawal') {
+    // Player-initiated withdrawals already reserved the funds at request time
+    // (held:true), so approval just confirms the payout — no second debit.
+    // Admin/legacy withdrawals were not reserved; debit now with a balance check.
+    if (!tx.held && tx.playerId) {
+      const p = store.get(PLAYERS, tx.playerId);
+      if (p && Number(p.balance || 0) < amount) {
+        return res.status(400).json({ error: 'Player has insufficient balance for this withdrawal' });
+      }
+      adjustBalance(tx.playerId, -amount);
+    }
+  } else if (tx.playerId) {
+    // deposit / bonus credit; adjustment may be negative (manual correction).
+    adjustBalance(tx.playerId, amount);
+  }
+  const updated = store.update(COLLECTION, req.params.id, { status: 'approved' });
+  // Marketing automation: fire first_deposit once per player.
+  if (tx.type === 'deposit' && tx.playerId) {
+    const others = store.list(COLLECTION).some((t) =>
+      t.id !== tx.id && String(t.playerId) === String(tx.playerId) && t.type === 'deposit' && t.status === 'approved');
+    const player = store.get('players', tx.playerId);
+    if (!others && player) require('../marketing/auto').trigger('first_deposit', player, { Amount: Number(tx.amount || 0).toLocaleString() });
+  }
+  res.json(updated);
 });
 
 // ---- reject ----
 router.patch('/:id/reject', requireAuth, requirePerm('transactions.approve'), (req, res) => {
   const tx = store.get(COLLECTION, req.params.id);
   if (!tx) return res.status(404).json({ error: 'Transaction not found' });
-  res.json(store.update(COLLECTION, req.params.id, { status: 'rejected', reason: req.body?.reason || '' }));
+  // An approved withdrawal has already been paid out; an approved deposit is
+  // already credited. Rejecting it after the fact would corrupt the balance.
+  if (tx.status === 'approved') return res.status(409).json({ error: 'Transaction was already approved' });
+  if (tx.status === 'rejected') return res.json(tx);
+  // Refund funds that were reserved when a player-initiated withdrawal was
+  // requested (held:true), so a rejected withdrawal returns the money.
+  if (tx.type === 'withdrawal' && tx.held && !tx.refunded && tx.playerId) {
+    adjustBalance(tx.playerId, Number(tx.amount || 0));
+  }
+  res.json(store.update(COLLECTION, req.params.id, {
+    status: 'rejected', reason: req.body?.reason || '', refunded: tx.type === 'withdrawal' && !!tx.held,
+  }));
+});
+
+// ---- mark a non-cash reward (free spins etc.) as fulfilled by the operator ----
+router.patch('/:id/fulfill', requireAuth, requirePerm('transactions.approve'), (req, res) => {
+  const tx = store.get(COLLECTION, req.params.id);
+  if (!tx) return res.status(404).json({ error: 'Transaction not found' });
+  res.json(store.update(COLLECTION, req.params.id, { fulfilled: true, fulfilledAt: new Date().toISOString() }));
 });
 
 module.exports = router;

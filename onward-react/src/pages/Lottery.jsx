@@ -1,6 +1,7 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useUI } from '../context/UIContext';
 import useSectionNav from '../hooks/useSectionNav';
+import api from '../services/api';
 import { LOTTERY_LOGOS } from '../data/lotteryLogos';
 
 // ===== Latest results data (from initLotteryPage) =====
@@ -107,9 +108,9 @@ function LotteryCard({ r }) {
         </div>
       ))}
       <div className="lottery-section-label">Special</div>
-      {chunk(r.special, 5).map(gridRow)}
+      {chunk(r.special, 4).map(gridRow)}
       <div className="lottery-section-label">Consolation</div>
-      {chunk(r.consolation, 5).map(gridRow)}
+      {chunk(r.consolation, 4).map(gridRow)}
       <div className="lottery-jackpot-row">
         <div className="lottery-jp-box"><div className="lottery-jp-label">4D Jackpot 1</div><div className="lottery-jp-val">{r.jp1}</div></div>
         <div className="lottery-jp-box"><div className="lottery-jp-label">4D Jackpot 2</div><div className="lottery-jp-val">{r.jp2}</div></div>
@@ -122,6 +123,39 @@ export default function Lottery() {
   const { toast } = useUI();
   // eslint-disable-next-line no-unused-vars
   const go = useSectionNav();
+
+  // Live 4D results captured server-side (falls back to the bundled sample when
+  // the feed is unavailable). Merged onto the styled cards by pool id.
+  const [results, setResults] = useState(LOTTERY_RESULTS);
+  const [liveAt, setLiveAt] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    api.get('/lottery/results').then((r) => {
+      const pools = r.data?.pools;
+      if (!alive || !Array.isArray(pools) || !pools.length) return;
+      const byKey = {}; pools.forEach((p) => { byKey[p.key] = p; });
+      setResults(LOTTERY_RESULTS.map((card) => {
+        const live = byKey[card.id];
+        if (!live || !live.first) return card;
+        return {
+          ...card,
+          date: live.date || card.date,
+          drawNo: live.drawNo || card.drawNo,
+          prizes: [
+            { label: '1st Prize', num: live.first || '----' },
+            { label: '2nd Prize', num: live.second || '----' },
+            { label: '3rd Prize', num: live.third || '----' },
+          ],
+          special: (live.special && live.special.length) ? live.special : card.special,
+          consolation: (live.consolation && live.consolation.length) ? live.consolation : card.consolation,
+          jp1: live.jp1 || card.jp1,
+          jp2: live.jp2 || card.jp2,
+        };
+      }));
+      if (r.data?.fetchedAt) setLiveAt(r.data.fetchedAt);
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   const [tab, setTab] = useState('results');
   const [op, setOp] = useState('magnum');
@@ -262,7 +296,7 @@ export default function Lottery() {
         {/* RESULTS PANEL */}
         <div id="lottery-panel-results" style={tab === 'results' ? undefined : { display: 'none' }}>
           <div id="lottery-results-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(310px,1fr))', gap: '16px' }}>
-            {LOTTERY_RESULTS.map((r) => <LotteryCard key={r.id} r={r} />)}
+            {results.map((r) => <LotteryCard key={r.id} r={r} />)}
           </div>
           <div style={{ textAlign: 'center', marginTop: '20px', padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', color: '#555', fontSize: '11px' }}>
             ⚠️ Results for reference only. Please verify with official sources.
