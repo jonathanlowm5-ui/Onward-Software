@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Table } from '../components/ui.jsx';
 import { useUI } from '../context/UIContext';
 import { listBankChannels, createBankChannel, toggleBankChannel, removeBankChannel } from '../services/bankService';
+import { getDepositConfig, saveDepositConfig } from '../services/depositConfigService';
 
 // ---- Bank & Payment Gateway — persisted via /api/bank-channels ----
 const TYPE_ICON = { bank: '🏦', ewallet: '📱', crypto: '🔵', gateway: '⚙️' };
@@ -44,9 +45,21 @@ export default function Bank() {
   const [awActive, setAwActive] = useState(true);
   const [evFilter, setEvFilter] = useState('');
   const [showAdd, setShowAdd] = useState(false);
+  const [quickAmts, setQuickAmts] = useState('');
+  const [savingQuick, setSavingQuick] = useState(false);
 
   const load = () => { listBankChannels().then((d) => setBanks(Array.isArray(d) ? d : [])).catch(() => {}); };
   useEffect(() => { load(); }, []);
+  useEffect(() => { getDepositConfig().then((c) => { if (Array.isArray(c?.quickAmounts)) setQuickAmts(c.quickAmounts.join(', ')); }).catch(() => {}); }, []);
+
+  const saveQuick = async () => {
+    const arr = String(quickAmts).split(',').map((s) => Number(String(s).replace(/[^0-9.]/g, ''))).filter((n) => Number.isFinite(n) && n > 0);
+    if (!arr.length) { toast('Enter at least one amount', 'error'); return; }
+    setSavingQuick(true);
+    try { const r = await saveDepositConfig({ quickAmounts: arr }); setQuickAmts((r.quickAmounts || arr).join(', ')); toast('Quick deposit amounts saved ✔ live for players'); }
+    catch (e) { toast('⚠ ' + (e.message || 'Save failed')); }
+    finally { setSavingQuick(false); }
+  };
 
   const addChannel = async (c) => {
     try { await createBankChannel(c); toast('Payment channel added ✔ ' + c.n); load(); }
@@ -109,6 +122,18 @@ export default function Bank() {
           <button className="btn-search" onClick={() => setShowAdd(true)}>＋ Add Bank / Gateway</button>
         </span>
       </div>
+
+      {/* Quick deposit amounts — the fast-select chips on the player deposit panel */}
+      <div className="card" style={{ marginBottom: 'var(--pad)' }}>
+        <div className="card-title">⚡ Quick Deposit Amounts</div>
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>Comma-separated amounts players can tap to rapidly fill the deposit field (e.g. 730, 1000, 2500, 5000, 10000, 25000). Shown as 1K / 2.5K etc.</div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+          <input value={quickAmts} onChange={(e) => setQuickAmts(e.target.value)} placeholder="730, 1000, 2500, 5000, 10000, 25000, 50000"
+            style={{ flex: 1, minWidth: 280, padding: '10px 12px', borderRadius: 9, background: 'var(--panel-3,#1b2541)', color: 'var(--text,#fff)', border: '1px solid var(--border,#243049)' }} />
+          <button className="btn-search" onClick={saveQuick} disabled={savingQuick}>{savingQuick ? 'Saving…' : '💾 Save'}</button>
+        </div>
+      </div>
+
       <div className="grid kpi-grid">
         <div className="card kpi g">
           <div className="lbl">Active Channels</div>

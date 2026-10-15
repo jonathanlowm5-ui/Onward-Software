@@ -16,8 +16,9 @@
  */
 const express = require('express');
 const store = require('../store');
-const { requireAuth } = require('../auth');
+const { requireAuth, requirePlayer } = require('../auth');
 const { requirePerm } = require('../permissions');
+const { safeMediaUrl } = require('../playerUtils');
 
 const router = express.Router();
 const COLLECTION = 'kyc';
@@ -63,20 +64,24 @@ function giveKycBonus(player) {
   return bonus;
 }
 
-// ---- submit (frontend) ----
-router.post('/', (req, res) => {
+// ---- submit (player) ----
+// Must be the logged-in player; the playerId is taken from the token (never the
+// client body) so a submission can't be spoofed for another account.
+router.post('/', requirePlayer, (req, res) => {
   const b = req.body || {};
+  const playerId = req.auth.sub;
+  const player = store.get(PLAYERS, playerId);
   const rec = store.insert(COLLECTION, {
-    playerId: b.playerId || null,
-    username: b.username || '',
+    playerId,
+    username: (player && player.username) || b.username || '',
     docType: b.docType || 'id',
-    frontUrl: b.frontUrl || '',
-    backUrl: b.backUrl || '',
-    selfieUrl: b.selfieUrl || '',
+    frontUrl: safeMediaUrl(b.frontUrl),
+    backUrl: safeMediaUrl(b.backUrl),
+    selfieUrl: safeMediaUrl(b.selfieUrl),
     status: 'pending',
     note: '',
   });
-  setPlayerKyc(rec.playerId, 'pending');
+  setPlayerKyc(playerId, 'pending');
   res.status(201).json(rec);
 });
 
@@ -115,6 +120,7 @@ router.patch('/:id/approve', requireAuth, requirePerm('kyc.approve'), (req, res)
   const updated = store.update(COLLECTION, req.params.id, {
     status: 'approved', note: req.body?.note || '', bonusGiven: bonus > 0 ? bonus : (k.bonusGiven || 0),
   });
+  if (player) require('../marketing/auto').trigger('kyc_approved', player);
   res.json({ ...updated, bonusCredited: bonus });
 });
 

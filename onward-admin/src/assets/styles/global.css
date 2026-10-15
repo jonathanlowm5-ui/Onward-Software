@@ -1206,8 +1206,12 @@ td.apk-opcell{white-space:nowrap;text-align:right}
 .cms-title-cell .d{color:var(--muted);font-size:.72rem;margin-top:2px;max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .cms-prio{font-weight:900;color:var(--gold)}
 .cms-act{display:flex;gap:7px;align-items:center}
-.cms-act .ed{background:var(--panel-2);border:1px solid var(--border);color:var(--blue);padding:6px 12px;border-radius:7px;font-size:.68rem;font-weight:800;cursor:pointer;display:inline-flex;gap:5px;align-items:center}
-.cms-act .rm{background:var(--red);border:none;color:#fff;padding:6px 10px;border-radius:7px;font-size:.72rem;cursor:pointer}
+/* Edit / delete buttons — styled globally so every page (tables, cards,
+   inline rows) gets the same look, not just .cms-act tables. */
+button.ed,.cms-act .ed{background:var(--panel-2);border:1px solid var(--border);color:var(--blue);padding:6px 12px;border-radius:7px;font-size:.68rem;font-weight:800;cursor:pointer;display:inline-flex;gap:5px;align-items:center;font-family:inherit;line-height:1.3;transition:border-color .15s,filter .15s}
+button.ed:hover{border-color:var(--blue)}
+button.rm,.cms-act .rm{background:var(--red);border:none;color:#fff;padding:6px 10px;border-radius:7px;font-size:.72rem;cursor:pointer;font-family:inherit;line-height:1.3;transition:filter .15s}
+button.rm:hover{filter:brightness(1.15)}
 .cms-chip{background:rgba(58,160,255,.13);color:var(--blue);font-size:.68rem;font-weight:800;padding:3px 10px;border-radius:11px}
 .cms-prev{width:34px;height:24px;border-radius:5px;background:linear-gradient(135deg,#2a3550,#1b2236);border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center;font-size:.8rem}
 .cms-num{color:var(--gold);font-weight:800}
@@ -1652,6 +1656,7 @@ td.apk-opcell{white-space:nowrap;text-align:right}
 .pm-fld textarea{width:100%;background:var(--panel-2);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:9px;font-size:var(--fs-sm);font-weight:700;outline:none;resize:vertical;min-height:72px;font-family:inherit}
 .pm-fld textarea:focus{border-color:var(--gold)}
 .pm-fld .full{grid-column:1/-1}
+.pm-hint{font-size:10.5px;color:var(--muted);margin-top:4px;line-height:1.4;font-weight:500}
 .apg-full{grid-column:1/-1}
 .apg-test-box{background:#070b14;border:1px solid var(--border);border-radius:10px;padding:14px;font-family:'Roboto Mono','Courier New',ui-monospace,monospace;font-size:.76rem;color:#7ee787;white-space:pre-wrap;min-height:90px;margin-top:6px}
 .apg-test-box .muted{color:#5a6a86}
@@ -2143,12 +2148,22 @@ td.apk-opcell{white-space:nowrap;text-align:right}
 /* button preview */
 .wd-btn-prev{padding:12px 26px;border:none;border-radius:10px;font-weight:800;font-size:.9rem;cursor:pointer}
 /* withdrawal card preview (Image 2) */
-.wd-cardp{position:relative;border-radius:16px;padding:22px;color:#fff;min-height:150px;box-shadow:0 12px 30px rgba(0,0,0,.4);overflow:hidden}
-.wd-cardp .ttl{font-size:1.1rem;font-weight:800;margin-bottom:18px}
-.wd-cardp .lbl{font-size:.68rem;opacity:.85;font-weight:700;margin-bottom:6px}
-.wd-cardp .num{background:rgba(0,0,0,.28);border-radius:9px;padding:13px 14px;font-family:'Roboto Mono','Courier New',monospace;font-size:1rem;letter-spacing:2px;opacity:.85}
-.wd-cardp .brands{position:absolute;right:18px;bottom:14px;display:flex;align-items:center;gap:9px;font-weight:800;font-style:italic}
-.wd-cardp .mc{display:flex}.wd-cardp .mc i{width:15px;height:15px;border-radius:50%;display:block}.wd-cardp .mc i:first-child{background:#eb001b}.wd-cardp .mc i:last-child{background:#f79e1b;margin-left:-7px;opacity:.9}
+.wd-cardp{position:relative;border-radius:16px;padding:20px 22px;color:#fff;min-height:150px;box-shadow:0 12px 30px rgba(0,0,0,.4);overflow:hidden}
+/* top: brand/e-wallet logo (left) + caption (right) */
+.wd-cardp .cardp-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.wd-cardp .cardp-logo{width:46px;height:30px;border-radius:6px;background:rgba(255,255,255,.14);border:1px dashed rgba(255,255,255,.35);display:block}
+.wd-cardp .cardp-bank{font-size:.72rem;font-weight:700;opacity:.7}
+/* chip */
+.wd-cardp .cardp-chip{width:42px;height:31px;border-radius:6px;background:linear-gradient(135deg,#ecd27c,#c9992f);border:1px solid rgba(0,0,0,.25);position:relative;display:block}
+.wd-cardp .cardp-chip::after{content:'';position:absolute;inset:6px 5px;border:1px solid rgba(0,0,0,.28);border-radius:3px}
+.wd-cardp .num{font-family:'Roboto Mono','Courier New',monospace;font-size:1.15rem;font-weight:700;letter-spacing:2px;opacity:.92}
+/* bottom: VALID THRU (left) + network (right) */
+.wd-cardp .cardp-foot{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+.wd-cardp .cardp-valid{display:flex;align-items:center;gap:7px}
+.wd-cardp .cardp-valid b{font-size:.42rem;line-height:1.05;letter-spacing:.06em;opacity:.75;text-transform:uppercase}
+.wd-cardp .cardp-valid em{font-family:'Roboto Mono','Courier New',monospace;font-style:normal;font-size:.9rem;font-weight:700}
+.wd-cardp .brands{display:flex;align-items:center;gap:9px;font-weight:800;font-style:italic}
+.wd-cardp .mc{display:flex}.wd-cardp .mc i{width:19px;height:19px;border-radius:50%;display:block}.wd-cardp .mc i:first-child{background:#eb001b}.wd-cardp .mc i:last-child{background:#f79e1b;margin-left:-8px;opacity:.9}
 /* banner pills (Image 3) */
 .wd-banners{display:flex;gap:8px;flex-wrap:wrap}
 .wd-pill{display:flex;align-items:center;gap:8px;border-radius:10px;padding:10px 15px;color:#fff;font-weight:800;font-size:.82rem;box-shadow:0 4px 12px rgba(0,0,0,.3)}
@@ -2464,3 +2479,47 @@ tr.hl-full td{background:rgba(226,59,78,.12)}
 @media (prefers-reduced-motion:reduce){
   *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
 }
+
+/* ===== Tournament game picker (escapes the generic .pm-fld input/label rules) ===== */
+.tgp-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.tgp-chip{
+  display:inline-flex;align-items:center;gap:6px;
+  background:rgba(90,169,255,.14);border:1px solid rgba(90,169,255,.3);color:#8fc2ff;
+  border-radius:999px;padding:3px 10px;font-size:.68rem;font-weight:700;
+}
+.tgp-chip button{background:none;border:none;color:#8fc2ff;cursor:pointer;font-size:.75rem;padding:0;line-height:1}
+.tgp-chip button:hover{color:#fff}
+.tgp-list{
+  max-height:200px;overflow-y:auto;
+  border:1px solid var(--border);border-radius:9px;
+  background:var(--panel-2);padding:4px;
+}
+.tgp-row{
+  display:flex;align-items:center;gap:10px;width:100%;
+  padding:6px 8px;border-radius:7px;
+  background:none;border:none;cursor:pointer;text-align:left;font-family:inherit;
+  color:var(--text);font-size:var(--fs-sm);font-weight:600;
+}
+.tgp-row:hover{background:var(--panel-3)}
+.tgp-check{
+  width:16px;height:16px;flex:0 0 16px;border-radius:4px;
+  border:1.5px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:900;color:#06091a;background:transparent;
+}
+.tgp-row.on .tgp-check{background:var(--gold);border-color:var(--gold)}
+.tgp-thumb{
+  width:30px;height:22px;flex:0 0 30px;border-radius:5px;object-fit:cover;display:block;
+  background:var(--panel-3);
+}
+.tgp-thumb-ph{
+  width:30px;height:22px;flex:0 0 30px;border-radius:5px;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--panel-3);font-size:12px;
+}
+.tgp-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tgp-prov{
+  color:var(--muted);font-size:.6rem;font-weight:800;
+  letter-spacing:.5px;text-transform:uppercase;flex-shrink:0;
+}
+.tgp-empty{color:var(--muted);font-size:.72rem;padding:10px}

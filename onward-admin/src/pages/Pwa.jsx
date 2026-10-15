@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useUI } from '../context/UIContext';
+import { getConfig, saveConfig } from '../services/configService';
 
 const PWA_MODES = ['Download APP', 'PWA (Quick Install)', 'PWA (Priority) + Native APP', 'Native APP (Priority) + PWA'];
 const PWA_TRIG = ['Download APP', 'PWA (Quick Install)', 'PWA (Priority) + Native APP', 'Native APP (Priority) + PWA', 'Native APP'];
@@ -58,12 +59,35 @@ const PwaSelect = ({ opts, value, onChange, w }) => (
 export default function Pwa() {
   const { toast } = useUI();
   const [tab, setTab] = useState('settings');
+  const [loaded, setLoaded] = useState(false);
   const [pwas, setPwas] = useState(initPwas);
   const [roibest, setRoibest] = useState(initRoibest);
   const [gt, setGt] = useState(GT_DEF);
   const [domQuery, setDomQuery] = useState('');
   const [domQueryInput, setDomQueryInput] = useState('');
   const [domains, setDomains] = useState([]);
+
+  // Persisted as settings.pwaConfig = { pwas, roibest, gt, domains }.
+  useEffect(() => {
+    getConfig()
+      .then((c) => {
+        const p = c.pwaConfig;
+        if (p) {
+          if (p.pwas) setPwas({ ...initPwas(), ...p.pwas });
+          if (p.roibest) setRoibest({ ...initRoibest(), ...p.roibest });
+          if (p.gt) setGt({ ...GT_DEF(), ...p.gt });
+          if (Array.isArray(p.domains)) setDomains(p.domains);
+        }
+      })
+      .catch(() => toast('⚠ Could not load saved PWA config — showing defaults'))
+      .finally(() => setLoaded(true));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persist the whole PWA config (with optional overrides for just-computed state).
+  const persist = (patch, msg) =>
+    saveConfig({ pwaConfig: { pwas, roibest, gt, domains, ...patch } })
+      .then(() => msg && toast(msg))
+      .catch((e) => toast('⚠ ' + (e.message || 'Save failed')));
   const [rbOut, setRbOut] = useState(null);
   const [rbTest, setRbTest] = useState({ linkId: '4740128923061846', event: 'CompleteRegistration', cur: 'USD', val: '19.99' });
   const [abdOpen, setAbdOpen] = useState(false);
@@ -83,14 +107,14 @@ export default function Pwa() {
     return d ? (n / d).toFixed(1) : '0.0';
   };
 
-  /* ---- save handlers ---- */
-  const pwaSave = () => toast('PWA settings saved ✅ ' + pwas.mode + ' · popup every ' + pwas.interval + ' · reward CNY ' + pwas.rw.CNY[0]);
-  const pwaH5Save = () => toast('H5 → PWA conversion saved ✅ ' + (pwas.h5.on ? 'ON · ' + pwas.h5.trig + ' · ' + pwas.h5.delay + 's delay' : 'OFF'));
+  /* ---- save handlers (all persist to backend settings.pwaConfig) ---- */
+  const pwaSave = () => persist({}, 'PWA settings saved ✅ ' + pwas.mode + ' · popup every ' + pwas.interval + ' · reward CNY ' + pwas.rw.CNY[0]);
+  const pwaH5Save = () => persist({}, 'H5 → PWA conversion saved ✅ ' + (pwas.h5.on ? 'ON · ' + pwas.h5.trig + ' · ' + pwas.h5.delay + 's delay' : 'OFF'));
   const pwaSiteSave = () => {
     if (!pwas.site.name.trim()) { toast('⚠ Site Name is required'); return; }
-    toast('Site name saved ✅ ' + pwas.site.name + (pwas.site.tag ? ' — ' + pwas.site.tag : ''));
+    persist({}, 'Site name saved ✅ ' + pwas.site.name + (pwas.site.tag ? ' — ' + pwas.site.tag : ''));
   };
-  const rbSave = () => toast('ROIBest settings saved ✅ ' + (roibest.enabled ? 'enabled' : 'disabled') + (roibest.appId ? ' · App ' + roibest.appId : ' · set AppID'));
+  const rbSave = () => persist({}, 'ROIBest settings saved ✅ ' + (roibest.enabled ? 'enabled' : 'disabled') + (roibest.appId ? ' · App ' + roibest.appId : ' · set AppID'));
 
   const rbRunReport = () => {
     const linkId = (rbTest.linkId || '').trim();
@@ -111,7 +135,7 @@ export default function Pwa() {
     if (!nsRe.test(ns2)) { toast('⚠ Invalid NS2 hostname: ' + ns2); return; }
     if (ns1.toLowerCase() === ns2.toLowerCase()) { toast('⚠ NS1 and NS2 must be different'); return; }
     if (url && !/^https?:\/\//i.test(url)) { toast('⚠ Install Guide URL must start with http:// or https://'); return; }
-    toast('Install guide saved ✅ NS1 ' + ns1 + ' · NS2 ' + ns2 + (banner ? ' · banner ON' : ' · banner OFF'));
+    persist({}, 'Install guide saved ✅ NS1 ' + ns1 + ' · NS2 ' + ns2 + (banner ? ' · banner ON' : ' · banner OFF'));
     void main;
   };
   const digCopy = (txt, lbl) => {
@@ -141,21 +165,24 @@ export default function Pwa() {
     if (dup) { toast('⚠ Domain already exists: ' + dup); return; }
     if (domains.length + doms.length > 5) { toast('⚠ Limit 5 — you can add ' + (5 - domains.length) + ' more'); return; }
     const added = doms.map((d) => ({ dom: d, dns: 'Self-resolve', assign: abdForm.assign, ns1: 'ns1.onward-dns.com', ns2: 'ns2.onward-dns.com', ind: abdForm.ind, em: abdForm.em, rm: abdForm.rm.trim() }));
-    setDomains((p) => [...p, ...added]);
+    const next = [...domains, ...added];
+    setDomains(next);
     setAbdOpen(false);
     setDomQuery('');
-    toast('Anti-block domain' + (doms.length > 1 ? 's' : '') + ' added ✅ ' + doms.join(', ') + ' (' + (domains.length + doms.length) + '/5)');
+    persist({ domains: next }, 'Anti-block domain' + (doms.length > 1 ? 's' : '') + ' added ✅ ' + doms.join(', ') + ' (' + next.length + '/5)');
   };
   const abdDel = (i) => {
     const d = domains[i];
-    setDomains((p) => p.filter((_, idx) => idx !== i));
-    toast('Domain removed 🗑 ' + d.dom + ' (' + (domains.length - 1) + '/5)');
+    const next = domains.filter((_, idx) => idx !== i);
+    setDomains(next);
+    persist({ domains: next }, 'Domain removed 🗑 ' + d.dom + ' (' + next.length + '/5)');
   };
   const abdEmToggle = (i) => {
-    setDomains((p) => p.map((d, idx) => (idx === i ? { ...d, em: d.em === 'Enable' ? 'Disable' : 'Enable' } : d)));
     const d = domains[i];
-    const next = d.em === 'Enable' ? 'Disable' : 'Enable';
-    toast(next === 'Enable' ? 'Emergency popup ENABLED 🚨 ' + d.dom + ' — players will be guided to the APK' : 'Emergency popup disabled — ' + d.dom);
+    const em = d.em === 'Enable' ? 'Disable' : 'Enable';
+    const next = domains.map((x, idx) => (idx === i ? { ...x, em } : x));
+    setDomains(next);
+    persist({ domains: next }, em === 'Enable' ? 'Emergency popup ENABLED 🚨 ' + d.dom + ' — players will be guided to the APK' : 'Emergency popup disabled — ' + d.dom);
   };
 
   /* ---- google template ---- */
@@ -206,9 +233,9 @@ export default function Pwa() {
     if (!gt.co.trim()) { toast('⚠ Company Name is required'); return; }
     if (!gt.desc.trim()) { toast('⚠ App Description is required'); return; }
     if (!gt.pop.trim()) { toast('⚠ App Pop-up Text is required'); return; }
-    toast('Google template saved ✅ ' + gt.tpl + ' · ★ ' + gtOverall() + ' · ' + gt.tags.length + ' tags · ' + gt.langs.length + ' languages');
+    persist({}, 'Google template saved ✅ ' + gt.tpl + ' · ★ ' + gtOverall() + ' · ' + gt.tags.length + ' tags · ' + gt.langs.length + ' languages');
   };
-  const gtReset = () => { setGt(GT_DEF()); toast('Google template reset ♻️ back to defaults'); };
+  const gtReset = () => { const d = GT_DEF(); setGt(d); persist({ gt: d }, 'Google template reset ♻️ back to defaults'); };
 
   /* ============ TAB RENDERERS ============ */
   const renderSettings = () => (
@@ -557,7 +584,7 @@ export default function Pwa() {
     <>
       <div className="page-head"><div><h1 className="hero-h">📱 PWA Settings</h1><div className="hero-sub" style={{ marginBottom: 0 }}>Configure Progressive Web App install prompts, popup triggers and install rewards</div></div></div>
       <div className="ptabs">{PWA_TABS.map((t) => <button className={'ptab' + (tab === t[0] ? ' active' : '')} key={t[0]} onClick={() => setTab(t[0])}>{t[1]}</button>)}</div>
-      {renderTab()}
+      {loaded ? renderTab() : <div className="hist-empty">Loading PWA config…</div>}
 
       {abdOpen && (
         <div className="modal-ov show" onClick={(e) => { if (e.target === e.currentTarget) setAbdOpen(false); }}>

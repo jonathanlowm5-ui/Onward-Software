@@ -10,6 +10,7 @@
 const express = require('express');
 const store = require('../store');
 const { requireAuth } = require('../auth');
+const { requirePerm } = require('../permissions');
 
 const router = express.Router();
 const COLLECTION = 'banners';
@@ -32,25 +33,25 @@ router.get('/', (req, res) => {
   res.json(banners);
 });
 
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, requirePerm('content.manage'), (req, res) => {
   const data = clean(req.body);
   if (!data.image) return res.status(400).json({ error: 'Banner image is required' });
   res.status(201).json(store.insert(COLLECTION, data));
 });
 
-router.put('/:id', requireAuth, (req, res) => {
+router.put('/:id', requireAuth, requirePerm('content.manage'), (req, res) => {
   const updated = store.update(COLLECTION, req.params.id, clean(req.body));
   if (!updated) return res.status(404).json({ error: 'Banner not found' });
   res.json(updated);
 });
 
-router.patch('/:id/toggle', requireAuth, (req, res) => {
+router.patch('/:id/toggle', requireAuth, requirePerm('content.manage'), (req, res) => {
   const banner = store.get(COLLECTION, req.params.id);
   if (!banner) return res.status(404).json({ error: 'Banner not found' });
   res.json(store.update(COLLECTION, req.params.id, { active: !banner.active }));
 });
 
-router.delete('/:id', requireAuth, (req, res) => {
+router.delete('/:id', requireAuth, requirePerm('content.manage'), (req, res) => {
   if (!store.remove(COLLECTION, req.params.id))
     return res.status(404).json({ error: 'Banner not found' });
   res.json({ ok: true });

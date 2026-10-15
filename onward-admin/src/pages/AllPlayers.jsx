@@ -3,6 +3,8 @@ import { useUI } from '../context/UIContext';
 import { useAuth } from '../context/AuthContext';
 import { listPlayers, blockPlayer, updatePlayer, deletePlayer, resetPlayerPassword } from '../services/playerService';
 import { credit as creditWallet, debit as debitWallet } from '../services/walletService';
+import useCurrencyRates from '../hooks/useCurrencyRates';
+import { fmtMoney, amountNum, convert } from '../services/currencyService';
 
 /* ---- Players dataset (demo fallback) ----
    [username, realName, rank, id, cur, email, phone, bal, dep, vip, vipColor, active, ip, joined, hl] */
@@ -42,6 +44,7 @@ const toRow = (p, i) => [
   p.hl || '',
   p.id || p.playerId || p.player_id || null, // [15] backend record id for API calls
   p.referralCode || p.referral_code || '',   // [16] referral code (for filtering)
+  p.avatar || '',                            // [17] uploaded avatar URL
 ];
 
 const selF = (l, opts, req) => (
@@ -70,12 +73,13 @@ const dupLabel = {
 };
 
 export default function AllPlayers() {
-  const { toast } = useUI();
+  const { toast, currency: reportCur } = useUI();
+  const { rates } = useCurrencyRates();
   const { can } = useAuth();
   const [players, setPlayers] = useState([]);
   const [, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('filter');
-  const [filterMin, setFilterMin] = useState(false);
+  const [filterMin, setFilterMin] = useState(() => typeof window !== 'undefined' && window.innerWidth <= 768);
   const [advOpen, setAdvOpen] = useState(false);
   const [quick, setQuick] = useState('');
   const [filters, setFilters] = useState({}); // detailed filter form values
@@ -286,6 +290,14 @@ export default function AllPlayers() {
 
   const PM = pmIdx >= 0 ? players[pmIdx] : null;
 
+  // Show an amount in the player's OWN currency, with the reporting-currency
+  // equivalent underneath when the admin has a different currency selected.
+  const money2 = (v, cur) => {
+    const own = fmtMoney(amountNum(v), cur);
+    if (!reportCur || reportCur === cur) return <>{own}</>;
+    return (<>{own}<span style={{ display: 'block', fontSize: 11, color: 'var(--muted,#8898b8)' }}>≈ {fmtMoney(convert(v, cur, reportCur, rates), reportCur)}</span></>);
+  };
+
   const renderRow = (p, i) => {
     const [user, name, , pid, cur, email, phone, bal, dep, vip, vc, act, ip, joined, hl] = p;
     return (
@@ -294,7 +306,7 @@ export default function AllPlayers() {
         <td><span className="pname"><a onClick={() => openPlayer(i)}>{user}</a><span className="rank"><span className="realname">{name}</span></span></span></td>
         <td><span className="idchip">{pid}</span><span className="curchip">{cur}</span></td>
         <td>{email}</td><td>{phone}</td>
-        <td className="bal">{bal}</td><td>{dep}</td>
+        <td className="bal">{money2(bal, cur)}</td><td>{money2(dep, cur)}</td>
         <td><span className={`vipchip vip-${vc}`}>{vip}</span></td>
         <td><span className={act ? 'st-on' : 'st-off'}>{act ? 'Active' : 'Suspended'}</span></td>
         <td className="ipmono">{ip}</td><td>{joined}</td>
@@ -440,6 +452,12 @@ export default function AllPlayers() {
               try { await resetPlayerPassword(id, pw); toast('Password reset ✔ for ' + players[pmIdx][0]); }
               catch (e) { toast('Could not reset: ' + (e?.response?.data?.error || e.message || 'error')); }
             }}>🔑 Reset Password</button>}
+            {can('players.edit') && <button className="mini-btn" onClick={async () => {
+              const id = players[pmIdx] && players[pmIdx][15];
+              if (!id) { toast('No backend account for this row'); return; }
+              try { await updatePlayer(id, { welcomeClaimed: 0 }); toast('Welcome bonus reset ✔ — card will show again for ' + players[pmIdx][0]); }
+              catch (e) { toast('Could not reset: ' + (e?.response?.data?.error || e.message || 'error')); }
+            }}>🎁 Reset Welcome Bonus</button>}
             <button className="mini-btn" onClick={() => toast('2FA disabled 🔓')}>🔓 Disable 2FA</button>
             <button className="act-suspend" onClick={() => toast('Player suspended ⛔')}>⛔ Suspend</button>
             <button className="mini-btn red" onClick={() => toast('Account banned 🚫')}>🚫 Ban Account</button>
@@ -473,7 +491,11 @@ export default function AllPlayers() {
 
   return (
     <>
-      <h1 className="hero-h">All Players</h1><div className="hero-sub">{players.length.toLocaleString()} registered player{players.length === 1 ? '' : 's'}.</div>
+      <h1 className="hero-h">All Players</h1>
+      <div className="hero-sub">
+        {players.length.toLocaleString()} registered player{players.length === 1 ? '' : 's'}.
+        {' '}Total balance ≈ <b style={{ color: 'var(--gold,#f4b223)' }}>{fmtMoney(players.reduce((a, p) => a + convert(p[7], p[4] || 'PHP', reportCur, rates), 0), reportCur)}</b> <span style={{ color: 'var(--muted,#8898b8)' }}>({reportCur})</span>
+      </div>
       <div className="card">
         <div className="filter-collapse">
           <span className="ttl">🔍 Filter Players</span><span className="cnt">11 fields</span>
@@ -590,7 +612,7 @@ export default function AllPlayers() {
         <div className="modal-ov show" id="pmModal" onClick={(e) => { if (e.target === e.currentTarget) closePlayer(); }}>
           <div className="pm-modal">
             <div className="pm-head">
-              <span className="pavatar" id="pmAvatar">{initials(PM[1])}</span>
+              <span className="pavatar" id="pmAvatar" style={PM[17] ? { backgroundImage: `url(${PM[17]})`, backgroundSize: 'cover', backgroundPosition: 'center', color: 'transparent' } : undefined}>{PM[17] ? '' : initials(PM[1])}</span>
               <span><div className="nm" id="pmName">{PM[1]}</div><div className="meta" id="pmMeta">ID #{String(PM[2]).padStart(7, '0')} · {PM[5]} · {PM[11] ? 'active' : 'suspended'}</div></span>
               <button className="kyc-x" style={{ marginLeft: 'auto' }} onClick={closePlayer} aria-label="Close">✕</button>
             </div>

@@ -3,14 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { useUI } from '../../context/UIContext';
 import { useAuth } from '../../context/AuthContext';
 import useSectionNav from '../../hooks/useSectionNav';
+import PlayerAvatar from '../common/PlayerAvatar';
 
 const CURRENCIES = [
-  { code: 'PHP', symbol: '₱', name: 'Philippine Peso' },
-  { code: 'USD', symbol: '$', name: 'US Dollar' },
-  { code: 'MYR', symbol: 'RM', name: 'Malaysian Ringgit' },
-  { code: 'THB', symbol: '฿', name: 'Thai Baht' },
-  { code: 'IDR', symbol: 'Rp', name: 'Indonesian Rupiah' },
-  { code: 'VND', symbol: '₫', name: 'Vietnamese Dong' },
+  { code: 'PHP', symbol: '₱', flag: '🇵🇭', name: 'Philippine Peso' },
+  { code: 'USD', symbol: '$', flag: '🇺🇸', name: 'US Dollar' },
+  { code: 'MYR', symbol: 'RM', flag: '🇲🇾', name: 'Malaysian Ringgit' },
+  { code: 'THB', symbol: '฿', flag: '🇹🇭', name: 'Thai Baht' },
+  { code: 'IDR', symbol: 'Rp', flag: '🇮🇩', name: 'Indonesian Rupiah' },
+  { code: 'VND', symbol: '₫', flag: '🇻🇳', name: 'Vietnamese Dong' },
 ];
 
 const LANGS = [
@@ -28,8 +29,10 @@ const LANGS = [
 ];
 
 export default function Dropdowns() {
-  const { dropdown, closeDropdown, setCurrency, currency, setLang, lang, openModal } = useUI();
+  const { dropdown, closeDropdown, setCurrency, currency, accountCurrency, fxConvert, setLang, lang, openModal } = useUI();
   const { isLoggedIn, logout, profile } = useAuth();
+  const bal = Number(profile?.balance || 0);
+  const conv = (code) => fxConvert(bal, accountCurrency || 'PHP', code);
   const go = useSectionNav();
   const navigate = useNavigate();
   // Open the profile page already drilled into a specific section.
@@ -45,13 +48,21 @@ export default function Dropdowns() {
       {/* CURRENCY */}
       {dropdown === 'currency' && (
         <div id="currency-dropdown" style={panel}>
-          <div style={panelTitle}>Currency</div>
+          <div style={panelTitle}>Display Currency · Converter</div>
+          {isLoggedIn && (
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', padding: '0 10px 8px' }}>
+              ≈ approximate. Your wallet stays in <b style={{ color: 'var(--gold)' }}>{accountCurrency}</b>.
+            </div>
+          )}
           {CURRENCIES.map((c) => (
             <button key={c.code} style={{ ...row, color: currency.code === c.code ? 'var(--gold)' : 'var(--text)' }}
               onClick={() => { setCurrency({ code: c.code, symbol: c.symbol }); closeDropdown(); }}>
+              <span style={{ width: 24, fontSize: 18 }}>{c.flag}</span>
               <span style={{ width: 28, fontWeight: 700 }}>{c.symbol}</span>
               <span>{c.code}</span>
-              <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: 12 }}>{c.name}</span>
+              {isLoggedIn
+                ? <span style={{ marginLeft: 'auto', color: c.code === accountCurrency ? 'var(--text)' : 'var(--text-muted)', fontSize: 12, fontWeight: 700 }}>{c.code === accountCurrency ? '' : '≈ '}{c.symbol}{conv(c.code).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                : <span style={{ marginLeft: 'auto', color: 'var(--text-muted)', fontSize: 12 }}>{c.name}</span>}
             </button>
           ))}
         </div>
@@ -75,7 +86,7 @@ export default function Dropdowns() {
       {dropdown === 'profile' && isLoggedIn && (
         <div id="profile-menu" style={{ ...panel, right: 16, minWidth: 264, padding: 0, overflow: 'hidden' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
-            <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'var(--bg3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>🎮</div>
+            <PlayerAvatar size={42} fontSize={22} />
             <div style={{ minWidth: 0 }}>
               <div style={{ fontWeight: 800, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{profile?.username || 'Player'}</div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{profile?.playerCode || ''}</div>

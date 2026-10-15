@@ -29,9 +29,19 @@ const db = DB_ID && DB_ID !== '(default)' ? getFirestore(DB_ID) : getFirestore()
 try { db.settings({ ignoreUndefinedProperties: true }); } catch { /* already set */ }
 
 const SETTINGS_DOC = db.collection('app_settings').doc('singleton');
+// Every collection the app reads/writes MUST be hydrated into the in-memory
+// cache at boot — routes call store.list/get synchronously and anything not
+// pre-loaded reads as empty (and updates to pre-restart docs silently no-op).
+// This list is unioned with a live db.listCollections() at boot so newly
+// introduced collections are picked up automatically and nothing is missed on
+// a cold start. `records` (legacy source) and `app_settings` are excluded.
 const COLLECTIONS = [
   'players', 'bank_accounts', 'kyc', 'transactions', 'login_history',
   'game_history', 'games', 'banners', 'promotions', 'users',
+  'bets', 'agents', 'agent_applications', 'agent_commissions', 'agent_history',
+  'player_messages', 'marketing_campaigns', 'marketing_jobs', 'marketing_logs',
+  'ads_campaigns', 'otp_log', 'wheel_spins', 'audit_log', 'bank_channels',
+  'notifications',
 ];
 
 const now = () => new Date().toISOString();
@@ -42,7 +52,7 @@ COLLECTIONS.forEach((c) => { cache[c] = []; });
 let settingsCache = {};
 let ready = false;
 
-const whenReady = (async function init() {
+async function loadAll() {
   const sSnap = await SETTINGS_DOC.get();
   settingsCache = sSnap.exists ? sSnap.data() || {} : {};
 
@@ -70,15 +80,46 @@ const whenReady = (async function init() {
     await SETTINGS_DOC.set(settingsCache, { merge: true });
   }
 
-  await Promise.all(COLLECTIONS.map(async (col) => {
+  // Union the known list with whatever collections actually exist in Firestore
+  // so a collection introduced by a new feature is still hydrated on cold start
+  // even if it was left off the list above. `records` (legacy) and
+  // `app_settings` (config doc) are intentionally excluded.
+  let names = COLLECTIONS.slice();
+  try {
+    const live = await db.listCollections();
+    for (const c of live) {
+      const id = c.id;
+      if (id !== 'records' && id !== 'app_settings' && !names.includes(id)) names.push(id);
+    }
+  } catch (e) {
+    console.error('[store] listCollections failed, using static list:', e.message);
+  }
+
+  await Promise.all(names.map(async (col) => {
     const snap = await db.collection(col).get();
     cache[col] = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
   }));
   ready = true;
-  const total = COLLECTIONS.reduce((s, c) => s + cache[c].length, 0);
-  console.log(`[store] firestore (tidy) ready — ${total} records across ${COLLECTIONS.length} collections`);
+  const total = names.reduce((s, c) => s + (cache[c] ? cache[c].length : 0), 0);
+  console.log(`[store] firestore (tidy) ready — ${total} records across ${names.length} collections`);
+}
+
+// A transient Firestore error during the boot load must not wedge the instance
+// forever (every request would then throw "not ready"). Retry with backoff so a
+// flaky cold-start read self-heals instead of serving errors until recycled.
+const whenReady = (async function init() {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      await loadAll();
+      return;
+    } catch (e) {
+      console.error(`[store] firestore init attempt ${attempt} failed:`, e.message);
+      if (attempt >= 5) throw e;
+      await new Promise((r) => setTimeout(r, Math.min(8000, 500 * 2 ** attempt)));
+    }
+  }
 })();
-whenReady.catch((e) => console.error('[store] firestore init failed:', e.message));
+whenReady.catch((e) => console.error('[store] firestore init permanently failed:', e.message));
 
 function ensure() { if (!ready) throw new Error('Database not ready yet — retry in a moment'); }
 function col(name) { if (!cache[name]) cache[name] = []; return cache[name]; }

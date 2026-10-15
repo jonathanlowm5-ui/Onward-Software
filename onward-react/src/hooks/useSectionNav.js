@@ -17,6 +17,8 @@ export const SECTION_ROUTES = {
   jackpots: '/jackpots',
   vip: '/vip',
   referral: '/referral',
+  agent: '/agent',
+  follow: '/follow',
   profile: '/profile',
   missions: '/missions',
 };

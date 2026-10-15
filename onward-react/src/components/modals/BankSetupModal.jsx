@@ -41,7 +41,7 @@ export default function BankSetupModal() {
       <div style={{ padding: '22px 24px 16px', background: 'var(--bg2)', borderBottom: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontFamily: "'Cinzel',serif", fontSize: '17px', fontWeight: 900, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px' }}>🏦 <span data-i18n="bsm_title">Set Up Withdrawal Account</span></div>
+            <div style={{ fontFamily: "'Montserrat',sans-serif", fontSize: '17px', fontWeight: 900, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px' }}>🏦 <span data-i18n="bsm_title">Set Up Withdrawal Account</span></div>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }} data-i18n="bsm_sub">Required to process future withdrawals securely.</div>
           </div>
           <button onClick={closeModal} style={{ background: 'rgba(255,255,255,.08)', border: 'none', color: 'var(--text-muted)', width: '28px', height: '28px', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', flexShrink: 0, marginLeft: '12px' }}>✕</button>

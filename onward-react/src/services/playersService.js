@@ -1,4 +1,4 @@
-import api from './api';
+import api, { setToken } from './api';
 
 /**
  * Player / wallet / KYC service — the customer-facing slice of the shared API.
@@ -30,7 +30,12 @@ export const getLoginHistory = () =>
 
 // ---- security ----
 export const changePassword = (currentPassword, newPassword) =>
-  api.post('/player/me/change-password', { currentPassword, newPassword }).then((r) => r.data);
+  api.post('/player/me/change-password', { currentPassword, newPassword }).then((r) => {
+    // The server rotates the session token on a password change (older tokens
+    // are invalidated); swap it in so the current session keeps working.
+    if (r.data?.token) setToken(r.data.token);
+    return r.data;
+  });
 
 export const setTwoFactor = (enabled) =>
   api.post('/player/me/2fa', { enabled }).then((r) => r.data);

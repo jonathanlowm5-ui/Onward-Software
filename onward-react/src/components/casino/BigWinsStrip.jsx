@@ -1,9 +1,11 @@
 import { useUI } from '../../context/UIContext';
 import { BW_DATA } from '../../services/data/gameData';
+import { makeDisplayMoney } from '../../utils/displayMoney';
 
 // Mirrors renderBWStrip(): BW_DATA duplicated for a seamless looping marquee.
 export default function BigWinsStrip() {
-  const { openModal } = useUI();
+  const { openModal, currency, fxConvert } = useUI();
+  const money = makeDisplayMoney(currency, fxConvert);
   const items = [...BW_DATA, ...BW_DATA];
   return (
     <div className="bw-strip">
@@ -18,7 +20,7 @@ export default function BigWinsStrip() {
                 <span>{w.user}</span>
                 <span className="bw-mult">{w.mult}</span>
               </div>
-              <div className="bw-prize">{w.prize}</div>
+              <div className="bw-prize">{money(w.prize)}</div>
             </div>
           </div>
         ))}

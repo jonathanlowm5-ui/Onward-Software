@@ -24,18 +24,19 @@ const MENU=[
    {id:"promotions",ic:"📣",t:"Promotions"},
    {id:"tournament",ic:"🏆",t:"Tournament"},
    {id:"mission",ic:"🎯",t:"Mission"},
-   {id:"voucher",ic:"🎫",t:"Voucher"}]},
+   {id:"voucher",ic:"🎫",t:"Voucher"},
+   {id:"giveaway",ic:"🎉",t:"Giveaway"}]},
  {cat:"Marketing",ic:"📢",id:"marketing",sub:[
    {id:"sms",ic:"💬",t:"SMS Campaign"},
    {id:"email",ic:"✉️",t:"Email Campaign"},
    {id:"push",ic:"🔔",t:"Push Notification"},
    {id:"ads",ic:"📣",t:"Ads Marketing"}]},
  {cat:"Agent",ic:"🧑‍💼",id:"agent",sub:[
-   {id:"agent-list",ic:"👥",t:"Agent List"},
+   {id:"agent-report",ic:"📊",t:"Agent Dashboard"},
    {id:"agent-approval",ic:"✅",t:"Agent Approval"},
+   {id:"agent-list",ic:"👥",t:"Agent List"},
    {id:"commission",ic:"💰",t:"Commission"},
-   {id:"agent-players",ic:"🎮",t:"Agent Players"},
-   {id:"agent-report",ic:"📊",t:"Agent Report"}]},
+   {id:"agent-players",ic:"🎮",t:"Agent Players"}]},
  {cat:"Affiliate",ic:"🤝",id:"affiliate",sub:[
    {id:"aff-data",ic:"🤝",t:"Affiliate Data"},
    {id:"referral-tree",ic:"🌳",t:"Referral Tree"},

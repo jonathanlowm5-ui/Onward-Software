@@ -4,6 +4,7 @@ import Layout from './components/layout/Layout.jsx';
 
 // Code-split each view so the heavy bundled game art only loads where needed.
 const Lobby = lazy(() => import('./pages/Lobby.jsx'));
+const Support = lazy(() => import('./pages/Support.jsx'));
 const Slots = lazy(() => import('./pages/Slots.jsx'));
 const Sports = lazy(() => import('./pages/Sports.jsx'));
 const Lottery = lazy(() => import('./pages/Lottery.jsx'));
@@ -15,6 +16,8 @@ const Tournaments = lazy(() => import('./pages/Tournaments.jsx'));
 const Jackpots = lazy(() => import('./pages/Jackpots.jsx'));
 const VIP = lazy(() => import('./pages/VIP.jsx'));
 const Referral = lazy(() => import('./pages/Referral.jsx'));
+const Agent = lazy(() => import('./pages/Agent.jsx'));
+const Follow = lazy(() => import('./pages/Follow.jsx'));
 const Profile = lazy(() => import('./pages/Profile.jsx'));
 const Missions = lazy(() => import('./pages/Missions.jsx'));
 const Giveaways = lazy(() => import('./pages/Giveaways.jsx'));
@@ -40,9 +43,12 @@ export default function App() {
                 <Route path="jackpots" element={<Jackpots />} />
                 <Route path="vip" element={<VIP />} />
                 <Route path="referral" element={<Referral />} />
+                <Route path="agent" element={<Agent />} />
+                <Route path="follow" element={<Follow />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="missions" element={<Missions />} />
                 <Route path="giveaways" element={<Giveaways />} />
+                <Route path="support/:key" element={<Support />} />
                 <Route path="*" element={<Lobby />} />
               </Routes>
             </Suspense>

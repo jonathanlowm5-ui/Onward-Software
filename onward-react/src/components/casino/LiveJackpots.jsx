@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useUI } from '../../context/UIContext';
 import { PROVIDER_LOGOS } from '../../services/data/gameData';
+import { makeDisplayMoney } from '../../utils/displayMoney';
 
 // The four live-jackpot cards. The amounts tick up like the original
 // startJackpotTicker() did.
@@ -12,7 +13,8 @@ const CARDS = [
 ];
 
 export default function LiveJackpots() {
-  const { openModal } = useUI();
+  const { openModal, currency, fxConvert } = useUI();
+  const money = makeDisplayMoney(currency, fxConvert);
   const [amounts, setAmounts] = useState(CARDS.map((c) => c.base));
 
   useEffect(() => {
@@ -36,7 +38,7 @@ export default function LiveJackpots() {
               ? <img className="jp-icon" src={PROVIDER_LOGOS[c.prov]} alt={c.name} style={{ width: '40px', height: '40px', objectFit: 'contain', marginBottom: '10px', display: 'block', borderRadius: '6px' }} />
               : <span className="jp-icon">🎰</span>}
             <div className="jp-game">{c.name}</div>
-            <div className="jp-amount">₱{amounts[i].toLocaleString()}</div>
+            <div className="jp-amount">{money(amounts[i], { decimals: 0 })}</div>
             <div className="jp-bar-wrap"><div className="jp-bar"></div></div>
             <div className="jp-meta">
               <span className="jp-provider" data-i18n="jp_pool">Total Jackpot Pool</span>

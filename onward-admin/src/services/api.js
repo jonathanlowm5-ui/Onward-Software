@@ -32,7 +32,18 @@ api.interceptors.response.use(
   (error) => {
     const data = error.response?.data;
     const message = data?.error || data?.message || error.message || 'Request failed';
-    if (error.response?.status === 401) setToken('');
+    // Session expired/invalid: clear the token and return to the login screen.
+    // (Previously the token was cleared silently, leaving the UI "logged in"
+    // while every later request failed with "Missing authorization token".)
+    const url = String(error.config?.url || '');
+    if (error.response?.status === 401 && !url.includes('/auth/login')) {
+      setToken('');
+      if (!window.__onwardSessionExpired) {
+        window.__onwardSessionExpired = true;
+        alert('Your admin session has expired — please sign in again.');
+        window.location.reload(); // authed = hasToken() → lands on the login screen
+      }
+    }
     return Promise.reject(Object.assign(error, { message }));
   }
 );

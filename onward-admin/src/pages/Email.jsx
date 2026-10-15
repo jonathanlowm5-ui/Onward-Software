@@ -1,60 +1,58 @@
 import { useState } from 'react';
-import { useUI } from '../context/UIContext';
+import CampaignModule from '../components/marketing/CampaignModule.jsx';
 
-const INITIAL_EMAILQ = [
-  { sub: 'Your Weekly Cashback is Ready!', tg: 'All Active', rc: '18,420', at: 'Mon 08:00', op: '41.2%', ctr: '18.4%', st: 'sent' },
-  { sub: 'New VIP Benefits Unlocked 💎', tg: 'VIP Players', rc: '1,284', at: 'Wed 10:00', op: '58.3%', ctr: '24.1%', st: 'sent' },
-  { sub: 'We Miss You — 50 Free Spins Inside', tg: 'Inactive 14d', rc: '3,842', at: 'Sat 12:00', op: '—', ctr: '—', st: 'sched' },
-];
-
-export default function Email() {
-  const { toast } = useUI();
-  const [emailq, setEmailq] = useState(INITIAL_EMAILQ);
-  const [statusF, setStatusF] = useState('');
-
-  const cancel = (idx) => {
-    setEmailq((prev) => prev.filter((_, i) => i !== idx));
-    toast('Scheduled email cancelled');
-  };
-
+/*
+ * Email Campaign — shares the marketing campaign engine. Adds subject + HTML
+ * body with live preview; open/click tracking and the unsubscribe footer are
+ * injected automatically at send time. Providers: SendGrid, Mailgun, any SMTP
+ * (Amazon SES, Gmail, Mandrill…) or a custom HTTP API.
+ */
+function EmailFields({ form, setF }) {
+  const [preview, setPreview] = useState(false);
   return (
     <>
-      <div className="page-head">
-        <div><h1 className="hero-h">📧 Email Campaign</h1><div className="hero-sub" style={{ marginBottom: 0 }}>Design and send targeted email campaigns</div></div>
-        <span className="pr"><button className="btn-search" onClick={() => toast('New Email Campaign — demo')}>＋ New Email Campaign</button></span>
+      <div className="pm-fld" style={{ marginBottom: 12 }}>
+        <label>Subject <span className="req-star">*</span></label>
+        <input value={form.subject} onChange={(e) => setF('subject', e.target.value)} placeholder="e.g. {{FirstName}}, your weekend bonus is here 🎁" />
       </div>
-      <div className="grid kpi-grid">
-        <div className="card kpi b"><div className="lbl">Emails Sent Today</div><div className="val">8,420</div></div>
-        <div className="card kpi g"><div className="lbl">Open Rate</div><div className="val">34.8%</div></div>
-        <div className="card kpi"><div className="lbl">Click Rate</div><div className="val">12.4%</div></div>
-        <div className="card kpi r"><div className="lbl">Unsubscribes</div><div className="val">24</div></div>
+      <div className="pm-fld" style={{ marginBottom: 6 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          HTML body (optional — plain message below is used when empty)
+          <button type="button" className="mini-btn" style={{ marginLeft: 'auto' }} onClick={() => setPreview((p) => !p)}>{preview ? '✏️ Edit' : '👁 Preview'}</button>
+        </label>
+        {preview ? (
+          <iframe
+            title="Email preview"
+            sandbox=""
+            srcDoc={form.html || `<p>${(form.message || '').replace(/\n/g, '<br/>')}</p>`}
+            style={{ width: '100%', height: 260, background: '#fff', border: '1px solid var(--border,#243049)', borderRadius: 9 }}
+          />
+        ) : (
+          <textarea
+            className="pwa-ta"
+            style={{ minHeight: 180, fontFamily: 'monospace', fontSize: '.72rem' }}
+            value={form.html}
+            onChange={(e) => setF('html', e.target.value)}
+            placeholder={'<h1>Hello {{FirstName}}!</h1>\n<p>Your bonus of <b>{{BonusAmount}}</b> is waiting.</p>\n<a href="https://onward-1590a.web.app/promotions">Claim now</a>'}
+          />
+        )}
       </div>
-      <div className="card" style={{ marginTop: 'var(--pad)' }}>
-        <div className="page-head" style={{ marginBottom: 12 }}><div className="card-title" style={{ marginBottom: 0 }}>Email Campaigns</div>
-          <span className="pr" style={{ display: 'flex', gap: 8 }}>
-            <select className="qsearch" style={{ width: 'auto' }} value={statusF} onChange={(e) => setStatusF(e.target.value)}><option value="">All Status</option><option value="sent">Sent</option><option value="sched">Scheduled</option></select>
-            <button className="mini-btn" onClick={() => toast('Exported! ⬇ email-campaigns.csv')}>⬇ Export</button>
-          </span>
-        </div>
-        <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}><table style={{ minWidth: 980 }}>
-          <thead><tr><th>Subject</th><th>Target</th><th>Recipients</th><th>Sent</th><th>Open Rate</th><th>CTR</th><th>Status</th><th>Actions</th></tr></thead>
-          <tbody>{emailq.map((c, i) => (
-            <tr key={i} style={{ display: !statusF || c.st === statusF ? '' : 'none' }}>
-              <td><b>{c.sub}</b></td><td>{c.tg}</td><td>{c.rc}</td><td>{c.at}</td>
-              <td style={{ color: c.op === '—' ? 'var(--muted)' : 'var(--green)', fontWeight: 800 }}>{c.op}</td>
-              <td style={{ color: c.ctr === '—' ? 'var(--muted)' : 'var(--gold)', fontWeight: 800 }}>{c.ctr}</td>
-              <td>{c.st === 'sent' ? <span className="sms-sent">Sent</span> : <span className="sms-sched">Scheduled</span>}</td>
-              <td>{c.st === 'sent'
-                ? <button className="mini-btn" onClick={() => toast(`Campaign report: ${c.sub.replace(/'/g, '')} — ${c.op} opens · ${c.ctr} clicks`)}>View</button>
-                : <>
-                  <button className="mini-btn" onClick={() => toast('Edit campaign — demo')}>Edit</button>{' '}
-                  <button className="btn-cancel-red" onClick={() => cancel(i)}>Cancel</button>
-                </>}
-              </td>
-            </tr>
-          ))}</tbody>
-        </table></div>
+      <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 12 }}>
+        📈 Open tracking (pixel), click tracking (rewritten links) and the unsubscribe footer are added automatically on send.
       </div>
     </>
+  );
+}
+
+export default function Email() {
+  return (
+    <CampaignModule
+      channel="email"
+      icon="✉️"
+      title="Email Campaign"
+      sub="Rich HTML campaigns with open/click tracking, unsubscribe handling, audience targeting and provider failover"
+      messagePlaceholder="Plain-text fallback: Hi {{FirstName}}, your bonus is waiting…"
+      extraFields={(props) => <EmailFields {...props} />}
+    />
   );
 }

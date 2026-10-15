@@ -1,36 +1,16 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
+import { getLiveBets } from '../services/configService';
 
-const LB_POOL = [
-  ['Jun M.', 'Fortune Dragon'],
-  ['Maria S.', 'Sweet Bonanza'],
-  ['Pedro R.', 'Aviator'],
-  ['Ana G.', 'Crazy Time'],
-  ['Carlos L.', 'Gates of Olympus'],
-  ['Rosa C.', 'Baccarat A12'],
-  ['Lea V.', 'Fortune Tiger'],
-  ['Bong S.', 'Wolf Gold'],
-];
-
-const SEED = [
-  { pl: 'Jun M.', gm: 'Fortune Dragon', bet: 378, win: 0, net: -378, t: '19:49:39' },
-  { pl: 'Jun M.', gm: 'Aviator', bet: 289, win: 920, net: 631, t: '19:49:38' },
-];
+const money = (v) => Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
 
 export default function LiveBets() {
-  const [rows, setRows] = useState(SEED);
-  const rowsRef = useRef(rows);
-  rowsRef.current = rows;
+  const [rows, setRows] = useState(null);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      const [pl, gm] = LB_POOL[Math.floor(Math.random() * LB_POOL.length)];
-      const bet = Math.floor(20 + Math.random() * 480);
-      const win = Math.random() < 0.42 ? Math.floor(bet * (0.5 + Math.random() * 4)) : 0;
-      const net = win - bet;
-      const t = new Date().toTimeString().slice(0, 8);
-      setRows((prev) => [{ pl, gm, bet, win, net, t }, ...prev].slice(0, 14));
-    }, 2500);
-    return () => clearInterval(timer);
+    const load = () => getLiveBets().then((d) => setRows(Array.isArray(d) ? d : [])).catch(() => {});
+    load();
+    const id = setInterval(load, 10000); // live ticker — refreshes every 10s
+    return () => clearInterval(id);
   }, []);
 
   return (
@@ -42,21 +22,31 @@ export default function LiveBets() {
       <div className="table-wrap" style={{ border: 'none', borderRadius: 0, marginTop: 10 }}>
         <table id="lbTbl" style={{ minWidth: 760 }}>
           <thead>
-            <tr><th>Player</th><th>Game</th><th>Bet</th><th>Win</th><th>Net</th><th>Time</th></tr>
+            <tr><th>Player</th><th>Game</th><th>Provider</th><th>Bet</th><th>Win</th><th>Net</th><th>Time</th></tr>
           </thead>
           <tbody>
-            {rows.map((r, i) => (
-              <tr key={i}>
-                <td><b>{r.pl}</b></td>
-                <td>{r.gm}</td>
-                <td>₱{r.bet}</td>
-                <td style={{ color: 'var(--green)' }}>₱{r.win}</td>
-                <td style={{ color: r.net >= 0 ? 'var(--green)' : 'var(--red)', fontWeight: 800 }}>
-                  {r.net >= 0 ? '+' : '-'}₱{Math.abs(r.net)}
-                </td>
-                <td style={{ color: 'var(--muted)' }}>{r.t}</td>
-              </tr>
-            ))}
+            {rows === null
+              ? <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--muted)', padding: 24 }}>Loading…</td></tr>
+              : rows.length === 0
+                ? <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--muted)', padding: 24 }}>No bets yet — wagers from integrated providers appear here in real time.</td></tr>
+                : rows.slice(0, 30).map((r) => {
+                  const bet = Number(r.amount || 0);
+                  const win = Number(r.win || 0);
+                  const net = win - bet;
+                  return (
+                    <tr key={r.id || `${r.playerId}-${r.createdAt}`}>
+                      <td><b>{r.username || r.playerId}</b></td>
+                      <td>{r.gameName || r.game || '—'}</td>
+                      <td style={{ color: 'var(--muted)' }}>{r.provider || '—'}</td>
+                      <td>{money(bet)} {r.currency || ''}</td>
+                      <td style={{ color: 'var(--green)' }}>{money(win)}</td>
+                      <td style={{ color: net >= 0 ? 'var(--green)' : 'var(--red)', fontWeight: 800 }}>
+                        {net >= 0 ? '+' : '-'}{money(Math.abs(net))}
+                      </td>
+                      <td style={{ color: 'var(--muted)' }}>{String(r.createdAt || '').replace('T', ' ').slice(5, 19)}</td>
+                    </tr>
+                  );
+                })}
           </tbody>
         </table>
       </div>

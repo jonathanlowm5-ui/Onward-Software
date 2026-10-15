@@ -1,6 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useUI } from '../context/UIContext';
-import { listGames, toggleGame, updateGame } from '../services/gameService';
+import { listGames, toggleGame, updateGame, createGame } from '../services/gameService';
+import { uploadImage } from '../services/uploadService';
+import api from '../services/api';
+
+const EMPTY_GAME = { name: '', provider: '', category: 'slots', code: '', langs: '', image: '', launchUrl: '', seq: 0, hot: false, enabled: true };
 
 // ---- Static demo catalog (original GAMES) — used as fallback on API error/empty ----
 const PG_NAMES = ['Alchemy Gold', "Alibaba's Cave Of Fortune", 'Anubis Wrath', 'Asgardian Rising', 'Bakery Bonanza', 'Bali Vacation', 'Battleground Royale', 'Bikini Paradise', 'Buffalo Win', 'Butterfly Blossom', 'Caishen Wins', 'Candy Bonanza'];
@@ -17,7 +21,9 @@ const DEMO_GAMES = [
   { popD: 0, seqD: 0, popM: 0, seqM: 0, n: 'Royal Fishing', prov: 'Jili', cat: 'fish', langs: 'EN, CN', id: 50001, hot: 0, seq: 1, on: 1, pop: 0, cl: '#063f2e' },
 ];
 
-// Normalize an API game record to the demo row shape used by the table.
+// Normalize an API game record to the row shape used by the table. Also carries
+// the raw fields (image, launchUrl, code, badge, color, icon) so the row is a
+// complete record the edit form can save without losing data.
 function normalize(g, i) {
   return {
     n: g.n ?? g.name ?? g.title ?? 'Game',
@@ -25,12 +31,40 @@ function normalize(g, i) {
     cat: g.cat ?? g.category ?? 'slots',
     langs: g.langs ?? g.languages ?? '',
     id: g.id ?? g.gameId ?? g._id ?? i,
+    code: g.code ?? '',
+    image: g.image ?? '',
+    launchUrl: g.launchUrl ?? g.gameUrl ?? '',
+    badge: g.badge ?? '',
+    color: g.color ?? '',
+    icon: g.icon ?? '',
     hot: g.hot ? 1 : 0,
-    seq: g.seq ?? g.sequence ?? 0,
+    seq: g.seq ?? g.order ?? g.sequence ?? 0,
     on: (g.on ?? g.enabled ?? g.active ?? 1) ? 1 : 0,
-    pop: g.pop ? 1 : 0,
+    pop: (g.pop || g.popular) ? 1 : 0,
     popD: g.popD ? 1 : 0,
     popM: g.popM ? 1 : 0,
+  };
+}
+
+// Reconstruct the full backend game object from a table row (+ optional edits).
+// PUT rebuilds the whole record, so every field must be sent.
+function toPayload(row, edits = {}) {
+  const r = { ...row, ...edits };
+  return {
+    name: String(r.n || '').trim(),
+    provider: String(r.prov || '').trim(),
+    category: r.cat || 'slots',
+    code: String(r.code || '').trim(),
+    langs: String(r.langs || '').trim(),
+    image: r.image || '',
+    launchUrl: r.launchUrl || '',
+    badge: r.badge || '',
+    color: r.color || '',
+    icon: r.icon || '',
+    hot: !!r.hot,
+    popular: !!r.pop,
+    enabled: !!r.on,
+    order: Number.isFinite(+r.seq) ? +r.seq : 0,
   };
 }
 
@@ -39,6 +73,84 @@ export default function GameList() {
   const [games, setGames] = useState(DEMO_GAMES);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ q: '', prov: '', cat: '', st: '' });
+  const [syncing, setSyncing] = useState(false);
+  // Add Game modal
+  const [showAdd, setShowAdd] = useState(false);
+  const [editId, setEditId] = useState(null); // null = add, else editing this game id
+  const [form, setForm] = useState(EMPTY_GAME);
+  const [addBusy, setAddBusy] = useState(false);
+  const setAdd = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+  const openAdd = () => { setEditId(null); setForm(EMPTY_GAME); setShowAdd(true); };
+  const openEdit = (g) => {
+    setEditId(g.id);
+    setForm({ name: g.n || '', provider: g.prov || '', category: g.cat || 'slots', code: g.code || '', langs: g.langs || '', image: g.image || '', launchUrl: g.launchUrl || '', seq: g.seq ?? 0, hot: !!g.hot, enabled: !!g.on, _row: g });
+    setShowAdd(true);
+  };
+  const uploadGameImg = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { toast('⚠ Image too large — keep it under 2 MB'); return; }
+    try { const { url } = await uploadImage(file); setAdd('image', url); toast('Icon uploaded ✔'); }
+    catch (err) { toast('⚠ ' + (err.message || 'Upload failed')); }
+  };
+  const submitAdd = async () => {
+    if (!form.name.trim()) { toast('⚠ Game name is required'); return; }
+    if (!form.provider.trim()) { toast('⚠ Provider is required'); return; }
+    setAddBusy(true);
+    try {
+      if (editId) {
+        // Full-record PUT (nothing gets wiped).
+        const payload = toPayload(form._row || {}, {
+          n: form.name.trim(), prov: form.provider.trim(), cat: form.category, code: form.code,
+          langs: form.langs, image: form.image, launchUrl: form.launchUrl, seq: form.seq,
+          hot: form.hot ? 1 : 0, on: form.enabled ? 1 : 0,
+        });
+        const updated = await updateGame(editId, payload);
+        setGames((prev) => prev.map((g) => (g.id === editId ? normalize({ ...updated, id: editId }) : g)));
+        toast(`✅ ${payload.name} saved`);
+      } else {
+        const created = await createGame(toPayload({}, {
+          n: form.name.trim(), prov: form.provider.trim(), cat: form.category, code: form.code,
+          langs: form.langs, image: form.image, launchUrl: form.launchUrl, hot: form.hot ? 1 : 0, on: form.enabled ? 1 : 0,
+        }));
+        setGames((prev) => [normalize(created), ...prev]);
+        toast(`✅ ${created.name} added`);
+      }
+      setShowAdd(false); setForm(EMPTY_GAME); setEditId(null);
+    } catch (e) { toast('⚠ ' + (e.message || 'Save failed')); }
+    finally { setAddBusy(false); }
+  };
+
+  // Star toggle: features/removes a game in the player site's Popular sections.
+  const togglePopular = async (g) => {
+    try {
+      const r = await api.patch(`/games/${g.id}/popular`);
+      setGames((prev) => prev.map((x) => (x.id === g.id ? { ...x, pop: r.data.popular ? 1 : 0 } : x)));
+      toast(r.data.popular ? `⭐ ${g.n} featured in Popular Games` : `☆ ${g.n} removed from Popular Games`);
+    } catch (e) { toast('⚠ ' + (e.message || 'Update failed')); }
+  };
+
+  // One-click import of the bundled heibao catalogue (4,995 games with hosted
+  // webp icons, all ≤29KB). Idempotent — only missing games are added.
+  const syncHeibao = async () => {
+    setSyncing(true);
+    try {
+      let total = 0;
+      let round = 0;
+      // Repeat until the whole catalogue is present (each call is idempotent).
+      for (;;) {
+        const r = await api.post('/games/heibao-sync', { limit: 1200 });
+        total += r.data.imported;
+        round += 1;
+        toast(`Importing… ${r.data.total - r.data.remaining}/${r.data.total} games`);
+        if (!r.data.remaining || round > 10) break;
+      }
+      toast(total ? `Imported ${total} games ✅ — reloading…` : 'Catalogue already complete ✔');
+      if (total) setTimeout(() => window.location.reload(), 1200);
+    } catch (e) { toast('⚠ ' + (e.message || 'Import failed')); }
+    finally { setSyncing(false); }
+  };
 
   useEffect(() => {
     let active = true;
@@ -89,14 +201,14 @@ export default function GameList() {
   const onToggleHot = (game, checked) => {
     setGames((prev) => prev.map((g) => (g === game ? { ...g, hot: checked ? 1 : 0 } : g)));
     toast(game.n + (checked ? ' marked HOT 🔥' : ' unmarked'));
-    updateGame(game.id, { hot: checked ? 1 : 0 }).catch(() => {});
+    // Send the full record — PUT rebuilds it, so a partial patch would wipe fields.
+    updateGame(game.id, toPayload(game, { hot: checked ? 1 : 0 })).catch(() => {});
   };
 
   const onSeqChange = (game, value) => {
     const seq = parseInt(value) || 0;
     setGames((prev) => prev.map((g) => (g === game ? { ...g, seq } : g)));
-    toast('Sequence updated: ' + game.n + ' → ' + value);
-    updateGame(game.id, { seq }).catch(() => {});
+    updateGame(game.id, toPayload(game, { seq })).catch(() => {});
   };
 
   const exportGames = () => {
@@ -150,21 +262,25 @@ export default function GameList() {
           <div className="card-title" style={{ marginBottom: 0 }}>
             🎰 Game List <span className="res-chip" id="glCount">{list.length} games</span>
           </div>
-          <span className="pr"><button className="mini-btn" onClick={exportGames}>⬇ Export</button></span>
+          <span className="pr" style={{ display: 'flex', gap: 8 }}>
+            <button className="mini-btn gold" onClick={openAdd}>➕ Add Game</button>
+            <button className="mini-btn" onClick={syncHeibao} disabled={syncing}>{syncing ? 'Importing…' : '📥 Import Game Catalogue'}</button>
+            <button className="mini-btn" onClick={exportGames}>⬇ Export</button>
+          </span>
         </div>
         <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}>
           <table id="glTbl" style={{ minWidth: 1080 }}>
             <thead>
-              <tr><th>Game</th><th>Provider</th><th>Category</th><th>Language Support</th><th>Game ID</th><th>Hot Game</th><th>Sequence</th><th>Active</th><th>Popular</th></tr>
+              <tr><th>Game</th><th>Provider</th><th>Category</th><th>Language Support</th><th>Game ID</th><th>Hot Game</th><th>Sequence</th><th>Active</th><th>Popular</th><th>Edit</th></tr>
             </thead>
             <tbody>
               {list.map((g) => (
                 <tr key={g.id}>
-                  <td><b>{g.n}</b></td>
+                  <td><b className="gl-editname" style={{ cursor: 'pointer', textDecoration: 'underline', textDecorationColor: 'rgba(255,255,255,.2)', textUnderlineOffset: 3 }} onClick={() => openEdit(g)} title="Click to edit">{g.n}</b></td>
                   <td style={{ color: '#aab4cc' }}>{g.prov}</td>
                   <td><span className={`catchip ${g.cat}`}>{g.cat === 'live' ? 'live casino' : g.cat}</span></td>
                   <td>{g.langs ? g.langs : <span className="notset">— not set —</span>}</td>
-                  <td><span className="gid">{g.id}</span></td>
+                  <td><span className="gid">{g.code || g.id}</span></td>
                   <td>
                     <label className="switch">
                       <input type="checkbox" checked={!!g.hot} onChange={(e) => onToggleHot(g, e.target.checked)} />
@@ -180,9 +296,12 @@ export default function GameList() {
                     </span>
                   </td>
                   <td>
-                    <button className={`star-btn ${(g.popD || g.popM) ? 'on' : ''}`} onClick={() => toast('Feature in Popular Games: ' + g.n + ' — demo')} title="Feature in Popular Games">
-                      {(g.popD || g.popM) ? '⭐' : '☆'}
+                    <button className={`star-btn ${(g.pop || g.popD || g.popM) ? 'on' : ''}`} onClick={() => togglePopular(g)} title="Feature in Popular Games">
+                      {(g.pop || g.popD || g.popM) ? '⭐' : '☆'}
                     </button>
+                  </td>
+                  <td>
+                    <button className="mini-btn" onClick={() => openEdit(g)}>✏️ Edit</button>
                   </td>
                 </tr>
               ))}
@@ -190,6 +309,74 @@ export default function GameList() {
           </table>
         </div>
       </div>
+
+      {showAdd && (
+        <div className="dep2-ov" onClick={(e) => { if (e.target.classList.contains('dep2-ov')) setShowAdd(false); }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(4,8,18,.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="card" style={{ width: 460, maxWidth: '94vw', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div className="card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>{editId ? '✏️ Edit Game' : '➕ Add Game'}</span>
+              <button className="mini-btn" onClick={() => setShowAdd(false)}>✕</button>
+            </div>
+            <div className="fld" style={{ marginBottom: 10 }}>
+              <label>Game Name <span style={{ color: 'var(--red,#ff4d5e)' }}>*</span></label>
+              <input value={form.name} onChange={(e) => setAdd('name', e.target.value)} placeholder="e.g. Sweet Bonanza" />
+            </div>
+            <div className="fld" style={{ marginBottom: 10 }}>
+              <label>Game ID <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(code — leave empty to use the auto ID)</span></label>
+              <input value={form.code} onChange={(e) => setAdd('code', e.target.value)} placeholder={editId ? (form._row?.id || '') : 'e.g. pg-sweet-bonanza'} />
+            </div>
+            <div className="fld" style={{ marginBottom: 10 }}>
+              <label>Provider <span style={{ color: 'var(--red,#ff4d5e)' }}>*</span></label>
+              <input list="gl-provs" value={form.provider} onChange={(e) => setAdd('provider', e.target.value)} placeholder="e.g. Pragmatic — type a new one to create it" />
+              <datalist id="gl-provs">{provNames.map((p) => <option key={p} value={p} />)}</datalist>
+            </div>
+            <div className="fld" style={{ marginBottom: 10 }}>
+              <label>Category</label>
+              <select value={form.category} onChange={(e) => setAdd('category', e.target.value)}>
+                <option value="slots">Slots</option>
+                <option value="live">Live Casino</option>
+                <option value="crash">Crash</option>
+                <option value="fishing">Fish</option>
+                <option value="table">Table</option>
+                <option value="sports">Sports</option>
+              </select>
+            </div>
+            <div className="fld" style={{ marginBottom: 10 }}>
+              <label>Language Support <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(optional)</span></label>
+              <input value={form.langs} onChange={(e) => setAdd('langs', e.target.value)} placeholder="e.g. EN, CN, VN" />
+            </div>
+            <div className="fld" style={{ marginBottom: 10 }}>
+              <label>Game Icon</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 60, height: 60, borderRadius: 8, border: '1px dashed var(--border)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--panel-3,#1b2541)' }}>
+                  {form.image ? <img src={form.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ fontSize: 22 }}>🎰</span>}
+                </div>
+                <label className="mini-btn" style={{ cursor: 'pointer' }}>⬆ Upload<input type="file" accept="image/*" style={{ display: 'none' }} onChange={uploadGameImg} /></label>
+                {form.image && <button className="mini-btn" onClick={() => setAdd('image', '')}>Remove</button>}
+              </div>
+            </div>
+            <div className="fld" style={{ marginBottom: 10 }}>
+              <label>Launch URL <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(optional)</span></label>
+              <input value={form.launchUrl} onChange={(e) => setAdd('launchUrl', e.target.value)} placeholder="https://… (leave empty for aggregator launch)" />
+            </div>
+            <div className="fld" style={{ marginBottom: 10 }}>
+              <label>Sequence <span style={{ color: 'var(--muted)', fontWeight: 600 }}>(sort order — lower shows first)</span></label>
+              <input value={form.seq} inputMode="numeric" onChange={(e) => setAdd('seq', parseInt(e.target.value) || 0)} placeholder="0" />
+            </div>
+            <label className="pm-check" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <input type="checkbox" checked={form.hot} onChange={(e) => setAdd('hot', e.target.checked)} /> 🔥 Hot game
+            </label>
+            <label className="pm-check" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <input type="checkbox" checked={form.enabled} onChange={(e) => setAdd('enabled', e.target.checked)} /> Enabled (visible to players)
+            </label>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button className="mini-btn" onClick={() => setShowAdd(false)}>Cancel</button>
+              <button className="mini-btn gold" onClick={submitAdd} disabled={addBusy}>{addBusy ? 'Saving…' : (editId ? 'Save Game' : 'Add Game')}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -17,7 +17,7 @@ export default function GameModal() {
       </div>
       <div style={{ background: '#000', aspectRatio: '16/9', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '20px' }}>
         <div style={{ fontSize: '80px' }} id="game-modal-icon">{game.icon || '🎰'}</div>
-        <div style={{ fontSize: '20px', fontFamily: "'Cinzel',serif", color: 'var(--gold)' }} id="game-modal-name">{game.name}</div>
+        <div style={{ fontSize: '20px', fontFamily: "'Montserrat',sans-serif", color: 'var(--gold)' }} id="game-modal-name">{game.name}</div>
         <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Game iframe would load here in production</p>
         {!isLoggedIn && (
           <button className="btn btn-primary" style={{ padding: '12px 28px' }} onClick={() => { closeModal(); openModal('register'); }}>

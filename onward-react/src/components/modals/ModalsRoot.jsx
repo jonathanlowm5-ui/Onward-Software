@@ -1,10 +1,13 @@
 import { useEffect, useRef } from 'react';
 import AuthModal from './AuthModal.jsx';
+import DepositModal from './DepositModal.jsx';
 import WithdrawModal from './WithdrawModal.jsx';
 import GameModal from './GameModal.jsx';
 import BankSetupModal from './BankSetupModal.jsx';
 import DownloadModal from './DownloadModal.jsx';
 import MiniGamesModal from './MiniGamesModal.jsx';
+import PromoDetailModal from './PromoDetailModal.jsx';
+import UseCodeModal from './UseCodeModal.jsx';
 import { useAuth } from '../../context/AuthContext';
 import { useUI } from '../../context/UIContext';
 
@@ -33,11 +36,14 @@ export default function ModalsRoot() {
     <>
       <BankGate />
       <AuthModal />
+      <DepositModal />
       <WithdrawModal />
       <GameModal />
       <BankSetupModal />
       <DownloadModal />
       <MiniGamesModal />
+      <PromoDetailModal />
+      <UseCodeModal />
     </>
   );
 }

@@ -11,7 +11,8 @@
 const express = require('express');
 const store = require('../store');
 const provider = require('../providers');
-const { requireAuth } = require('../auth');
+const { requireAuth, requirePlayer } = require('../auth');
+const { requirePerm } = require('../permissions');
 
 const router = express.Router();
 
@@ -21,7 +22,7 @@ router.get('/status', requireAuth, (req, res) => {
 });
 
 // Pull the upstream catalog and upsert into local games (matched by externalId).
-router.post('/import', requireAuth, async (req, res) => {
+router.post('/import', requireAuth, requirePerm('content.manage'), async (req, res) => {
   try {
     const config = store.getSettings();
     const catalog = await provider.listGames(config);
@@ -57,12 +58,22 @@ router.post('/import', requireAuth, async (req, res) => {
   }
 });
 
+// Real-money launches must be tied to the authenticated caller — never trust a
+// client-supplied ?player= id (that would let anyone open a real session for
+// another account). Demo mode is open to guests. requirePlayer runs only for
+// real mode so the public demo path still works.
+function launchAuth(req, res, next) {
+  if (req.query.mode === 'demo') return next();
+  return requirePlayer(req, res, next);
+}
+
 // Resolve a real launch URL for a game (called by the frontend on click).
-router.get('/launch/:id', async (req, res) => {
+router.get('/launch/:id', launchAuth, async (req, res) => {
   const game = store.get('games', req.params.id);
   if (!game) return res.status(404).json({ error: 'Game not found' });
-  const playerId = req.query.player || 'guest';
   const mode = req.query.mode === 'demo' ? 'demo' : 'real';
+  // In real mode the player id comes from the verified token, not the query.
+  const playerId = mode === 'demo' ? 'guest' : req.auth.sub;
   try {
     // Aggregator-backed game -> ask the provider for a fresh session URL.
     if (game.externalId) {

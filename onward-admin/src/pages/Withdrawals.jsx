@@ -29,7 +29,7 @@ export default function Withdrawals() {
 
   useEffect(() => {
     let alive = true;
-    (async () => {
+    const loadWds = async () => {
       try {
         const data = await listWithdrawals();
         const list = Array.isArray(data) ? data : data?.items || [];
@@ -46,8 +46,10 @@ export default function Withdrawals() {
       } finally {
         if (alive) setLoading(false);
       }
-    })();
-    return () => { alive = false; };
+    };
+    loadWds();
+    const id = setInterval(loadWds, 20000); // approval queue: poll for new requests
+    return () => { alive = false; clearInterval(id); };
   }, []);
 
   const act = async (i, ok) => {

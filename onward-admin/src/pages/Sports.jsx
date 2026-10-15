@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useUI } from '../context/UIContext';
+import { getConfig, saveConfig } from '../services/configService';
 
 const SPORTS_TABS = [
   ['football', '⚽ Football'],
@@ -47,13 +48,45 @@ const INITIAL_LEAGUES = {
   ],
 };
 
+const DEFAULT_GLOBALS = { maxBet: 50000, minBet: 10, maxPayout: 500000, live: true, parlay: true, cashout: true, maint: false };
+
 const clone = (obj) => JSON.parse(JSON.stringify(obj));
 
 export default function Sports() {
   const { toast } = useUI();
   const [tab, setTab] = useState('football');
-  const [leagues, setLeagues] = useState(() => clone(INITIAL_LEAGUES));
+  const [leagues, setLeagues] = useState(null); // null = loading
+  const [globals, setGlobals] = useState(DEFAULT_GLOBALS);
   const [search, setSearch] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    getConfig()
+      .then((c) => {
+        const s = c.sportsLeagues;
+        if (s && s.leagues) { setLeagues(s.leagues); setGlobals({ ...DEFAULT_GLOBALS, ...(s.globals || {}) }); }
+        else setLeagues(s || clone(INITIAL_LEAGUES));
+      })
+      .catch(() => { setLeagues(clone(INITIAL_LEAGUES)); toast('⚠ Could not load saved sports config — showing defaults'); });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const save = () => {
+    setSaving(true);
+    saveConfig({ sportsLeagues: { leagues, globals } })
+      .then(() => toast('Sports settings saved ✅ — persisted to backend'))
+      .catch((e) => toast('⚠ ' + (e.message || 'Save failed')))
+      .finally(() => setSaving(false));
+  };
+
+  const addLeague = () => {
+    const n = window.prompt('New league name for ' + tab + ':');
+    if (!n || !n.trim()) return;
+    if (leagues[tab].some((l) => l.n.toLowerCase() === n.trim().toLowerCase())) { toast('⚠ League already exists: ' + n.trim()); return; }
+    setLeagues((prev) => { const next = clone(prev); next[tab].push({ n: n.trim(), st: 'active', live: 1, pre: 1, mkts: 0, max: globals.maxBet || 50000 }); return next; });
+    toast('League added ✅ ' + n.trim() + ' — click 💾 Save to persist');
+  };
+
+  if (!leagues) return <div className="hist-empty">Loading sports config…</div>;
 
   const list = leagues[tab];
   const all = Object.values(leagues).flat();
@@ -98,8 +131,8 @@ export default function Sports() {
           <div className="hero-sub" style={{ marginBottom: 0 }}>Manage sports betting — leagues, markets, odds and live event toggles</div>
         </div>
         <span className="pr" style={{ display: 'flex', gap: 8 }}>
-          <button className="mini-btn" onClick={() => toast('Sports feeds refreshed 🔄')}>🔄 Refresh</button>
-          <button className="btn-search" onClick={() => toast('Add League — demo')}>＋ Add League</button>
+          <button className="mini-btn" onClick={addLeague}>＋ Add League</button>
+          <button className="btn-search" onClick={save} disabled={saving}>{saving ? 'Saving…' : '💾 Save'}</button>
         </span>
       </div>
       <div className="grid kpi-grid">
@@ -163,17 +196,16 @@ export default function Sports() {
       <div className="card" style={{ marginTop: 'var(--pad)' }}>
         <div className="card-title">🌐 Global Sports Settings</div>
         <div className="form-grid" style={{ gridTemplateColumns: 'repeat(3,1fr)' }}>
-          <div className="fld"><label>Default Max Bet (₱)</label><input defaultValue="50000" /></div>
-          <div className="fld"><label>Default Min Bet (₱)</label><input defaultValue="10" /></div>
-          <div className="fld"><label>Max Payout (₱)</label><input defaultValue="500000" /></div>
+          <div className="fld"><label>Default Max Bet (₱)</label><input value={globals.maxBet} inputMode="numeric" onChange={(e) => setGlobals((g) => ({ ...g, maxBet: parseInt(e.target.value) || 0 }))} /></div>
+          <div className="fld"><label>Default Min Bet (₱)</label><input value={globals.minBet} inputMode="numeric" onChange={(e) => setGlobals((g) => ({ ...g, minBet: parseInt(e.target.value) || 0 }))} /></div>
+          <div className="fld"><label>Max Payout (₱)</label><input value={globals.maxPayout} inputMode="numeric" onChange={(e) => setGlobals((g) => ({ ...g, maxPayout: parseInt(e.target.value) || 0 }))} /></div>
         </div>
         <div className="gset-row">
-          <span className="tg"><label className="switch"><input type="checkbox" defaultChecked /><span className="slider"></span></label>Live Betting Enabled</span>
-          <span className="tg"><label className="switch"><input type="checkbox" defaultChecked /><span className="slider"></span></label>Parlay / Accumulator Bets</span>
-          <span className="tg"><label className="switch"><input type="checkbox" defaultChecked /><span className="slider"></span></label>Cash Out Feature</span>
-          <span className="tg"><label className="switch"><input type="checkbox" /><span className="slider"></span></label>Maintenance Mode</span>
+          {[['live', 'Live Betting Enabled'], ['parlay', 'Parlay / Accumulator Bets'], ['cashout', 'Cash Out Feature'], ['maint', 'Maintenance Mode']].map(([k, lbl]) => (
+            <span className="tg" key={k}><label className="switch"><input type="checkbox" checked={!!globals[k]} onChange={(e) => setGlobals((g) => ({ ...g, [k]: e.target.checked }))} /><span className="slider"></span></label>{lbl}</span>
+          ))}
         </div>
-        <div style={{ marginTop: 14, textAlign: 'right' }}><button className="btn-search" onClick={() => toast('Sports settings saved! ✔')}>💾 Save Settings</button></div>
+        <div style={{ marginTop: 14, textAlign: 'right' }}><button className="btn-search" onClick={save} disabled={saving}>{saving ? 'Saving…' : '💾 Save Settings'}</button></div>
       </div>
     </>
   );

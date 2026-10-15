@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Table, BOk, BPend, BBad, BInfo } from '../components/ui.jsx';
 import { useUI } from '../context/UIContext';
 import { listTransactions } from '../services/walletService';
+import useCurrencyRates from '../hooks/useCurrencyRates';
+import { fmtMoney, convert } from '../services/currencyService';
 
 /*
  * Transactions — a single ledger of every wallet movement the backend records
@@ -53,7 +55,8 @@ const fmtTime = (t) => {
 };
 
 export default function Transactions() {
-  const { toast } = useUI();
+  const { toast, currency: reportCur } = useUI();
+  const { rates } = useCurrencyRates();
   const [all, setAll] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('all');
@@ -98,7 +101,11 @@ export default function Transactions() {
     fmtTime(t.createdAt),
   ]);
 
-  const totalIn = filtered.filter((t) => (t.type !== 'withdrawal') && Number(t.amount) > 0).reduce((s, t) => s + Number(t.amount || 0), 0);
+  // Credits summed into the reporting currency (converting each txn from its own
+  // currency via the FX rates) — mixed-currency amounts can't just be added.
+  const totalIn = filtered
+    .filter((t) => (t.type !== 'withdrawal') && Number(t.amount) > 0)
+    .reduce((s, t) => s + convert(Number(t.amount || 0), t.currency || 'PHP', reportCur, rates), 0);
 
   return (
     <>
@@ -135,7 +142,7 @@ export default function Transactions() {
 
         <div style={{ display: 'flex', gap: 16, padding: '6px 2px 14px', color: 'var(--muted,#8898b8)', fontSize: 13 }}>
           <span>Showing <b style={{ color: 'var(--text,#fff)' }}>{filtered.length}</b> records</span>
-          <span>Total credited (filtered): <b style={{ color: 'var(--green,#22c55e)' }}>₱{totalIn.toLocaleString()}</b></span>
+          <span>Total credited (filtered): <b style={{ color: 'var(--green,#22c55e)' }}>{fmtMoney(totalIn, reportCur)}</b> <span style={{ color: 'var(--muted,#8898b8)' }}>({reportCur})</span></span>
         </div>
 
         {loading ? (

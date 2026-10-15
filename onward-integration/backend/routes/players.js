@@ -157,8 +157,11 @@ function move(req, res, sign) {
   const p = store.get(COLLECTION, req.params.id);
   if (!p) return res.status(404).json({ error: 'Player not found' });
   const amount = Number(req.body?.amount || 0);
-  if (!(amount > 0)) return res.status(400).json({ error: 'A positive amount is required' });
-  const updated = store.update(COLLECTION, req.params.id, { balance: Number(p.balance || 0) + sign * amount });
+  if (!Number.isFinite(amount) || !(amount > 0)) return res.status(400).json({ error: 'A positive amount is required' });
+  const nextBalance = Number(p.balance || 0) + sign * amount;
+  // A debit must never drive the wallet negative.
+  if (nextBalance < 0) return res.status(400).json({ error: 'Amount exceeds the player balance' });
+  const updated = store.update(COLLECTION, req.params.id, { balance: nextBalance });
   store.insert('transactions', {
     playerId: p.id, username: p.username, currency: p.currency || 'PHP',
     type: 'adjustment', amount: sign * amount,
@@ -176,7 +179,7 @@ router.post('/:id/wallet/deposit', requireAuth, requirePerm('players.adjust'), (
   const p = store.get(COLLECTION, req.params.id);
   if (!p) return res.status(404).json({ error: 'Player not found' });
   const amount = Number(req.body?.amount || 0);
-  if (!(amount > 0)) return res.status(400).json({ error: 'A positive amount is required' });
+  if (!Number.isFinite(amount) || !(amount > 0)) return res.status(400).json({ error: 'A positive amount is required' });
   const bank = String(req.body?.bank || '').trim();
   if (!bank) return res.status(400).json({ error: 'Please choose the bank of deposit' });
   const reference = String(req.body?.reference || '').trim();
@@ -320,6 +323,8 @@ router.put('/:id', requireAuth, requirePerm('players.edit'), (req, res) => {
   if (b.country !== undefined) patch.country = b.country;
   if (b.currency !== undefined) patch.currency = String(b.currency).toUpperCase();
   if (b.vipLevel !== undefined) patch.vipLevel = Math.max(0, Number(b.vipLevel) || 0);
+  // Welcome-bonus progress (0–4). Setting to 0 re-shows the welcome card.
+  if (b.welcomeClaimed !== undefined) patch.welcomeClaimed = Math.max(0, Math.min(4, Number(b.welcomeClaimed) || 0));
   if (b.status !== undefined && ['active', 'suspended', 'blocked'].includes(b.status)) patch.status = b.status;
   else if (b.active !== undefined) patch.status = b.active ? 'active' : 'suspended';
 

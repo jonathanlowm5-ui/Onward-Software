@@ -6,8 +6,20 @@
  */
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change-this-secret-in-production';
-const TOKEN_TTL = '12h';
+// JWT signing secret. In the deployed environment it MUST come from a real
+// secret (bound via Firebase Secret Manager in functions.js) — we refuse to
+// boot with the old hardcoded placeholder so forged tokens are impossible.
+// Locally (no Cloud Functions runtime) we fall back to a dev-only secret.
+const ON_CLOUD = !!(process.env.K_SERVICE || process.env.FUNCTION_TARGET || process.env.FUNCTION_SIGNATURE_TYPE);
+let JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  if (ON_CLOUD) {
+    throw new Error('JWT_SECRET is not configured. Set it via Firebase Secret Manager before deploying.');
+  }
+  JWT_SECRET = 'dev-only-insecure-secret-do-not-use-in-prod';
+  console.warn('[auth] JWT_SECRET not set — using an INSECURE dev secret (local only).');
+}
+const TOKEN_TTL = '7d'; // admin sessions; expiry now forces a clean re-login in the UI
 
 function sign(user) {
   return jwt.sign({ sub: user.username, role: user.role || 'admin' }, JWT_SECRET, {
@@ -24,12 +36,39 @@ function signPlayer(player) {
   );
 }
 
+// Mutating admin requests are recorded to audit_log (viewed in System → Audit
+// Logs). GETs and the marketing scheduler tick are skipped to keep it useful.
+function auditLog(req) {
+  try {
+    if (req.method === 'GET') return;
+    const path = req.originalUrl || req.url || '';
+    if (path.includes('/marketing/tick')) return;
+    const store = require('./store');
+    store.insert('audit_log', {
+      admin: req.user?.sub || 'unknown',
+      role: req.user?.role || '',
+      method: req.method,
+      path: path.slice(0, 200),
+      ip: (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip || '',
+    });
+  } catch { /* never block the request on logging */ }
+}
+
 function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
   if (!token) return res.status(401).json({ error: 'Missing authorization token' });
   try {
-    req.user = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET);
+    // Player/agent tokens are signed with the same secret as admin tokens, so a
+    // valid signature alone is not enough — the admin API is for admin roles only.
+    // Without this, a logged-in player could read /players, /kyc, /transactions,
+    // etc. (any route guarded by bare requireAuth without requirePerm).
+    if (decoded.role === 'player' || decoded.role === 'agent') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+    req.user = decoded;
+    auditLog(req);
     next();
   } catch {
     return res.status(401).json({ error: 'Invalid or expired token' });

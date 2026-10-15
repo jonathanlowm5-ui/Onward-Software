@@ -1,76 +1,106 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { BOk } from '../components/ui.jsx';
 import { useUI } from '../context/UIContext';
+import { listAgents, agentPlayers, downloadCsv } from '../services/agentService';
 
-// Ported from V["agent-players"] (AGPL array).
-const AGPL = [
-  { n: 'Juan dela Cruz', u: 'juandc', ag: 'marco88', j: 'Jan 2024', dep: '₱85,000', wag: '₱420,000', ggr: '₱42,000', com: '₱2,100', on: 1 },
-  { n: 'Maria Santos', u: 'marias', ag: 'jenny_l', j: 'Feb 2024', dep: '₱32,000', wag: '₱180,000', ggr: '₱18,000', com: '₱720', on: 1 },
-  { n: 'Pedro Reyes', u: 'pedror', ag: 'marco88', j: 'Aug 2023', dep: '₱420,000', wag: '₱2,100,000', ggr: '₱210,000', com: '₱10,500', on: 1 },
-  { n: 'Ana Garcia', u: 'anag', ag: 'reysantos', j: 'May 2024', dep: '₱8,500', wag: '₱42,000', ggr: '₱4,200', com: '₱147', on: 1 },
-];
-
-const AGENT_OPTS = [...new Set(AGPL.map((x) => x.ag))];
+/*
+ * Agent Players — every player referred by an agent (live downline data:
+ * deposits, wager, GGR from the bets ledger).
+ */
+const money = (v) => Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 2 });
 
 export default function AgentPlayers() {
   const { toast } = useUI();
+  const [agents, setAgents] = useState([]);
+  const [rows, setRows] = useState([]); // [{...player, agentUsername, agentCode}]
+  const [loaded, setLoaded] = useState(false);
   const [ag, setAg] = useState('');
   const [q, setQ] = useState('');
-  const [st, setSt] = useState('');
+  const [activeOnly, setActiveOnly] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const list = await listAgents();
+        if (!alive) return;
+        setAgents(Array.isArray(list) ? list : []);
+        const all = await Promise.all((list || []).map((a) =>
+          agentPlayers(a.id).then((r) => (r.players || []).map((p) => ({ ...p, agentId: a.id, agentUsername: a.username, agentCode: a.code }))).catch(() => [])));
+        if (alive) setRows(all.flat());
+      } finally { if (alive) setLoaded(true); }
+    })();
+    return () => { alive = false; };
+  }, []);
 
   const visible = useMemo(() => {
     const ql = q.toLowerCase();
-    return AGPL.filter((x) =>
-      (!ag || x.ag === ag)
-      && (x.n + ' ' + x.u).toLowerCase().includes(ql)
-      && (st === '' || String(x.on) === st)
-    );
-  }, [ag, q, st]);
+    return rows.filter((p) =>
+      (!ag || String(p.agentId) === ag)
+      && (!ql || [p.username, p.playerCode].some((v) => (v || '').toLowerCase().includes(ql)))
+      && (!activeOnly || p.depositCount > 0));
+  }, [rows, ag, q, activeOnly]);
 
-  const reset = () => { setAg(''); setQ(''); setSt(''); };
+  const reset = () => { setAg(''); setQ(''); setActiveOnly(false); };
+
+  const exportCsv = () => {
+    downloadCsv('agent-players.csv',
+      ['Player', 'Code', 'Agent', 'Agent code', 'Registered', 'Deposits (#)', 'Deposit total', 'Withdrawals', 'Wagered', 'GGR', 'KYC', 'Status'],
+      visible.map((p) => [p.username, p.playerCode, p.agentUsername, p.agentCode, (p.registrationDate || '').slice(0, 10),
+        p.depositCount, p.depositTotal, p.withdrawalTotal, p.wagered, p.ggr, p.kyc_status, p.status]));
+    toast('CSV exported ⬇ agent-players.csv');
+  };
 
   return (
     <>
       <div className="page-head">
         <div>
           <h1 className="hero-h">🎮 Agent Players</h1>
-          <div className="hero-sub" style={{ marginBottom: 0 }}>View all players registered under each agent</div>
+          <div className="hero-sub" style={{ marginBottom: 0 }}>Players registered with an agent's referral code — with live deposit, wager and GGR figures</div>
         </div>
-        <span className="pr"><button className="mini-btn" onClick={() => toast('Agent players exported 📋')}>📋 Export</button></span>
+        <span className="pr"><button className="mini-btn" onClick={exportCsv}>📋 Export CSV</button></span>
       </div>
+
       <div className="card">
-        <div className="form-grid" style={{ gridTemplateColumns: '1fr 4fr 1fr auto', alignItems: 'end' }}>
+        <div className="form-grid" style={{ gridTemplateColumns: '1fr 3fr 1fr auto', alignItems: 'end' }}>
           <div className="fld"><label>Agent</label>
             <select value={ag} onChange={(e) => setAg(e.target.value)}>
               <option value="">All Agents</option>
-              {AGENT_OPTS.map((a) => <option key={a}>{a}</option>)}
+              {agents.map((a) => <option key={a.id} value={a.id}>{a.username} ({a.code})</option>)}
             </select>
           </div>
-          <div className="fld"><label>Search Player</label><input placeholder="Name or username…" value={q} onInput={(e) => setQ(e.target.value)} /></div>
-          <div className="fld"><label>Status</label>
-            <select value={st} onChange={(e) => setSt(e.target.value)}>
-              <option value="">All</option><option value="1">Active</option><option value="0">Inactive</option>
+          <div className="fld"><label>Search Player</label><input placeholder="Username or player code…" value={q} onInput={(e) => setQ(e.target.value)} /></div>
+          <div className="fld"><label>Activity</label>
+            <select value={activeOnly ? '1' : ''} onChange={(e) => setActiveOnly(e.target.value === '1')}>
+              <option value="">All</option><option value="1">Depositors only</option>
             </select>
           </div>
           <button className="gl-reset" onClick={reset} title="Reset">↺</button>
         </div>
       </div>
+
       <div className="card" style={{ marginTop: 'var(--pad)' }}>
-        <div className="card-title">👤 Players under Agents</div>
+        <div className="card-title">👤 Players under Agents ({visible.length})</div>
         <div className="table-wrap" style={{ border: 'none', borderRadius: 0 }}>
-          <table style={{ minWidth: 1020 }}>
-            <thead><tr><th>Player</th><th>Agent</th><th>Joined</th><th>Total Deposit</th><th>Total Wager</th><th>GGR</th><th>Agent Commission</th><th>Status</th></tr></thead>
+          <table style={{ minWidth: 1100 }}>
+            <thead><tr><th>Player</th><th>Agent</th><th>Registered</th><th>Deposits</th><th>Withdrawals</th><th>Wagered</th><th>GGR</th><th>KYC</th><th>Status</th></tr></thead>
             <tbody>
-              {visible.map((x, i) => (
-                <tr key={i}>
-                  <td><div className="ag-name">{x.n}</div><div className="ag-email">{x.u}</div></td>
-                  <td><span className="ag-user">{x.ag}</span></td>
-                  <td style={{ color: '#aab4cc' }}>{x.j}</td>
-                  <td><span className="ag-earn">{x.dep}</span></td>
-                  <td style={{ fontWeight: 800 }}>{x.wag}</td>
-                  <td><span className="ag-rate">{x.ggr}</span></td>
-                  <td style={{ color: 'var(--gold)', fontWeight: 900 }}>{x.com}</td>
-                  <td>{x.on ? <BOk>Active</BOk> : <span className="sms-draft">Inactive</span>}</td>
+              {visible.length === 0 && (
+                <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--muted)', padding: 24 }}>
+                  {loaded ? 'No referred players yet — players link to an agent by entering the agent code at registration.' : 'Loading…'}
+                </td></tr>
+              )}
+              {visible.map((p) => (
+                <tr key={`${p.agentId}-${p.id}`}>
+                  <td><div className="ag-name">{p.username}</div><div className="ag-email">{p.playerCode}</div></td>
+                  <td><span className="ag-user">{p.agentUsername}</span> <span style={{ fontSize: 11, color: 'var(--muted)' }}>{p.agentCode}</span></td>
+                  <td style={{ color: '#aab4cc' }}>{(p.registrationDate || '').slice(0, 10)}</td>
+                  <td><span className="ag-earn">{money(p.depositTotal)}</span> <span style={{ fontSize: 11, color: 'var(--muted)' }}>×{p.depositCount}</span></td>
+                  <td>{money(p.withdrawalTotal)}</td>
+                  <td style={{ fontWeight: 800 }}>{money(p.wagered)}</td>
+                  <td><span className="ag-rate">{money(p.ggr)}</span></td>
+                  <td>{p.kyc_status === 'approved' ? <BOk>Verified</BOk> : <span className="sms-draft">{p.kyc_status || 'none'}</span>}</td>
+                  <td>{(p.status || 'active') === 'active' ? <BOk>Active</BOk> : <span className="sms-draft">{p.status}</span>}</td>
                 </tr>
               ))}
             </tbody>
